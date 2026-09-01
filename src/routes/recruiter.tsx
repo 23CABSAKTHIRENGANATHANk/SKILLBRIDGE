@@ -40,6 +40,7 @@ import { useCandidatesQuery, useCompanyQuery } from "@/hooks/use-api";
 import { BridgeLine } from "@/components/brand/logo";
 import { toast } from "sonner";
 import { CandidateDetailModal } from "@/components/candidate-detail-modal";
+import { AIRecruiterInsightsCard } from "@/components/ai/ai-recruiter-insights-card";
 
 export const Route = createFileRoute("/recruiter")({
   head: () => ({
@@ -99,6 +100,35 @@ function RecruiterPage() {
   });
 
   const { company } = useCompanyQuery("c1");
+
+  const pipelineMetrics = [
+    { label: "Applied", value: 124, delta: "+14%" },
+    { label: "Shortlisted", value: 52, delta: "+9%" },
+    { label: "Interviews", value: 19, delta: "+4%" },
+    { label: "Offers", value: 7, delta: "+2%" },
+  ];
+
+  const conversionMetrics = [
+    { label: "Applied → Shortlisted", value: 42, formatter: "42%" },
+    { label: "Shortlisted → Interview", value: 36, formatter: "36%" },
+    { label: "Interview → Offer", value: 37, formatter: "37%" },
+    { label: "Offer → Acceptance", value: 71, formatter: "71%" },
+  ];
+
+  const regionDemand = [
+    { region: "Bengaluru", score: 95 },
+    { region: "Chennai", score: 88 },
+    { region: "Hyderabad", score: 81 },
+    { region: "Remote", score: 91 },
+    { region: "Pune", score: 73 },
+    { region: "Coimbatore", score: 66 },
+  ];
+
+  const recruiterRecommendations = [
+    { title: "Top hiring gap", detail: "Frontend profiles are 18% above target for the current role mix.", value: "+18%" },
+    { title: "Best conversion channel", detail: "Referrals and portfolio-based assessments drive the strongest interview rates.", value: "3.2x" },
+    { title: "Priority action", detail: "Increase cloud and AI screening to match the demand in Pune and remote talent pools.", value: "Next" },
+  ];
 
   // Filter and Rank Candidates Client & Server side
   const filteredAndRankedCandidates = useMemo(() => {
@@ -313,9 +343,92 @@ function RecruiterPage() {
           </div>
         </ScrollReveal>
 
+        <ScrollReveal delay={80}>
+          <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg font-bold text-foreground">Recruiter analytics dashboard</h2>
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">Q3 view</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {pipelineMetrics.map((metric) => (
+                  <div key={metric.label} className="rounded-2xl border border-border/70 bg-background/50 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{metric.label}</p>
+                    <div className="mt-2 flex items-end justify-between">
+                      <span className="text-2xl font-extrabold text-foreground">{metric.value}</span>
+                      <span className="text-[11px] font-bold text-success">{metric.delta}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <h2 className="font-display text-lg font-bold text-foreground">Pipeline conversion</h2>
+              <div className="mt-4 space-y-3">
+                {conversionMetrics.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>{item.label}</span>
+                      <span className="font-bold text-foreground">{item.formatter}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${item.value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal delay={110}>
+          <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <h2 className="font-display text-lg font-bold text-foreground">Opportunity heat map</h2>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {regionDemand.map((item) => (
+                  <div
+                    key={item.region}
+                    className="rounded-2xl border border-border/70 p-3"
+                    style={{
+                      background: `linear-gradient(135deg, rgba(16,185,129,${Math.max(0.18, item.score / 110)}) 0%, rgba(59,130,246,${Math.max(0.12, item.score / 140)}) 100%)`,
+                    }}
+                  >
+                    <p className="text-sm font-bold text-foreground">{item.region}</p>
+                    <p className="mt-2 text-lg font-extrabold text-foreground">{item.score}%</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <h2 className="font-display text-lg font-bold text-foreground">Recommendation widgets</h2>
+              <div className="mt-4 space-y-3">
+                {recruiterRecommendations.map((item) => (
+                  <div key={item.title} className="rounded-2xl border border-border/70 bg-background/50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.title}</p>
+                        <p className="mt-2 text-sm font-semibold text-foreground">{item.detail}</p>
+                      </div>
+                      <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">{item.value}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ScrollReveal>
+
         {/* VIEW 1: CANDIDATE PIPELINE */}
         {activeView === "pipeline" && (
           <div className="mt-8 space-y-6">
+            {/* AI Recruiter Pipeline Insights */}
+            <ScrollReveal delay={90}>
+              <AIRecruiterInsightsCard />
+            </ScrollReveal>
+
             {/* Search, stage filter bar & Intelligent match controls */}
             <ScrollReveal delay={100}>
               <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft space-y-4">

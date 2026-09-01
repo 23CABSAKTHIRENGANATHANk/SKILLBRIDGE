@@ -381,4 +381,224 @@ export class ApiClient {
       throw err;
     }
   }
+
+  // --- AI: Resume Summary ---
+  public static async getAIResumeSummary(resumeText?: string): Promise<{
+    ai_powered: boolean;
+    resume_analysis: AIResumeAnalysis;
+  }> {
+    try {
+      return await this.request<{
+        success: boolean;
+        ai_powered: boolean;
+        resume_analysis: AIResumeAnalysis;
+      }>("/ai/resume-summary", {
+        method: "POST",
+        body: JSON.stringify({ resume_text: resumeText || "" }),
+      });
+    } catch (err) {
+      if (IS_DEV) {
+        return {
+          ai_powered: false,
+          resume_analysis: {
+            headline: "Aspiring Full-Stack Software Engineer & Problem Solver",
+            summary:
+              "Dedicated student with a solid background in React, TypeScript, and modern web architectures. Proven capability building responsive interfaces and scalable APIs, seeking a high-impact internship opportunity.",
+            key_strengths: [
+              "Modern React & Component State Architecture",
+              "REST API Integration & TypeScript Generics",
+              "Responsive Design & Clean Semantic Code",
+            ],
+            improvement_tips: [
+              "Quantify project outcomes with key metrics (e.g., 'Enhanced page load by 35%')",
+              "Highlight cloud deployment experience (AWS/Vercel/Docker)",
+            ],
+            ats_score: 88,
+            experience_level: "Fresher",
+          },
+        };
+      }
+      throw err;
+    }
+  }
+
+  // --- AI: Match Explanation ---
+  public static async getAIMatchExplain(jobId: string): Promise<{
+    ai_powered: boolean;
+    job_title: string;
+    company: string;
+    match_score: number;
+    explanation: AIMatchExplanation;
+  }> {
+    try {
+      return await this.request<{
+        success: boolean;
+        ai_powered: boolean;
+        job_title: string;
+        company: string;
+        match_score: number;
+        explanation: AIMatchExplanation;
+      }>("/ai/match-explain", {
+        method: "POST",
+        body: JSON.stringify({ job_id: jobId }),
+      });
+    } catch (err) {
+      if (IS_DEV) {
+        return {
+          ai_powered: false,
+          job_title: "Frontend Engineer",
+          company: "TechCorp",
+          match_score: 92,
+          explanation: {
+            verdict: "Strong Match",
+            fit_paragraph:
+              "Your verified expertise in React and TypeScript directly fulfills the core engineering requirements for this position. Your foundation in modern web UI patterns gives you a major advantage.",
+            top_reasons: [
+              "Direct proficiency in React hooks and component architecture",
+              "TypeScript type-safety and state management mastery",
+              "Strong overlap with current company tech stack",
+            ],
+            gap_summary: "Minor gap in advanced Docker/CI pipeline workflows.",
+            recruiter_tip:
+              "Top tier candidate with verified technical badges — fast-track to technical screening.",
+            confidence: 94,
+            missing_skills: ["Docker"],
+          },
+        };
+      }
+      throw err;
+    }
+  }
+
+  // --- AI: Personalized Recommendations ---
+  public static async getAIRecommendations(): Promise<{
+    ai_powered: boolean;
+    recommendations: AIRecommendedJob[];
+    student_skills: string[];
+  }> {
+    try {
+      return await this.request<{
+        success: boolean;
+        ai_powered: boolean;
+        recommendations: AIRecommendedJob[];
+        student_skills: string[];
+      }>("/ai/recommendations");
+    } catch (err) {
+      if (IS_DEV) {
+        return {
+          ai_powered: false,
+          recommendations: demoJobs.slice(0, 4).map((j, i) => ({
+            ...j,
+            ai_reason:
+              i === 0
+                ? "Optimal alignment with your React & TypeScript credentials and high role fit score."
+                : "Strong match for your full-stack aspirations with clear mentorship paths.",
+            fit_label: i === 0 ? "Perfect Fit" : "Great Match",
+            missing_count: i === 0 ? 0 : 1,
+          })),
+          student_skills: ["React", "TypeScript", "Tailwind CSS", "Node.js"],
+        };
+      }
+      throw err;
+    }
+  }
+
+  // --- AI: Skill Gap & Learning Path ---
+  public static async getAISkillGap(jobId: string): Promise<{
+    ai_powered: boolean;
+    job_title: string;
+    student_skills: string[];
+    job_skills: string[];
+    gap_analysis: AISkillGapAnalysis;
+  }> {
+    try {
+      return await this.request<{
+        success: boolean;
+        ai_powered: boolean;
+        job_title: string;
+        student_skills: string[];
+        job_skills: string[];
+        gap_analysis: AISkillGapAnalysis;
+      }>("/ai/skill-gap", {
+        method: "POST",
+        body: JSON.stringify({ job_id: jobId }),
+      });
+    } catch (err) {
+      if (IS_DEV) {
+        return {
+          ai_powered: false,
+          job_title: "Full Stack Engineer",
+          student_skills: ["React", "TypeScript"],
+          job_skills: ["React", "TypeScript", "PostgreSQL", "Docker"],
+          gap_analysis: {
+            gap_skills: ["PostgreSQL", "Docker"],
+            readiness_score: 75,
+            time_to_ready: "3-4 weeks",
+            roadmap: [
+              {
+                skill: "PostgreSQL",
+                priority: "High",
+                weeks: 2,
+                why_needed: "Core database layer required for data persistence and queries.",
+                resources: ["PostgreSQL Official Tutorial", "Interactive SQL Zoo"],
+                quick_win: "Spin up a local Postgres instance and write a CRUD migration.",
+              },
+              {
+                skill: "Docker",
+                priority: "Medium",
+                weeks: 1,
+                why_needed: "Containerization standard used in company staging and production.",
+                resources: ["Docker for Beginners Guide"],
+                quick_win: "Write a multi-stage Dockerfile for a React+Node app.",
+              },
+            ],
+            encouragement:
+              "You are already 75% ready for this role. Learning PostgreSQL this month will bridge the critical gap!",
+          },
+        };
+      }
+      throw err;
+    }
+  }
+
+  // --- AI: Recruiter Pipeline Insights ---
+  public static async getAIRecruiterInsights(): Promise<{
+    ai_powered: boolean;
+    pipeline_stats: { total: number; shortlisted: number; interview: number };
+    insights: AIRecruiterInsights;
+    top_skills: string[];
+  }> {
+    try {
+      return await this.request<{
+        success: boolean;
+        ai_powered: boolean;
+        pipeline_stats: { total: number; shortlisted: number; interview: number };
+        insights: AIRecruiterInsights;
+        top_skills: string[];
+      }>("/ai/recruiter-insights");
+    } catch (err) {
+      if (IS_DEV) {
+        return {
+          ai_powered: false,
+          pipeline_stats: { total: 18, shortlisted: 6, interview: 3 },
+          insights: {
+            pipeline_health: "Healthy",
+            summary:
+              "Your candidate pool shows strong technical density with 85%+ candidates possessing React and TypeScript proficiencies.",
+            top_insight:
+              "Top 3 candidates in your pipeline have verified identity and academic badges with 90%+ match scores.",
+            action_recommendations: [
+              "Review the 3 pending interview requests to prevent candidate drop-off",
+              "Send early offer indications to top-ranked role-fit candidates",
+            ],
+            conversion_tip:
+              "Candidates with interview feedback scheduled within 48 hours accept offers at 3x the standard rate.",
+            talent_pool_quality: "Strong",
+          },
+          top_skills: ["React", "TypeScript", "Node.js", "Python", "SQL"],
+        };
+      }
+      throw err;
+    }
+  }
 }

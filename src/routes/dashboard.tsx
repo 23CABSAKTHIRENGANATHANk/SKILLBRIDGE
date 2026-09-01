@@ -47,6 +47,10 @@ import { toast } from "sonner";
 import { InterviewTimeline, type Interview } from "@/components/interview-timeline";
 import { ResumeScorer } from "@/lib/resume-scorer";
 
+import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
+import { OpportunityModal } from "@/components/opportunity-modal";
+import type { Job } from "@/types/skillbridge";
+
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
@@ -79,7 +83,8 @@ function DashboardPage() {
   const { pipeline, progress, applications, loading } = useStudentDashboardQuery();
   const { jobs: allJobs } = useJobsQuery();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "applications" | "trust" | "interviews">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "profile" | "applications" | "trust" | "interviews">("overview");
+  const [selectedOpportunityJob, setSelectedOpportunityJob] = useState<Job | null>(null);
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillProficiency, setNewSkillProficiency] = useState(85);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
@@ -133,6 +138,33 @@ function DashboardPage() {
   const currentPipeline = pipeline || demoPipeline;
   const currentProgress = progress || demoProgress;
   const recommendedJobs = allJobs.slice(0, 4);
+
+  const careerScore = Math.min(
+    100,
+    Math.round((currentProgress.percent * 0.7) + (resumeScore * 0.3))
+  );
+
+  const opportunityHeatMap = [
+    { region: "Bengaluru", score: 92, label: "AI + Product" },
+    { region: "Chennai", score: 86, label: "Full Stack" },
+    { region: "Hyderabad", score: 78, label: "Cloud" },
+    { region: "Remote", score: 90, label: "Frontend" },
+    { region: "Pune", score: 74, label: "Data" },
+    { region: "Coimbatore", score: 68, label: "Core Tech" },
+  ];
+
+  const skillClusterData = [
+    { skill: "Frontend", value: 94, delta: "+12%" },
+    { skill: "Backend", value: 88, delta: "+9%" },
+    { skill: "AI / ML", value: 76, delta: "+6%" },
+    { skill: "Cloud", value: 70, delta: "+4%" },
+  ];
+
+  const recommendationWidgets = [
+    { title: "Priority upskill", detail: "Add Docker + CI/CD to improve backend fit", gain: "+18% match" },
+    { title: "Best-fit role", detail: "Full Stack Developer in Chennai", gain: "92% match" },
+    { title: "Interview prep", detail: "Practice system design and product reasoning", gain: "2.3x readiness" },
+  ];
 
   const now = new Date();
   const greeting =
@@ -285,6 +317,18 @@ function DashboardPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab("ai")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === "ai"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-primary hover:bg-primary/10"
+                }`}
+              >
+                <Sparkles className="size-3.5 animate-pulse" />
+                <span>AI Copilot</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("profile")}
                 className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
                   activeTab === "profile"
@@ -383,6 +427,92 @@ function DashboardPage() {
             ))}
           </div>
         </ScrollReveal>
+
+        <ScrollReveal delay={120}>
+          <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Career score</p>
+                  <h2 className="mt-2 font-display text-2xl font-bold text-foreground">{careerScore}/100</h2>
+                </div>
+                <div className="rounded-2xl bg-primary-soft p-3 text-primary">
+                  <TrendingUp className="size-5" />
+                </div>
+              </div>
+              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${careerScore}%` }} />
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {skillClusterData.map((item) => (
+                  <div key={item.skill} className="rounded-2xl border border-border/70 bg-background/50 p-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{item.skill}</span>
+                      <span className="font-bold text-success">{item.delta}</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-accent" style={{ width: `${item.value}%` }} />
+                    </div>
+                    <p className="mt-2 text-sm font-bold text-foreground">{item.value}%</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg font-bold text-foreground">Opportunity heat map</h2>
+                <span className="text-[11px] font-bold text-primary">Live demand</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {opportunityHeatMap.map((item) => (
+                  <div
+                    key={item.region}
+                    className="rounded-2xl border border-border/70 p-3"
+                    style={{
+                      background: `linear-gradient(135deg, rgba(59,130,246,${Math.max(0.15, item.score / 100)}) 0%, rgba(99,102,241,${Math.max(0.08, item.score / 150)}) 100%)`,
+                    }}
+                  >
+                    <p className="text-sm font-bold text-foreground">{item.region}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{item.label}</p>
+                    <p className="mt-2 text-lg font-extrabold text-foreground">{item.score}%</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal delay={140}>
+          <div className="mt-6 rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-foreground">Recommendation widgets</h2>
+              <Link to="/jobs" className="text-xs font-bold text-primary hover:underline">View roles</Link>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {recommendationWidgets.map((widget) => (
+                <div key={widget.title} className="rounded-2xl border border-border/70 bg-background/50 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{widget.title}</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">{widget.detail}</p>
+                  <span className="mt-3 inline-flex rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-bold text-primary">
+                    {widget.gain}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </ScrollReveal>
+
+        {/* TAB: AI CAREER COPILOT */}
+        {activeTab === "ai" && (
+          <div className="mt-8">
+            <AICareerCopilot
+              onSelectJob={(job) => {
+                setSelectedOpportunityJob(job);
+              }}
+            />
+          </div>
+        )}
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === "overview" && (
@@ -1003,6 +1133,13 @@ function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Opportunity Detail Modal */}
+        <OpportunityModal
+          job={selectedOpportunityJob}
+          isOpen={!!selectedOpportunityJob}
+          onClose={() => setSelectedOpportunityJob(null)}
+        />
       </main>
 
       <BottomNav />

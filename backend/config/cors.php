@@ -12,13 +12,17 @@ function handleCors(): void {
         'https://www.skillbridge.dev',
         'https://app.skillbridge.dev',
         'http://localhost:5173',
+        'http://localhost:8080',
         'http://localhost:3000',
-        'http://127.0.0.1:5173'
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:8080',
+        'http://127.0.0.1:3000'
     ];
 
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $localhostOrigin = preg_match('/^http:\/\/(localhost|127\.0\.0\.1):(\d+)$/', $origin) === 1;
 
-    if ($env === 'development' || in_array($origin, $allowedOrigins, true)) {
+    if ($env === 'development' || in_array($origin, $allowedOrigins, true) || $localhostOrigin) {
         header("Access-Control-Allow-Origin: " . ($origin ?: '*'));
     } else if (!empty($allowedOrigins)) {
         header("Access-Control-Allow-Origin: " . $allowedOrigins[0]);
@@ -51,26 +55,30 @@ function handleCors(): void {
 /**
  * Standardized JSON response helper
  */
-function jsonResponse(mixed $data, int $statusCode = 200): void {
-    http_response_code($statusCode);
-    echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    exit;
+if (!function_exists('jsonResponse')) {
+    function jsonResponse(mixed $data, int $statusCode = 200): void {
+        http_response_code($statusCode);
+        echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
 /**
  * Production-Safe JSON error helper (Masks internal details in production)
  */
-function errorResponse(string $message, int $statusCode = 400, array $extra = []): void {
-    $env = getenv('APP_ENV') ?: 'production';
+if (!function_exists('errorResponse')) {
+    function errorResponse(string $message, int $statusCode = 400, array $extra = []): void {
+        $env = getenv('APP_ENV') ?: 'production';
 
-    // In production, mask generic 500 errors so sensitive database/stack details are never leaked
-    $safeMessage = $message;
-    if ($statusCode >= 500 && $env === 'production') {
-        $safeMessage = 'An internal server error occurred. Please try again later or contact support.';
+        // In production, mask generic 500 errors so sensitive database/stack details are never leaked
+        $safeMessage = $message;
+        if ($statusCode >= 500 && $env === 'production') {
+            $safeMessage = 'An internal server error occurred. Please try again later or contact support.';
+        }
+
+        jsonResponse(array_merge([
+            'success' => false,
+            'error' => $safeMessage
+        ], $extra), $statusCode);
     }
-
-    jsonResponse(array_merge([
-        'success' => false,
-        'error' => $safeMessage
-    ], $extra), $statusCode);
 }

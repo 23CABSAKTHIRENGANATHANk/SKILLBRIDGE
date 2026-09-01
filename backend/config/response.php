@@ -44,87 +44,93 @@ function apiMeta(): array {
 // ---------------------------------------------------------------------------
 // Success response
 // ---------------------------------------------------------------------------
-function jsonResponse(array $payload, int $status = 200): never {
-    if (!headers_sent()) {
-        http_response_code($status);
-        header('Content-Type: application/json; charset=UTF-8');
-        header('X-Request-Id: ' . (apiMeta()['request_id']));
-        header('X-API-Version: ' . API_VERSION);
-        header('X-Content-Type-Options: nosniff');
-        header('Cache-Control: no-store, no-cache, must-revalidate');
+if (!function_exists('jsonResponse')) {
+    function jsonResponse(array $payload, int $status = 200): never {
+        if (!headers_sent()) {
+            http_response_code($status);
+            header('Content-Type: application/json; charset=UTF-8');
+            header('X-Request-Id: ' . (apiMeta()['request_id']));
+            header('X-API-Version: ' . API_VERSION);
+            header('X-Content-Type-Options: nosniff');
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+        }
+
+        // Inject meta into every response automatically
+        $payload['meta'] = $payload['meta'] ?? apiMeta();
+
+        echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        exit;
     }
-
-    // Inject meta into every response automatically
-    $payload['meta'] = $payload['meta'] ?? apiMeta();
-
-    echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-    exit;
 }
 
 // ---------------------------------------------------------------------------
 // Paginated success response
 // ---------------------------------------------------------------------------
-function jsonPaginatedResponse(array $items, int $total, int $page, int $perPage, int $status = 200): never {
-    $totalPages = (int)ceil($total / max($perPage, 1));
-    jsonResponse([
-        'success' => true,
-        'data'    => $items,
-        'pagination' => [
-            'total'       => $total,
-            'per_page'    => $perPage,
-            'page'        => $page,
-            'total_pages' => $totalPages,
-            'has_next'    => $page < $totalPages,
-            'has_prev'    => $page > 1,
-        ],
-    ], $status);
+if (!function_exists('jsonPaginatedResponse')) {
+    function jsonPaginatedResponse(array $items, int $total, int $page, int $perPage, int $status = 200): never {
+        $totalPages = (int)ceil($total / max($perPage, 1));
+        jsonResponse([
+            'success' => true,
+            'data'    => $items,
+            'pagination' => [
+                'total'       => $total,
+                'per_page'    => $perPage,
+                'page'        => $page,
+                'total_pages' => $totalPages,
+                'has_next'    => $page < $totalPages,
+                'has_prev'    => $page > 1,
+            ],
+        ], $status);
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Error response
 // ---------------------------------------------------------------------------
-function errorResponse(
-    string $message,
-    int    $status = 400,
-    string $code   = 'BAD_REQUEST',
-    array  $errors = []
-): never {
-    if (!headers_sent()) {
-        http_response_code($status);
-        header('Content-Type: application/json; charset=UTF-8');
-        header('X-Request-Id: ' . (apiMeta()['request_id']));
-        header('X-Content-Type-Options: nosniff');
-    }
+if (!function_exists('errorResponse')) {
+    function errorResponse(
+        string $message,
+        int    $status = 400,
+        string $code   = 'BAD_REQUEST',
+        array  $errors = []
+    ): never {
+        if (!headers_sent()) {
+            http_response_code($status);
+            header('Content-Type: application/json; charset=UTF-8');
+            header('X-Request-Id: ' . (apiMeta()['request_id']));
+            header('X-Content-Type-Options: nosniff');
+        }
 
-    // Map HTTP status to a default machine code if not explicitly provided
-    if ($code === 'BAD_REQUEST') {
-        $codeMap = [
-            400 => 'BAD_REQUEST',
-            401 => 'UNAUTHORIZED',
-            403 => 'FORBIDDEN',
-            404 => 'NOT_FOUND',
-            409 => 'CONFLICT',
-            422 => 'VALIDATION_ERROR',
-            429 => 'RATE_LIMITED',
-            500 => 'INTERNAL_ERROR',
-            503 => 'SERVICE_UNAVAILABLE',
+        // Map HTTP status to a default machine code if not explicitly provided
+        if ($code === 'BAD_REQUEST') {
+            $codeMap = [
+                400 => 'BAD_REQUEST',
+                401 => 'UNAUTHORIZED',
+                403 => 'FORBIDDEN',
+                404 => 'NOT_FOUND',
+                409 => 'CONFLICT',
+                422 => 'VALIDATION_ERROR',
+                429 => 'RATE_LIMITED',
+                500 => 'INTERNAL_ERROR',
+                503 => 'SERVICE_UNAVAILABLE',
+            ];
+            $code = $codeMap[$status] ?? 'ERROR';
+        }
+
+        $body = [
+            'success' => false,
+            'error'   => $message,
+            'code'    => $code,
+            'meta'    => apiMeta(),
         ];
-        $code = $codeMap[$status] ?? 'ERROR';
+
+        if (!empty($errors)) {
+            $body['errors'] = $errors;
+        }
+
+        echo json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        exit;
     }
-
-    $body = [
-        'success' => false,
-        'error'   => $message,
-        'code'    => $code,
-        'meta'    => apiMeta(),
-    ];
-
-    if (!empty($errors)) {
-        $body['errors'] = $errors;
-    }
-
-    echo json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    exit;
 }
 
 // ---------------------------------------------------------------------------

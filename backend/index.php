@@ -28,6 +28,8 @@ require_once __DIR__ . '/controllers/StudentController.php';
 require_once __DIR__ . '/controllers/ApplicationController.php';
 require_once __DIR__ . '/controllers/NotificationController.php';
 require_once __DIR__ . '/controllers/AdminController.php';
+require_once __DIR__ . '/services/GeminiService.php';
+require_once __DIR__ . '/controllers/AIController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -235,6 +237,37 @@ switch (true) {
             'audit_logs' => $entries,
             'total'      => count($entries),
         ]);
+        break;
+
+    // --- AI Features (Rate limited: 20 req/min) ---
+    case $path === '/ai/resume-summary' && $method === 'POST':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        AIController::resumeSummary($user);
+        break;
+
+    case $path === '/ai/match-explain' && $method === 'POST':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        AIController::matchExplain($user);
+        break;
+
+    case $path === '/ai/recommendations' && $method === 'GET':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        AIController::recommendations($user);
+        break;
+
+    case $path === '/ai/skill-gap' && $method === 'POST':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        AIController::skillGap($user);
+        break;
+
+    case $path === '/ai/recruiter-insights' && $method === 'GET':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        AIController::recruiterInsights($user);
         break;
 
     default:

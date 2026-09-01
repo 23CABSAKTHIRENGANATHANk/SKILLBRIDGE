@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MatchRing } from "@/components/match-ring";
 import { ApiClient } from "@/lib/api-client";
+import { AIMatchModal } from "@/components/ai/ai-match-modal";
 import type { Job } from "@/types/skillbridge";
 
 interface OpportunityModalProps {
@@ -30,6 +31,7 @@ interface OpportunityModalProps {
 export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps) {
   const [applyState, setApplyState] = useState<"idle" | "applying" | "applied">("idle");
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [showAIMatch, setShowAIMatch] = useState(false);
 
   if (!isOpen || !job) return null;
 
@@ -135,22 +137,33 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
         {/* Intelligent Skill Matching & Explanation */}
         {match && (
           <div className="mt-6 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary-soft/50 via-background to-accent-soft/30 p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
                 <Sparkles className="size-4 animate-pulse" aria-hidden="true" />
                 <span>Deterministic Skill Match Analysis</span>
               </div>
-              <span
-                className={`rounded-full px-3 py-0.5 text-xs font-extrabold uppercase tracking-wider ${
-                  fitLevel.toLowerCase().includes("strong")
-                    ? "bg-success-soft text-success"
-                    : fitLevel.toLowerCase().includes("moderate")
-                      ? "bg-warning-soft text-warning-foreground"
-                      : "bg-primary-soft text-primary"
-                }`}
-              >
-                {fitLevel}
-              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAIMatch(true)}
+                  className="h-7 px-2.5 text-[11px] font-bold rounded-lg border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+                >
+                  <Sparkles className="size-3 text-primary animate-pulse" />
+                  Gemini Deep-Dive
+                </Button>
+                <span
+                  className={`rounded-full px-3 py-0.5 text-xs font-extrabold uppercase tracking-wider ${
+                    fitLevel.toLowerCase().includes("strong")
+                      ? "bg-success-soft text-success"
+                      : fitLevel.toLowerCase().includes("moderate")
+                        ? "bg-warning-soft text-warning-foreground"
+                        : "bg-primary-soft text-primary"
+                  }`}
+                >
+                  {fitLevel}
+                </span>
+              </div>
             </div>
 
             {/* Natural Language Match Explanation */}
@@ -304,6 +317,18 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
             )}
           </div>
         </div>
+
+        {/* AI Match Deep-Dive Modal */}
+        {showAIMatch && (
+          <AIMatchModal
+            jobId={job.id}
+            jobTitle={job.title}
+            companyName={job.company.name}
+            onClose={() => setShowAIMatch(false)}
+            onApply={applyState === "idle" ? handleApply : undefined}
+            hasApplied={applyState === "applied"}
+          />
+        )}
       </div>
     </div>
   );

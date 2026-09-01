@@ -123,3 +123,54 @@ export interface AuthUser {
     skills?: Array<{ skill_name: string; proficiency: number }>;
   } | null;
 }
+
+export interface AIResumeAnalysis {
+  headline: string;
+  summary: string;
+  key_strengths: string[];
+  improvement_tips: string[];
+  ats_score: number;
+  experience_level: "Fresher" | "Junior" | "Mid" | string;
+}
+
+export interface AIMatchExplanation {
+  verdict: "Strong Match" | "Good Match" | "Moderate Match" | "Reach Role" | string;
+  fit_paragraph: string;
+  top_reasons: string[];
+  gap_summary: string;
+  recruiter_tip: string;
+  confidence: number;
+  missing_skills?: string[];
+}
+
+export interface AIRoadmapStep {
+  skill: string;
+  priority: "High" | "Medium" | "Low" | string;
+  weeks: number;
+  why_needed: string;
+  resources: string[];
+  quick_win: string;
+}
+
+export interface AISkillGapAnalysis {
+  gap_skills: string[];
+  readiness_score: number;
+  time_to_ready: string;
+  roadmap: AIRoadmapStep[];
+  encouragement: string;
+}
+
+export interface AIRecruiterInsights {
+  pipeline_health: "Healthy" | "Growing" | "Needs Attention" | string;
+  summary: string;
+  top_insight: string;
+  action_recommendations: string[];
+  conversion_tip: string;
+  talent_pool_quality: "Strong" | "Moderate" | "Thin" | string;
+}
+
+export interface AIRecommendedJob extends Job {
+  ai_reason?: string;
+  fit_label?: "Perfect Fit" | "Great Match" | "Good Match" | "Worth Trying" | string;
+  missing_count?: number;
+}
