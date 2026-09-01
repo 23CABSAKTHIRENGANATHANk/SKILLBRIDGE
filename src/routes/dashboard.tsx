@@ -70,10 +70,31 @@ function DashboardPage() {
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillProficiency, setNewSkillProficiency] = useState(85);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
+  const [savedJobs, setSavedJobs] = useState<Record<string, boolean>>({
+    "job-2": true,
+    "job-4": true,
+    "job-6": true,
+  });
 
   const currentPipeline = pipeline || demoPipeline;
   const currentProgress = progress || demoProgress;
   const recommendedJobs = allJobs.slice(0, 4);
+  const savedJobList = allJobs.filter((job) => savedJobs[job.id]);
+  const profileCompletion = 82;
+  const resumeScore = 88;
+  const profileChecklist = [
+    { label: "Profile photo", done: true },
+    { label: "Education details", done: true },
+    { label: "Skills added", done: true },
+    { label: "Resume uploaded", done: true },
+    { label: "Portfolio links", done: false },
+    { label: "Career preferences", done: false },
+  ];
+  const skillGapInsights = [
+    { skill: "TypeScript", gap: "Needs stronger practical patterns" },
+    { skill: "System Design", gap: "Add one architecture project" },
+    { skill: "SQL optimization", gap: "Practice window functions" },
+  ];
 
   const now = new Date();
   const greeting =
@@ -229,6 +250,64 @@ function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal delay={150}>
+          <div className="mt-8 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                    Career readiness
+                  </p>
+                  <h2 className="mt-1 font-display text-xl font-bold text-foreground">
+                    Profile completion and role-fit snapshot
+                  </h2>
+                </div>
+                <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">
+                  {profileCompletion}% complete
+                </span>
+              </div>
+
+              <div className="mt-5 h-2.5 rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                  style={{ width: `${profileCompletion}%` }}
+                />
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {profileChecklist.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 px-3 py-2 text-sm"
+                  >
+                    <span className="text-foreground">{item.label}</span>
+                    <span
+                      className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                        item.done ? "bg-success-soft text-success" : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {item.done ? "Done" : "Pending"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent">
+                Resume score
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="font-display text-4xl font-extrabold text-foreground">{resumeScore}</span>
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">Strong match</span>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Your resume aligns well with product and engineering roles. Add one project and one measurable impact line to reach the next tier.
+              </p>
+            </div>
           </div>
         </ScrollReveal>
 

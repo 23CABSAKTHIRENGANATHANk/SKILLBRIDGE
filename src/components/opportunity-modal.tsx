@@ -11,6 +11,10 @@ import {
   MapPin,
   Sparkles,
   X,
+  BookOpen,
+  TrendingUp,
+  Award,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MatchRing } from "@/components/match-ring";
@@ -47,6 +51,14 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
     setFeedbackMessage(null);
     onClose();
   };
+
+  const match = job.match;
+  const fitLevel = match?.fit_level || (match && match.score >= 85 ? "Strong Fit" : match && match.score >= 60 ? "Moderate Fit" : "Developing Fit");
+  const explanation = match?.explanation || (
+    match
+      ? `You match ${match.matched.length} of ${job.skills.length} core competencies. Adding ${match.missing.join(", ")} will complete your qualification.`
+      : ""
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -120,41 +132,63 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
           </div>
         </div>
 
-        {/* Signature SkillBridge Moment */}
-        {job.match && (
-          <div className="mt-6 overflow-hidden rounded-2xl border bg-gradient-to-br from-primary-soft/50 via-background to-accent-soft/40 p-5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
-              <Sparkles className="size-4 animate-pulse" aria-hidden="true" />
-              <span>Your skills found a connection</span>
+        {/* Intelligent Skill Matching & Explanation */}
+        {match && (
+          <div className="mt-6 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary-soft/50 via-background to-accent-soft/30 p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+                <Sparkles className="size-4 animate-pulse" aria-hidden="true" />
+                <span>Deterministic Skill Match Analysis</span>
+              </div>
+              <span
+                className={`rounded-full px-3 py-0.5 text-xs font-extrabold uppercase tracking-wider ${
+                  fitLevel.toLowerCase().includes("strong")
+                    ? "bg-success-soft text-success"
+                    : fitLevel.toLowerCase().includes("moderate")
+                      ? "bg-warning-soft text-warning-foreground"
+                      : "bg-primary-soft text-primary"
+                }`}
+              >
+                {fitLevel}
+              </span>
             </div>
+
+            {/* Natural Language Match Explanation */}
+            <p className="mt-3 text-xs leading-relaxed text-foreground font-medium bg-background/60 p-3 rounded-xl border border-border/60">
+              {explanation}
+            </p>
 
             <div className="mt-4 grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
               {/* Student skills side */}
               <div className="rounded-xl border bg-card/80 p-3 backdrop-blur-sm">
                 <p className="text-[11px] font-semibold text-muted-foreground">Matched Profile Skills</p>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {job.match.matched.map((skill) => (
-                    <span
-                      key={skill}
-                      className="inline-flex items-center gap-1 rounded-md bg-success-soft px-2 py-0.5 text-xs font-medium text-success"
-                    >
-                      <Check className="size-3" aria-hidden="true" /> {skill}
-                    </span>
-                  ))}
+                  {match.matched.length > 0 ? (
+                    match.matched.map((skill) => (
+                      <span
+                        key={skill}
+                        className="inline-flex items-center gap-1 rounded-md bg-success-soft px-2 py-0.5 text-xs font-medium text-success"
+                      >
+                        <Check className="size-3" aria-hidden="true" /> {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No overlapping skills yet</span>
+                  )}
                 </div>
               </div>
 
               {/* Central Connection Ring */}
               <div className="flex flex-col items-center justify-center py-2">
-                <MatchRing score={job.match.score} size={84} />
+                <MatchRing score={match.score} size={84} />
               </div>
 
               {/* Required skills */}
               <div className="rounded-xl border bg-card/80 p-3 backdrop-blur-sm">
-                <p className="text-[11px] font-semibold text-muted-foreground">Missing / Recommended</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">Missing / Required</p>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {job.match.missing.length > 0 ? (
-                    job.match.missing.map((skill) => (
+                  {match.missing.length > 0 ? (
+                    match.missing.map((skill) => (
                       <span
                         key={skill}
                         className="inline-flex items-center gap-1 rounded-md border border-dashed px-2 py-0.5 text-xs font-medium text-muted-foreground"
@@ -163,11 +197,49 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-success font-medium">Full skill alignment!</span>
+                    <span className="text-xs text-success font-medium">100% skill alignment!</span>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* Targeted Learning Paths for Missing Skills */}
+            {match.learning_paths && match.learning_paths.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/60">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground mb-2.5">
+                  <BookOpen className="size-3.5 text-accent" />
+                  <span>Recommended Learning Paths to Qualify</span>
+                </div>
+                <div className="space-y-2">
+                  {match.learning_paths.map((path) => (
+                    <div
+                      key={path.skill}
+                      className="rounded-xl border border-border/70 bg-background/80 p-3 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground flex items-center gap-1">
+                          <Zap className="size-3 text-warning-foreground" />
+                          {path.skill}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">{path.time_to_learn}</span>
+                          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
+                            +{path.score_boost}% Match Boost
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {path.key_topics.map((topic) => (
+                          <span key={topic} className="rounded bg-secondary/80 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

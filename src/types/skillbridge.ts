@@ -28,11 +28,24 @@ export interface Company {
   longitude?: number | null;
 }
 
+export interface LearningRecommendation {
+  skill: string;
+  time_to_learn: string;
+  key_topics: string[];
+  resource: string;
+  score_boost: number;
+}
+
 export interface SkillMatch {
   /** 0-100, computed server-side. */
   score: number;
   matched: string[];
   missing: string[];
+  fit_level?: "Strong Fit" | "Moderate Fit" | "Developing Fit" | string;
+  explanation?: string;
+  strengths?: string[];
+  learning_paths?: LearningRecommendation[];
+  role_fit_score?: number;
 }
 
 export interface Job {
@@ -50,6 +63,7 @@ export interface Job {
 
 export interface Candidate {
   id: string;
+  appId?: string;
   name: string;
   avatarUrl: string | null;
   college: string;
@@ -59,6 +73,10 @@ export interface Candidate {
   match: SkillMatch | null;
   stage: ApplicationStage;
   appliedAt: string;
+  jobTitle?: string;
+  location?: string;
+  graduationYear?: number;
+  roleFitScore?: number;
 }
 
 export interface Application {

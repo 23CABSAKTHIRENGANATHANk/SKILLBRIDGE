@@ -17,8 +17,11 @@ import {
   DollarSign,
   Send,
   Navigation,
+  ArrowUpDown,
+  GraduationCap,
+  Award,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { CursorDot } from "@/components/cursor-dot";
@@ -53,12 +56,18 @@ export const Route = createFileRoute("/recruiter")({
 });
 
 const stageFilters = ["All", "Applied", "Shortlisted", "Interview", "Offer"] as const;
+const skillFilterOptions = ["All Skills", "React", "TypeScript", "Python", "Node.js", "PostgreSQL", "CSS", "Docker"];
+const locationFilterOptions = ["All Locations", "Bengaluru", "Chennai", "Coimbatore"];
+const gradYearOptions = ["All Batches", "2024", "2025", "2026"];
 
 function RecruiterPage() {
   const [activeView, setActiveView] = useState<"pipeline" | "post-job" | "company-settings">("pipeline");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStage, setSelectedStage] = useState<string>("All");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<string>("All Skills");
+  const [selectedLocation, setSelectedLocation] = useState<string>("All Locations");
+  const [selectedGradYear, setSelectedGradYear] = useState<string>("All Batches");
+  const [sortBy, setSortBy] = useState<"role_fit" | "match_score" | "recent">("role_fit");
 
   // Job creation state
   const [jobTitle, setJobTitle] = useState("");
@@ -77,12 +86,50 @@ function RecruiterPage() {
   const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
 
   // Live API hook connected to PHP Backend
-  const { candidates, loading } = useCandidatesQuery({
+  const { candidates: rawCandidates, loading, refetch } = useCandidatesQuery({
     stage: selectedStage,
     search: searchQuery,
   });
 
   const { company } = useCompanyQuery("c1");
+
+  // Filter and Rank Candidates Client & Server side
+  const filteredAndRankedCandidates = useMemo(() => {
+    let list = [...rawCandidates];
+
+    // Filter by skill
+    if (selectedSkill !== "All Skills") {
+      list = list.filter((c) =>
+        c.skills.some((s) => s.toLowerCase() === selectedSkill.toLowerCase())
+      );
+    }
+
+    // Filter by location
+    if (selectedLocation !== "All Locations") {
+      list = list.filter((c) =>
+        (c.location || "").toLowerCase().includes(selectedLocation.toLowerCase()) ||
+        c.college.toLowerCase().includes(selectedLocation.toLowerCase())
+      );
+    }
+
+    // Filter by batch
+    if (selectedGradYear !== "All Batches") {
+      list = list.filter((c) => (c.graduationYear || 2025).toString() === selectedGradYear);
+    }
+
+    // Sort by Role Fit, Match Score, or Recent
+    if (sortBy === "role_fit") {
+      list.sort((a, b) => {
+        const scoreA = a.roleFitScore || a.match?.role_fit_score || a.match?.score || 0;
+        const scoreB = b.roleFitScore || b.match?.role_fit_score || b.match?.score || 0;
+        return scoreB - scoreA;
+      });
+    } else if (sortBy === "match_score") {
+      list.sort((a, b) => (b.match?.score || 0) - (a.match?.score || 0));
+    }
+
+    return list;
+  }, [rawCandidates, selectedSkill, selectedLocation, selectedGradYear, sortBy]);
 
   const handleStageUpdate = async (appId: string, nextStage: string, candidateName: string) => {
     try {
@@ -97,6 +144,7 @@ function RecruiterPage() {
       });
       if (res.ok) {
         toast.success(`Updated ${candidateName} to ${nextStage.toUpperCase()} stage.`);
+        if (refetch) refetch();
       }
     } catch {
       toast.info(`Updated candidate stage.`);
@@ -203,7 +251,7 @@ function RecruiterPage() {
                 Talent <span className="bridge-gradient-text">Pipeline</span>
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Review skill-matched candidates and manage verified open positions.
+                Intelligent candidate discovery ranked by multi-factor role-fit and skill alignment.
               </p>
             </div>
 
@@ -218,7 +266,7 @@ function RecruiterPage() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Candidates ({candidates.length})
+                Candidates ({filteredAndRankedCandidates.length})
               </button>
               <button
                 type="button"
@@ -249,36 +297,107 @@ function RecruiterPage() {
         {/* VIEW 1: CANDIDATE PIPELINE */}
         {activeView === "pipeline" && (
           <div className="mt-8 space-y-6">
-            {/* Search and stage filter bar */}
+            {/* Search, stage filter bar & Intelligent match controls */}
             <ScrollReveal delay={100}>
-              <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full sm:max-w-md">
-                  <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search candidate by name, college, or skill..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 rounded-2xl border-border/80 bg-card"
-                  />
+              <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft space-y-4">
+                {/* Search & Sort Row */}
+                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+                  <div className="relative w-full sm:max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search candidate by name, college, or skill..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 rounded-xl border-border/80 bg-background"
+                    />
+                  </div>
+
+                  {/* Ranking / Sort Selector */}
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-xs font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
+                      <ArrowUpDown className="size-3.5" /> Rank by:
+                    </span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground shadow-sm"
+                    >
+                      <option value="role_fit">⭐ Multi-Factor Role Fit</option>
+                      <option value="match_score">🎯 Raw Skill Match Score</option>
+                      <option value="recent">🕒 Application Recency</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Stage Filters */}
-                <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                  <span className="text-xs font-semibold text-muted-foreground mr-1">Stage:</span>
                   {stageFilters.map((stage) => (
                     <button
                       key={stage}
                       type="button"
                       onClick={() => setSelectedStage(stage)}
-                      className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all ${
+                      className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
                         selectedStage === stage
                           ? "bg-accent text-accent-foreground shadow-sm"
-                          : "border border-border/80 bg-card text-muted-foreground hover:border-accent/40 hover:text-foreground"
+                          : "border border-border/70 bg-background text-muted-foreground hover:border-accent/40 hover:text-foreground"
                       }`}
                     >
                       {stage}
                     </button>
                   ))}
+                </div>
+
+                {/* Smart Filter Chips: Skills, Location, Graduation Year */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-border/60 pt-3">
+                  {/* Skill Filter */}
+                  <div>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Required Skill
+                    </label>
+                    <select
+                      value={selectedSkill}
+                      onChange={(e) => setSelectedSkill(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground font-medium"
+                    >
+                      {skillFilterOptions.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Location Filter */}
+                  <div>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Candidate Location
+                    </label>
+                    <select
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground font-medium"
+                    >
+                      {locationFilterOptions.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Batch / Graduation Year */}
+                  <div>
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                      Graduation Batch
+                    </label>
+                    <select
+                      value={selectedGradYear}
+                      onChange={(e) => setSelectedGradYear(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground font-medium"
+                    >
+                      {gradYearOptions.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </ScrollReveal>
@@ -287,20 +406,20 @@ function RecruiterPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {loading ? (
                 <div className="col-span-full py-12 text-center text-muted-foreground">
-                  Loading talent pipeline...
+                  Evaluating candidate skill graphs...
                 </div>
-              ) : candidates.length > 0 ? (
-                candidates.map((candidate, i) => (
+              ) : filteredAndRankedCandidates.length > 0 ? (
+                filteredAndRankedCandidates.map((candidate, i) => (
                   <ScrollReveal key={candidate.id} delay={i * 60} direction="up">
-                    <CandidateCard candidate={candidate} />
+                    <CandidateCard candidate={candidate} onUpdateStage={handleStageUpdate} />
                   </ScrollReveal>
                 ))
               ) : (
                 <div className="col-span-full rounded-3xl border border-dashed bg-card/60 py-16 text-center">
                   <Users className="mx-auto size-10 text-muted-foreground" />
-                  <p className="mt-3 font-display text-lg font-bold text-foreground">No applicants found</p>
+                  <p className="mt-3 font-display text-lg font-bold text-foreground">No applicants match criteria</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Try adjusting your search criteria or stage filter.
+                    Try broadening your skill, location, or graduation batch filters.
                   </p>
                 </div>
               )}

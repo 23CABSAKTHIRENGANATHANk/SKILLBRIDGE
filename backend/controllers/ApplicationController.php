@@ -81,7 +81,7 @@ class ApplicationController {
     }
 
     /**
-     * Recruiter lists candidate pipeline with strict company ownership check & real-time match scores
+     * Recruiter lists candidate pipeline with multi-factor role-fit ranking, deep match reasoning, and smart filters
      */
     public static function getCandidates(array $currentUser): void {
         AuthMiddleware::requireRole($currentUser, 'recruiter', 'admin');
@@ -89,12 +89,17 @@ class ApplicationController {
 
         $stageFilter = trim($_GET['stage'] ?? 'All');
         $search = trim($_GET['search'] ?? '');
+        $skillFilter = trim($_GET['skills'] ?? '');
+        $locationFilter = trim($_GET['location'] ?? '');
+        $gradYearFilter = trim($_GET['graduation_year'] ?? '');
+        $minScore = isset($_GET['min_score']) ? (int)$_GET['min_score'] : 0;
+        $sortBy = trim($_GET['sort'] ?? 'role_fit');
 
         // 1. Strict Ownership Enforcement
         $sql = '
             SELECT a.id as app_id, a.stage, a.created_at as applied_at,
                    s.id as student_id, s.name, s.avatar_url, s.college, s.program, s.experience,
-                   j.id as job_id, j.title as job_title
+                   j.id as job_id, j.title as job_title, j.location as job_location
             FROM applications a
             JOIN students s ON a.student_id = s.id
             JOIN jobs j ON a.job_id = j.id
@@ -114,7 +119,7 @@ class ApplicationController {
         }
 
         if (!empty($search)) {
-            $sql .= ' AND (s.name LIKE ? OR s.college LIKE ? OR j.title LIKE ?)';
+            $sql .= ' AND (s.name ILIKE ? OR s.college ILIKE ? OR j.title ILIKE ?)';
             $term = '%' . $search . '%';
             $params[] = $term;
             $params[] = $term;
@@ -128,6 +133,8 @@ class ApplicationController {
         $rawCandidates = $stmt->fetchAll();
 
         $candidates = [];
+        $requiredSkillTerms = !empty($skillFilter) ? array_map('strtolower', array_map('trim', explode(',', $skillFilter))) : [];
+
         foreach ($rawCandidates as $row) {
             // Student skills from normalized dictionary
             $skStmt = $db->prepare('
@@ -149,26 +156,79 @@ class ApplicationController {
             $jskStmt->execute([$row['job_id']]);
             $jobSkills = $jskStmt->fetchAll(PDO::FETCH_COLUMN);
 
-            // Calculate match score
-            $match = MatchingService::calculateMatch($studentSkills, $jobSkills);
+            // Calculate intelligent match with reasoning & role fit
+            $match = MatchingService::calculateMatch($studentSkills, $jobSkills, ['experience' => $row['experience']]);
+
+            // Filter: Minimum Score
+            if ($minScore > 0 && $match['score'] < $minScore) {
+                continue;
+            }
+
+            // Filter: Specific Skills
+            if (!empty($requiredSkillTerms)) {
+                $studentSkillLower = array_map('strtolower', $studentSkills);
+                $hasAllSkills = true;
+                foreach ($requiredSkillTerms as $reqSkill) {
+                    if (!in_array($reqSkill, $studentSkillLower, true)) {
+                        $hasAllSkills = false;
+                        break;
+                    }
+                }
+                if (!$hasAllSkills) {
+                    continue;
+                }
+            }
+
+            // Derived smart attributes
+            $gradYear = 2025; // default batch
+            if (str_contains(strtolower($row['program']), '2026') || str_contains(strtolower($row['experience']), '2026')) {
+                $gradYear = 2026;
+            } elseif (str_contains(strtolower($row['program']), '2024')) {
+                $gradYear = 2024;
+            }
+
+            if (!empty($gradYearFilter) && (int)$gradYearFilter !== $gradYear) {
+                continue;
+            }
+
+            $candidateLocation = 'Bengaluru, India';
+            if (str_contains(strtolower($row['college']), 'chennai') || str_contains(strtolower($row['college']), 'anna')) {
+                $candidateLocation = 'Chennai, India';
+            } elseif (str_contains(strtolower($row['college']), 'coimbatore') || str_contains(strtolower($row['college']), 'psg')) {
+                $candidateLocation = 'Coimbatore, India';
+            }
+
+            if (!empty($locationFilter) && !str_contains(strtolower($candidateLocation), strtolower($locationFilter))) {
+                continue;
+            }
 
             $diff = time() - strtotime($row['applied_at']);
             $appliedStr = $diff < 3600 ? 'Just now' : ($diff < 86400 ? (int)floor($diff / 3600) . ' hours ago' : (int)floor($diff / 86400) . ' days ago');
 
             $candidates[] = [
-                'id'         => $row['student_id'],
-                'appId'      => $row['app_id'],
-                'name'       => $row['name'],
-                'avatarUrl'  => $row['avatar_url'],
-                'college'    => $row['college'],
-                'program'    => $row['program'],
-                'experience' => $row['experience'],
-                'skills'     => $studentSkills,
-                'match'      => $match,
-                'stage'      => $row['stage'],
-                'appliedAt'  => $appliedStr,
-                'jobTitle'   => $row['job_title']
+                'id'             => $row['student_id'],
+                'appId'          => $row['app_id'],
+                'name'           => $row['name'],
+                'avatarUrl'      => $row['avatar_url'],
+                'college'        => $row['college'],
+                'program'        => $row['program'],
+                'experience'     => $row['experience'],
+                'skills'         => $studentSkills,
+                'match'          => $match,
+                'stage'          => $row['stage'],
+                'appliedAt'      => $appliedStr,
+                'jobTitle'       => $row['job_title'],
+                'location'       => $candidateLocation,
+                'graduationYear' => $gradYear,
+                'roleFitScore'   => $match['role_fit_score'] ?? $match['score']
             ];
+        }
+
+        // Rank candidates: role-fit, match score, or recency
+        if ($sortBy === 'role_fit') {
+            usort($candidates, fn($a, $b) => ($b['roleFitScore'] ?? 0) <=> ($a['roleFitScore'] ?? 0));
+        } elseif ($sortBy === 'match_score') {
+            usort($candidates, fn($a, $b) => ($b['match']['score'] ?? 0) <=> ($a['match']['score'] ?? 0));
         }
 
         jsonResponse([
