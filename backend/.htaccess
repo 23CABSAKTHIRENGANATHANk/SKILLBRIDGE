@@ -1,0 +1,30 @@
+# ========================================================================
+# SkillBridge Hardened Apache Production Configuration
+# ========================================================================
+
+# Disable directory browsing
+Options -Indexes
+
+# Block sensitive files and directories
+<FilesMatch "^(\.env|\.git|\.htaccess|composer\.(json|lock)|package\.json|.*\.sql|.*\.md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block direct access to storage and config directories
+RedirectMatch 403 ^/storage/
+RedirectMatch 403 ^/config/
+RedirectMatch 403 ^/database/
+
+# URL Rewriting to Central index.php Router
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Enforce HTTPS in production
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
