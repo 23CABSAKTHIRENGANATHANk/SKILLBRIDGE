@@ -393,6 +393,16 @@ export function SiteHeader() {
                 </Button>
               </Link>
 
+              {/* Settings Link */}
+              <Link
+                to="/settings"
+                onClick={() => setShowAccountModal(false)}
+              >
+                <Button variant="outline" className="w-full font-bold">
+                  Account Settings
+                </Button>
+              </Link>
+
               {/* Sign Out Button */}
               <Button
                 variant="outline"

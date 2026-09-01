@@ -131,6 +131,16 @@ switch (true) {
         StudentController::streamResume($user, $matches[1]);
         break;
 
+    case $path === '/student/trust-profile' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        StudentController::getTrustProfile($user);
+        break;
+
+    case $path === '/student/verify-phone' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        StudentController::verifyPhone($user);
+        break;
+
     // --- Applications & Candidate Pipeline ---
     case $path === '/applications/apply' && $method === 'POST':
         $user = AuthMiddleware::authenticate();
@@ -140,6 +150,16 @@ switch (true) {
     case $path === '/applications/candidates' && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         ApplicationController::getCandidates($user);
+        break;
+
+    case preg_match('#^/applications/timeline/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        ApplicationController::getTimeline($user, $matches[1]);
+        break;
+
+    case $path === '/applications/feedback' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        ApplicationController::submitFeedback($user);
         break;
 
     case $path === '/applications/stage' && in_array($method, ['PUT', 'POST'], true):

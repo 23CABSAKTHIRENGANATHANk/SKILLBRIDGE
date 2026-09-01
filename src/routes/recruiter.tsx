@@ -20,6 +20,9 @@ import {
   ArrowUpDown,
   GraduationCap,
   Award,
+  ShieldCheck,
+  BadgeCheck,
+  Clock,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -36,6 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCandidatesQuery, useCompanyQuery } from "@/hooks/use-api";
 import { BridgeLine } from "@/components/brand/logo";
 import { toast } from "sonner";
+import { CandidateDetailModal } from "@/components/candidate-detail-modal";
 
 export const Route = createFileRoute("/recruiter")({
   head: () => ({
@@ -68,6 +72,9 @@ function RecruiterPage() {
   const [selectedLocation, setSelectedLocation] = useState<string>("All Locations");
   const [selectedGradYear, setSelectedGradYear] = useState<string>("All Batches");
   const [sortBy, setSortBy] = useState<"role_fit" | "match_score" | "recent">("role_fit");
+  const [shortlistedIds, setShortlistedIds] = useState<Record<string, boolean>>({});
+  const [candidateNotes, setCandidateNotes] = useState<Record<string, string>>({});
+  const [selectedCandidateDetail, setSelectedCandidateDetail] = useState<any>(null);
 
   // Job creation state
   const [jobTitle, setJobTitle] = useState("");
@@ -149,6 +156,15 @@ function RecruiterPage() {
     } catch {
       toast.info(`Updated candidate stage.`);
     }
+  };
+
+  const handleToggleShortlist = (candidateId: string, nextValue: boolean) => {
+    setShortlistedIds((prev) => ({ ...prev, [candidateId]: nextValue }));
+    toast.info(nextValue ? "Candidate marked as shortlisted." : "Candidate removed from shortlist.");
+  };
+
+  const handleNoteChange = (candidateId: string, nextNote: string) => {
+    setCandidateNotes((prev) => ({ ...prev, [candidateId]: nextNote }));
   };
 
   const handleCreateJob = async (e: React.FormEvent) => {
@@ -246,6 +262,9 @@ function RecruiterPage() {
               <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft/60 px-3.5 py-1 text-xs font-semibold text-accent">
                 <Building2 className="size-3.5" />
                 <span>Recruiter Workspace</span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-success-soft text-success px-2 py-0.5 rounded-full">
+                  <BadgeCheck className="size-3" /> Company Verified
+                </span>
               </div>
               <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
                 Talent <span className="bridge-gradient-text">Pipeline</span>
@@ -410,8 +429,17 @@ function RecruiterPage() {
                 </div>
               ) : filteredAndRankedCandidates.length > 0 ? (
                 filteredAndRankedCandidates.map((candidate, i) => (
-                  <ScrollReveal key={candidate.id} delay={i * 60} direction="up">
-                    <CandidateCard candidate={candidate} onUpdateStage={handleStageUpdate} />
+                  <ScrollReveal key={candidate.id} delay={i * 60} direction="up" onClick={() => setSelectedCandidateDetail(candidate)}>
+                    <div className="cursor-pointer">
+                      <CandidateCard
+                        candidate={candidate}
+                        onUpdateStage={handleStageUpdate}
+                        shortlisted={Boolean(shortlistedIds[candidate.id] ?? (candidate.stage === "shortlisted" || candidate.stage === "interview" || candidate.stage === "offer"))}
+                        note={candidateNotes[candidate.id] ?? ""}
+                        onToggleShortlist={handleToggleShortlist}
+                        onNoteChange={handleNoteChange}
+                      />
+                    </div>
                   </ScrollReveal>
                 ))
               ) : (
@@ -544,7 +572,64 @@ function RecruiterPage() {
 
         {/* VIEW 3: COMPANY SETTINGS & GEOCODED ADDRESS */}
         {activeView === "company-settings" && (
-          <ScrollReveal delay={100} className="mt-8 max-w-2xl mx-auto">
+          <ScrollReveal delay={100} className="mt-8 max-w-2xl mx-auto space-y-6">
+            {/* Company Verification Badge Card */}
+            <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-12 items-center justify-center rounded-2xl bg-success-soft text-success">
+                    <ShieldCheck className="size-6" />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-lg font-bold text-foreground">Company Trust Badge</h2>
+                    <p className="text-xs text-muted-foreground">Admin-verified employer status shown on all job listings</p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-success px-3.5 py-1.5 text-xs font-bold text-success-foreground">
+                  <BadgeCheck className="size-4" /> Verified Employer
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-2xl border border-success/30 bg-success-soft/20 p-4">
+                  <div className="flex items-center gap-3">
+                    <BadgeCheck className="size-5 text-success" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">GSTIN Verification</p>
+                      <p className="text-[11px] text-muted-foreground">Government-registered entity validated</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-success">Verified</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-success/30 bg-success-soft/20 p-4">
+                  <div className="flex items-center gap-3">
+                    <BadgeCheck className="size-5 text-success" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Domain Email Ownership</p>
+                      <p className="text-[11px] text-muted-foreground">hr@northwindlabs.io DNS verified</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-success">Verified</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-success/30 bg-success-soft/20 p-4">
+                  <div className="flex items-center gap-3">
+                    <BadgeCheck className="size-5 text-success" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Company Address Geocoded</p>
+                      <p className="text-[11px] text-muted-foreground">Physical location confirmed via OpenStreetMap</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-bold text-success">Verified</span>
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs text-muted-foreground">
+                This <strong>Verified Employer</strong> badge is displayed on every job card and candidate offer letter.
+                Students see verified companies first in recommendation feeds.
+              </p>
+            </div>
+
+            {/* Address & Geocoding */}
             <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl">
               <div className="mb-6 border-b pb-4">
                 <h2 className="font-display text-2xl font-bold text-foreground">
@@ -629,6 +714,16 @@ function RecruiterPage() {
       </main>
 
       <BottomNav />
+
+      {selectedCandidateDetail && (
+        <CandidateDetailModal
+          candidate={selectedCandidateDetail}
+          note={candidateNotes[selectedCandidateDetail.id] ?? ""}
+          onNoteChange={(note) => handleNoteChange(selectedCandidateDetail.id, note)}
+          onClose={() => setSelectedCandidateDetail(null)}
+          onUpdateStage={handleStageUpdate}
+        />
+      )}
     </div>
   );
 }
