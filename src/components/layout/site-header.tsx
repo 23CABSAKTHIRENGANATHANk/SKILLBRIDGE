@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   CheckCheck,
@@ -12,12 +12,16 @@ import {
   Sun,
   User,
   Users,
+  GraduationCap,
+  Briefcase,
+  AlertTriangle,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { ApiClient } from "@/lib/api-client";
+import { useAuth } from "@/context/auth-context";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -25,13 +29,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-
-const nav = [
-  { to: "/jobs", label: "Explore Jobs" },
-  { to: "/dashboard", label: "For Students" },
-  { to: "/recruiter", label: "For Recruiters" },
-  { to: "/company", label: "Company Profile" },
-] as const;
 
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
@@ -52,18 +49,24 @@ function ThemeToggle() {
 }
 
 export function SiteHeader() {
+  const { user, isAuthenticated, logout, login } = useAuth();
+  const navigate = useNavigate();
+
   const [scrolled, setScrolled] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const fetchNotifs = async () => {
+    if (!isAuthenticated) return;
     try {
+      const token = localStorage.getItem("sb_auth_token");
       const res = await fetch("http://localhost:8000/api/notifications", {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("sb_auth_token") || ""}`,
+          Authorization: token ? `Bearer ${token}` : "",
         },
       });
       if (res.ok) {
@@ -76,64 +79,50 @@ export function SiteHeader() {
     }
   };
 
-  const checkCurrentUser = () => {
-    const token = localStorage.getItem("sb_auth_token");
-    if (!token) {
-      setCurrentUser(null);
-      return;
-    }
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setCurrentUser(payload);
-    } catch {
-      setCurrentUser(null);
-    }
-  };
-
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 24);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
-    checkCurrentUser();
-    fetchNotifs();
+    if (isAuthenticated) {
+      fetchNotifs();
+    }
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [isAuthenticated]);
 
-  const handleQuickLogin = async (email: string, role: string) => {
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
     try {
-      const res = await fetch("http://localhost:8000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: "password123" }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("sb_auth_token", data.token);
-        checkCurrentUser();
-        fetchNotifs();
-        setShowAuthModal(false);
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error(err);
+      await logout();
+      setShowLogoutConfirm(false);
+      setShowAccountModal(false);
+      toast.success("Signed out successfully");
+      navigate({ to: "/login" });
+    } catch {
+      toast.error("Logout failed");
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("sb_auth_token");
-    setCurrentUser(null);
-    setShowAuthModal(false);
-    window.location.reload();
+  const handleQuickLogin = async (email: string) => {
+    try {
+      await login({ email, password: "password123" });
+      setShowAccountModal(false);
+      toast.success("Signed in successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Quick sign-in failed");
+    }
   };
 
   const handleMarkAllRead = async () => {
     try {
+      const token = localStorage.getItem("sb_auth_token");
       await fetch("http://localhost:8000/api/notifications/read", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("sb_auth_token") || ""}`,
+          Authorization: token ? `Bearer ${token}` : "",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),
@@ -144,6 +133,18 @@ export function SiteHeader() {
       console.error(err);
     }
   };
+
+  // Dynamic Navigation Links based on Auth & Role
+  const navItems = [
+    { to: "/jobs", label: "Explore Jobs" },
+    ...(user?.role === "student"
+      ? [{ to: "/dashboard", label: "Student Dashboard" }]
+      : []),
+    ...(user?.role === "recruiter"
+      ? [{ to: "/recruiter", label: "Recruiter Dashboard" }]
+      : []),
+    { to: "/company", label: "Company Profile" },
+  ];
 
   return (
     <header
@@ -161,94 +162,126 @@ export function SiteHeader() {
           <Logo />
         </Link>
 
+        {/* Desktop Navigation */}
         <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
-          {nav.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.to}
-              to={item.to}
+              to={item.to as any}
               className="link-underline rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              activeProps={{ className: "bg-primary-soft text-primary" }}
+              activeProps={{ className: "bg-primary-soft text-primary font-bold" }}
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
 
-          {/* Notifications Trigger */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Notifications, ${unreadCount} unread`}
-              onClick={() => {
-                setShowNotifications((s) => !s);
-                fetchNotifs();
-              }}
-              className="relative group"
-            >
-              <Bell className="size-4 transition-transform duration-200 group-hover:rotate-12" />
-              {unreadCount > 0 && (
-                <span className="absolute right-2 top-2 flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-accent" />
-                </span>
-              )}
-            </Button>
-
-            {/* Notifications Popover */}
-            {showNotifications && (
-              <div
-                className="absolute right-0 top-12 z-50 w-80 rounded-2xl border bg-card p-4 shadow-xl sm:w-96"
-                style={{ animation: "sb-scale-in 200ms ease-out both" }}
+          {/* Notifications Trigger (When Logged In) */}
+          {isAuthenticated && (
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Notifications, ${unreadCount} unread`}
+                onClick={() => {
+                  setShowNotifications((s) => !s);
+                  fetchNotifs();
+                }}
+                className="relative group"
               >
-                <div className="flex items-center justify-between border-b pb-3">
-                  <h4 className="font-display text-sm font-bold">Notifications</h4>
-                  {unreadCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleMarkAllRead}
-                      className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                    >
-                      <CheckCheck className="size-3.5" /> Mark all read
-                    </button>
-                  )}
-                </div>
+                <Bell className="size-4 transition-transform duration-200 group-hover:rotate-12" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-2 top-2 flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-accent" />
+                  </span>
+                )}
+              </Button>
 
-                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1 text-xs">
-                  {notifications.length > 0 ? (
-                    notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`rounded-xl border p-3 transition-colors ${
-                          notif.is_read ? "bg-background/40 opacity-75" : "border-primary/30 bg-primary-soft/30"
-                        }`}
+              {/* Notifications Popover */}
+              {showNotifications && (
+                <div
+                  className="absolute right-0 top-12 z-50 w-80 rounded-2xl border bg-card p-4 shadow-xl sm:w-96"
+                  style={{ animation: "sb-scale-in 200ms ease-out both" }}
+                >
+                  <div className="flex items-center justify-between border-b pb-3">
+                    <h4 className="font-display text-sm font-bold">Notifications</h4>
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllRead}
+                        className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                       >
-                        <p className="font-semibold text-foreground">{notif.title}</p>
-                        <p className="mt-1 text-muted-foreground leading-relaxed">{notif.message}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="py-6 text-center text-muted-foreground">No new notifications</p>
-                  )}
+                        <CheckCheck className="size-3.5" /> Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1 text-xs">
+                    {notifications.length > 0 ? (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          className={`rounded-xl border p-3 transition-colors ${
+                            notif.is_read
+                              ? "bg-background/40 opacity-75"
+                              : "border-primary/30 bg-primary-soft/30"
+                          }`}
+                        >
+                          <p className="font-semibold text-foreground">{notif.title}</p>
+                          <p className="mt-1 text-muted-foreground leading-relaxed">
+                            {notif.message}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="py-6 text-center text-muted-foreground">
+                        No new notifications
+                      </p>
+                    )}
+                  </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* User Profile / Auth State Trigger */}
+          {isAuthenticated && user ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAccountModal(true)}
+              className="flex items-center gap-2 rounded-full border-border/80 px-3 py-1.5 transition-all hover:border-primary/60 hover:bg-primary-soft/40"
+            >
+              <div className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                {(user.name || user.email)[0].toUpperCase()}
               </div>
-            )}
-          </div>
+              <span className="max-w-[100px] truncate text-xs font-bold sm:max-w-[140px]">
+                {user.name || user.email.split("@")[0]}
+              </span>
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+                {user.role}
+              </span>
+            </Button>
+          ) : (
+            <div className="hidden sm:flex items-center gap-2">
+              <Link to="/login">
+                <Button variant="ghost" size="sm" className="font-bold text-xs">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button size="sm" className="rounded-full font-bold text-xs shadow-sm">
+                  Get Started
+                </Button>
+              </Link>
+            </div>
+          )}
 
-          {/* User Profile / Auth Dialog Trigger */}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="User Account"
-            onClick={() => setShowAuthModal(true)}
-            className={`transition-colors ${currentUser ? "text-primary font-bold" : ""}`}
-          >
-            <User className="size-4" />
-          </Button>
-
+          {/* Mobile Sheet Navigation */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Open menu" className="md:hidden">
@@ -261,112 +294,161 @@ export function SiteHeader() {
                   <Logo />
                 </SheetTitle>
               </SheetHeader>
-              <nav aria-label="Mobile" className="mt-6 grid gap-1 px-4">
-                {nav.map((item) => (
+              <nav aria-label="Mobile" className="mt-6 grid gap-1 px-2">
+                {navItems.map((item) => (
                   <Link
                     key={item.to}
-                    to={item.to}
-                    className="rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-secondary"
+                    to={item.to as any}
+                    className="rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-secondary transition-colors"
                   >
                     {item.label}
                   </Link>
                 ))}
+
+                <div className="mt-6 pt-4 border-t border-border">
+                  {isAuthenticated && user ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-secondary/60 rounded-xl">
+                        <p className="text-xs font-bold text-foreground">{user.name || user.email}</p>
+                        <p className="text-[11px] text-muted-foreground capitalize">{user.role} Account</p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setShowLogoutConfirm(true)}
+                        className="w-full"
+                      >
+                        <LogOut className="size-4 mr-2" /> Sign Out
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2">
+                      <Link to="/login" className="w-full">
+                        <Button variant="outline" className="w-full font-bold">
+                          Sign In
+                        </Button>
+                      </Link>
+                      <Link to="/register" className="w-full">
+                        <Button className="w-full font-bold">Get Started</Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </nav>
             </SheetContent>
           </Sheet>
         </div>
       </div>
 
-      {/* Auth & Role Switcher Modal */}
-      {showAuthModal && (
+      {/* Account Modal */}
+      {showAccountModal && user && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="fixed inset-0 bg-background/80 backdrop-blur-md"
-            onClick={() => setShowAuthModal(false)}
+            onClick={() => setShowAccountModal(false)}
             aria-hidden="true"
           />
           <div
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl"
+            className="relative z-10 w-full max-w-md rounded-3xl border border-border/80 bg-card p-6 shadow-2xl"
             style={{ animation: "sb-scale-in 200ms ease-out both" }}
           >
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2">
                 <Shield className="size-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">Account & Roles</h3>
+                <h3 className="font-display text-lg font-bold">Account Profile</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAuthModal(false)}
+                onClick={() => setShowAccountModal(false)}
                 className="rounded-full p-1 text-muted-foreground hover:bg-secondary"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {currentUser ? (
-              <div className="mt-4 space-y-4">
-                <div className="rounded-2xl border bg-primary-soft/40 p-4">
-                  <p className="text-xs font-semibold text-primary uppercase tracking-wider">Logged In As</p>
-                  <p className="mt-1 font-bold text-foreground text-sm">{currentUser.email}</p>
-                  <span className="mt-1.5 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-primary-foreground uppercase">
-                    Role: {currentUser.role}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full text-destructive hover:bg-destructive/10"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="size-4 mr-2" /> Log Out
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-4">
-                <p className="text-xs text-muted-foreground">
-                  Select a live demo account or authenticate to access role-specific workflows:
+            <div className="mt-4 space-y-4">
+              <div className="rounded-2xl border border-primary/20 bg-primary-soft/40 p-4">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">
+                  Logged In As
                 </p>
-
-                <div className="grid gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("student@skillbridge.dev", "student")}
-                    className="flex items-center justify-between rounded-xl border bg-secondary/60 p-3 text-left transition-all hover:border-primary/50 hover:bg-primary-soft"
-                  >
-                    <div>
-                      <p className="font-bold text-sm">Arjun Kumar</p>
-                      <p className="text-xs text-muted-foreground">student@skillbridge.dev</p>
-                    </div>
-                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">Student</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("recruiter@northwind.dev", "recruiter")}
-                    className="flex items-center justify-between rounded-xl border bg-secondary/60 p-3 text-left transition-all hover:border-accent/50 hover:bg-accent-soft"
-                  >
-                    <div>
-                      <p className="font-bold text-sm">Northwind Labs Recruiter</p>
-                      <p className="text-xs text-muted-foreground">recruiter@northwind.dev</p>
-                    </div>
-                    <span className="rounded-full bg-accent/20 px-2 py-0.5 text-xs font-semibold text-accent">Recruiter</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("admin@skillbridge.dev", "admin")}
-                    className="flex items-center justify-between rounded-xl border bg-secondary/60 p-3 text-left transition-all hover:border-foreground/30 hover:bg-secondary"
-                  >
-                    <div>
-                      <p className="font-bold text-sm">SkillBridge Platform Admin</p>
-                      <p className="text-xs text-muted-foreground">admin@skillbridge.dev</p>
-                    </div>
-                    <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs font-semibold text-foreground">Admin</span>
-                  </button>
-                </div>
+                <p className="mt-1 font-bold text-foreground text-sm">{user.name || user.email}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+                <span className="mt-2 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-primary-foreground uppercase">
+                  Role: {user.role}
+                </span>
               </div>
-            )}
+
+              {/* Direct Dashboard Link */}
+              <Link
+                to={(user.role === "recruiter" ? "/recruiter" : "/dashboard") as any}
+                onClick={() => setShowAccountModal(false)}
+              >
+                <Button className="w-full font-bold">
+                  Go to {user.role === "recruiter" ? "Recruiter" : "Student"} Dashboard
+                </Button>
+              </Link>
+
+              {/* Sign Out Button */}
+              <Button
+                variant="outline"
+                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                onClick={() => {
+                  setShowAccountModal(false);
+                  setShowLogoutConfirm(true);
+                }}
+              >
+                <LogOut className="size-4 mr-2" /> Sign Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Popover Dialog */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-background/80 backdrop-blur-md"
+            onClick={() => setShowLogoutConfirm(false)}
+            aria-hidden="true"
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="relative z-10 w-full max-w-sm rounded-3xl border border-border/80 bg-card p-6 shadow-2xl text-center"
+            style={{ animation: "sb-scale-in 200ms ease-out both" }}
+          >
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+              <AlertTriangle className="size-6" />
+            </div>
+
+            <h3 className="mt-4 font-display text-lg font-bold text-foreground">
+              Sign out of SkillBridge?
+            </h3>
+            <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+              You will need to enter your credentials again to access your applications and dashboard.
+            </p>
+
+            <div className="mt-6 flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl font-bold"
+                onClick={() => setShowLogoutConfirm(false)}
+                disabled={isLoggingOut}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 rounded-xl font-bold"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Signing out..." : "Sign Out"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

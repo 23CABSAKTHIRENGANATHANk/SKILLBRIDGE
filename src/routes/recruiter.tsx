@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { useCandidatesQuery } from "@/hooks/use-api";
 import { BridgeLine } from "@/components/brand/logo";
 
+import { ProtectedRoute } from "@/components/auth/protected-route";
+
 export const Route = createFileRoute("/recruiter")({
   head: () => ({
     meta: [
@@ -30,7 +32,11 @@ export const Route = createFileRoute("/recruiter")({
       },
     ],
   }),
-  component: RecruiterPage,
+  component: () => (
+    <ProtectedRoute requiredRole="recruiter">
+      <RecruiterPage />
+    </ProtectedRoute>
+  ),
 });
 
 const stageFilters = ["All", "Applied", "Shortlisted", "Interview", "Offer"] as const;

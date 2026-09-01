@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as RecruiterRouteImport } from './routes/recruiter'
+import { Route as RegisterRouteImport } from './routes/register'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,9 +37,19 @@ const JobsRoute = JobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecruiterRoute = RecruiterRouteImport.update({
   id: '/recruiter',
   path: '/recruiter',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -46,14 +58,18 @@ export interface FileRoutesByFullPath {
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
+  '/login': typeof LoginRoute
   '/recruiter': typeof RecruiterRoute
+  '/register': typeof RegisterRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
+  '/login': typeof LoginRoute
   '/recruiter': typeof RecruiterRoute
+  '/register': typeof RegisterRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -61,14 +77,38 @@ export interface FileRoutesById {
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
+  '/login': typeof LoginRoute
   '/recruiter': typeof RecruiterRoute
+  '/register': typeof RegisterRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/company' | '/dashboard' | '/jobs' | '/recruiter'
+  fullPaths:
+    | '/'
+    | '/company'
+    | '/dashboard'
+    | '/jobs'
+    | '/login'
+    | '/recruiter'
+    | '/register'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/company' | '/dashboard' | '/jobs' | '/recruiter'
-  id: '__root__' | '/' | '/company' | '/dashboard' | '/jobs' | '/recruiter'
+  to:
+    | '/'
+    | '/company'
+    | '/dashboard'
+    | '/jobs'
+    | '/login'
+    | '/recruiter'
+    | '/register'
+  id:
+    | '__root__'
+    | '/'
+    | '/company'
+    | '/dashboard'
+    | '/jobs'
+    | '/login'
+    | '/recruiter'
+    | '/register'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,7 +116,9 @@ export interface RootRouteChildren {
   CompanyRoute: typeof CompanyRoute
   DashboardRoute: typeof DashboardRoute
   JobsRoute: typeof JobsRoute
+  LoginRoute: typeof LoginRoute
   RecruiterRoute: typeof RecruiterRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -109,11 +151,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recruiter': {
       id: '/recruiter'
       path: '/recruiter'
       fullPath: '/recruiter'
       preLoaderRoute: typeof RecruiterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -124,7 +180,9 @@ const rootRouteChildren: RootRouteChildren = {
   CompanyRoute: CompanyRoute,
   DashboardRoute: DashboardRoute,
   JobsRoute: JobsRoute,
+  LoginRoute: LoginRoute,
   RecruiterRoute: RecruiterRoute,
+  RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

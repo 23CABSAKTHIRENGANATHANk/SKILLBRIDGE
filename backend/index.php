@@ -58,6 +58,15 @@ switch (true) {
         AuthController::login();
         break;
 
+    case $path === '/auth/refresh' && $method === 'POST':
+        RateLimitMiddleware::check('auth_refresh', 30, 60);
+        AuthController::refresh();
+        break;
+
+    case $path === '/auth/logout' && $method === 'POST':
+        AuthController::logout();
+        break;
+
     case $path === '/auth/me' && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         AuthController::me($user);

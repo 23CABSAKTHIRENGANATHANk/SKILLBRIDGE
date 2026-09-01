@@ -42,6 +42,7 @@ class AuthController {
             $stmt = $db->prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)');
             $stmt->execute([$userId, $email, $passwordHash, $role]);
 
+            $profile = null;
             if ($role === 'student') {
                 $studentId = 's_' . bin2hex(random_bytes(10));
                 $college = trim($input['college'] ?? 'University Student');
@@ -49,6 +50,7 @@ class AuthController {
 
                 $stmtStudent = $db->prepare('INSERT INTO students (id, user_id, name, college, program) VALUES (?, ?, ?, ?, ?)');
                 $stmtStudent->execute([$studentId, $userId, $name ?: 'Student', $college, $program]);
+                $profile = ['id' => $studentId, 'name' => $name ?: 'Student', 'college' => $college, 'program' => $program];
             } else if ($role === 'recruiter') {
                 $companyId = 'c_' . bin2hex(random_bytes(10));
                 $companyName = trim($input['company_name'] ?? ($name . ' Labs'));
@@ -56,25 +58,37 @@ class AuthController {
 
                 $stmtCompany = $db->prepare('INSERT INTO companies (id, user_id, name, industry) VALUES (?, ?, ?, ?)');
                 $stmtCompany->execute([$companyId, $userId, $companyName, $industry]);
+                $profile = ['id' => $companyId, 'name' => $companyName, 'industry' => $industry];
             }
+
+            // Create refresh token
+            $rawRefreshToken = bin2hex(random_bytes(32));
+            $refreshTokenHash = hash('sha256', $rawRefreshToken);
+            $refreshTokenId = 'rt_' . bin2hex(random_bytes(8));
+            $expiresAt = date('Y-m-d H:i:s', time() + (30 * 86400)); // 30 days
+
+            $rtStmt = $db->prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)');
+            $rtStmt->execute([$refreshTokenId, $userId, $refreshTokenHash, $expiresAt]);
 
             $db->commit();
 
-            $token = JWT::encode([
+            $accessToken = JWT::encode([
                 'user_id' => $userId,
                 'email'   => $email,
                 'role'    => $role
-            ]);
+            ], 7200); // 2 hours
 
             jsonResponse([
-                'success' => true,
-                'message' => 'Registration successful.',
-                'token'   => $token,
-                'user'    => [
-                    'id'    => $userId,
-                    'email' => $email,
-                    'role'  => $role,
-                    'name'  => $name
+                'success'      => true,
+                'message'      => 'Registration successful.',
+                'token'        => $accessToken,
+                'refreshToken' => $rawRefreshToken,
+                'user'         => [
+                    'id'      => $userId,
+                    'email'   => $email,
+                    'role'    => $role,
+                    'name'    => $name,
+                    'profile' => $profile
                 ]
             ], 201);
         } catch (Exception $e) {
@@ -99,7 +113,7 @@ class AuthController {
         $user = $stmt->fetch();
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
-            errorResponse('Invalid email or password credentials.', 401);
+            errorResponse('Incorrect email or password.', 401);
         }
 
         $profile = null;
@@ -113,21 +127,103 @@ class AuthController {
             $profile = $cStmt->fetch();
         }
 
-        $token = JWT::encode([
+        // Generate Access Token (JWT, 2 hours)
+        $accessToken = JWT::encode([
             'user_id' => $user['id'],
             'email'   => $user['email'],
             'role'    => $user['role']
-        ]);
+        ], 7200);
+
+        // Generate Refresh Token (30 days)
+        $rawRefreshToken = bin2hex(random_bytes(32));
+        $refreshTokenHash = hash('sha256', $rawRefreshToken);
+        $refreshTokenId = 'rt_' . bin2hex(random_bytes(8));
+        $expiresAt = date('Y-m-d H:i:s', time() + (30 * 86400));
+
+        $rtStmt = $db->prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)');
+        $rtStmt->execute([$refreshTokenId, $user['id'], $refreshTokenHash, $expiresAt]);
 
         jsonResponse([
-            'success' => true,
-            'token'   => $token,
-            'user'    => [
+            'success'      => true,
+            'message'      => 'Login successful.',
+            'token'        => $accessToken,
+            'refreshToken' => $rawRefreshToken,
+            'user'         => [
                 'id'      => $user['id'],
                 'email'   => $user['email'],
                 'role'    => $user['role'],
                 'profile' => $profile
             ]
+        ]);
+    }
+
+    public static function refresh(): void {
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $rawRefreshToken = trim($input['refreshToken'] ?? '');
+
+        if (empty($rawRefreshToken)) {
+            errorResponse('Refresh token is required.', 400);
+        }
+
+        $tokenHash = hash('sha256', $rawRefreshToken);
+        $stmt = $db->prepare('
+            SELECT rt.id, rt.user_id, rt.expires_at, rt.revoked, u.email, u.role 
+            FROM refresh_tokens rt
+            JOIN users u ON rt.user_id = u.id
+            WHERE rt.token_hash = ? LIMIT 1
+        ');
+        $stmt->execute([$tokenHash]);
+        $row = $stmt->fetch();
+
+        if (!$row || $row['revoked'] || strtotime($row['expires_at']) < time()) {
+            errorResponse('Refresh token is expired or revoked. Please sign in again.', 401);
+        }
+
+        // Issue new Access Token
+        $newAccessToken = JWT::encode([
+            'user_id' => $row['user_id'],
+            'email'   => $row['email'],
+            'role'    => $row['role']
+        ], 7200);
+
+        jsonResponse([
+            'success' => true,
+            'token'   => $newAccessToken,
+            'user'    => [
+                'id'    => $row['user_id'],
+                'email' => $row['email'],
+                'role'  => $row['role']
+            ]
+        ]);
+    }
+
+    public static function logout(): void {
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $rawRefreshToken = trim($input['refreshToken'] ?? '');
+
+        // If refresh token provided, revoke it
+        if (!empty($rawRefreshToken)) {
+            $tokenHash = hash('sha256', $rawRefreshToken);
+            $stmt = $db->prepare('UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = ?');
+            $stmt->execute([$tokenHash]);
+        }
+
+        // If authorization header exists, also revoke tokens for user
+        $headers = getallheaders();
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            $payload = JWT::decode($matches[1]);
+            if ($payload && isset($payload['user_id'])) {
+                $uStmt = $db->prepare('UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = ?');
+                $uStmt->execute([$payload['user_id']]);
+            }
+        }
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Signed out successfully.'
         ]);
     }
 

@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { useStudentDashboardQuery, useJobsQuery } from "@/hooks/use-api";
 import { demoPipeline, demoProgress } from "@/data/demo";
 
+import { ProtectedRoute } from "@/components/auth/protected-route";
+
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
@@ -30,7 +32,11 @@ export const Route = createFileRoute("/dashboard")({
       },
     ],
   }),
-  component: DashboardPage,
+  component: () => (
+    <ProtectedRoute requiredRole="student">
+      <DashboardPage />
+    </ProtectedRoute>
+  ),
 });
 
 const stageColors: Record<string, string> = {

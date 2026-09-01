@@ -86,3 +86,22 @@ export interface PipelineCounts {
   interview: number;
   hired: number;
 }
+
+export type UserRole = "student" | "recruiter" | "admin";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  name?: string;
+  profile?: {
+    id?: string;
+    name?: string;
+    college?: string;
+    program?: string;
+    company_name?: string;
+    industry?: string;
+    verified?: boolean;
+    skills?: Array<{ skill_name: string; proficiency: number }>;
+  } | null;
+}
