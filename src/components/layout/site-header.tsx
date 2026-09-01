@@ -403,6 +403,17 @@ export function SiteHeader() {
                 </Button>
               </Link>
 
+              {/* Notifications Link */}
+              <Link
+                to="/notifications"
+                onClick={() => setShowAccountModal(false)}
+              >
+                <Button variant="outline" className="w-full font-bold">
+                  <Bell className="size-4 mr-2" />
+                  View All Notifications
+                </Button>
+              </Link>
+
               {/* Sign Out Button */}
               <Button
                 variant="outline"

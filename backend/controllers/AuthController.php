@@ -4,28 +4,32 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/jwt.php';
 require_once __DIR__ . '/../config/cors.php';
+require_once __DIR__ . '/../services/Validator.php';
+require_once __DIR__ . '/../services/AuditLogger.php';
 
 class AuthController {
     public static function register(): void {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $email = trim($input['email'] ?? '');
-        $password = $input['password'] ?? '';
-        $role = $input['role'] ?? 'student';
-        $name = trim($input['name'] ?? '');
+        // ── Centralised Validation ────────────────────────────────────────
+        $v = new Validator($input);
+        $v->required('email',    'Email')
+          ->email('email')
+          ->required('password', 'Password')
+          ->minLength('password', 8, 'Password')
+          ->maxLength('password', 128, 'Password')
+          ->required('name',     'Full Name')
+          ->minLength('name', 2, 'Full Name')
+          ->maxLength('name', 100, 'Full Name')
+          ->required('role',     'Role')
+          ->in('role', ['student', 'recruiter'], 'Role');
+        $v->failOrProceed();
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            errorResponse('Please provide a valid email address.');
-        }
-
-        if (strlen($password) < 6) {
-            errorResponse('Password must be at least 6 characters long.');
-        }
-
-        if (!in_array($role, ['student', 'recruiter'], true)) {
-            errorResponse('Invalid role specified. Must be student or recruiter.');
-        }
+        $email    = $v->get('email');
+        $password = $input['password'];      // keep un-trimmed for hashing
+        $role     = $v->get('role');
+        $name     = $v->get('name');
 
         // Check if email exists
         $stmt = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
@@ -72,6 +76,12 @@ class AuthController {
 
             $db->commit();
 
+            AuditLogger::auth('user.register', $userId, $role, [
+                'email'   => $email,
+                'college' => $input['college'] ?? '',
+                'company' => $input['company_name'] ?? '',
+            ]);
+
             $accessToken = JWT::encode([
                 'user_id' => $userId,
                 'email'   => $email,
@@ -101,18 +111,20 @@ class AuthController {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $email = trim($input['email'] ?? '');
-        $password = $input['password'] ?? '';
+        $v = new Validator($input);
+        $v->required('email', 'Email')->email('email')
+          ->required('password', 'Password');
+        $v->failOrProceed();
 
-        if (empty($email) || empty($password)) {
-            errorResponse('Email and password are required.');
-        }
+        $email    = $v->get('email');
+        $password = $input['password'];
 
         $stmt = $db->prepare('SELECT id, email, password_hash, role FROM users WHERE email = ? LIMIT 1');
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
         if (!$user || !password_verify($password, $user['password_hash'])) {
+            AuditLogger::auth('user.login_failed', 'anonymous', 'unknown', ['email' => $email]);
             errorResponse('Incorrect email or password.', 401);
         }
 

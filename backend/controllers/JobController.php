@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../services/MatchingService.php';
+require_once __DIR__ . '/../services/Validator.php';
+require_once __DIR__ . '/../services/AuditLogger.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 class JobController {
@@ -234,17 +236,24 @@ class JobController {
 
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $title = trim($input['title'] ?? '');
-        $summary = trim($input['summary'] ?? '');
-        $description = trim($input['description'] ?? '');
-        $location = trim($input['location'] ?? 'Remote');
-        $type = $input['type'] ?? 'Full Time';
-        $salaryRange = trim($input['salary_range'] ?? '');
-        $skills = (array)($input['skills'] ?? []);
+        $v = new Validator($input);
+        $v->required('title', 'Job Title')
+          ->minLength('title', 3, 'Job Title')
+          ->maxLength('title', 255, 'Job Title')
+          ->optional('summary', '')
+          ->optional('description', '')
+          ->optional('location', 'Remote')
+          ->in('type', ['Full Time', 'Internship', 'Part Time', 'Contract'], 'Job Type')
+          ->optional('salary_range', '');
+        $v->failOrProceed();
 
-        if (empty($title) || empty($summary)) {
-            errorResponse('Job title and summary are required.');
-        }
+        $title       = $v->get('title');
+        $summary     = $v->get('summary') ?: $title;
+        $description = $v->get('description', '');
+        $location    = $v->get('location', 'Remote');
+        $type        = $v->get('type', 'Full Time');
+        $salaryRange = $v->get('salary_range', '');
+        $skills      = (array)($input['skills'] ?? []);
 
         $jobId = 'job_' . bin2hex(random_bytes(8));
 
@@ -280,6 +289,14 @@ class JobController {
             }
 
             $db->commit();
+
+            AuditLogger::job('job.create', $currentUser['user_id'], $jobId, [
+                'title'    => $title,
+                'type'     => $type,
+                'location' => $location,
+                'skills'   => $skills,
+            ]);
+
             jsonResponse([
                 'success' => true,
                 'message' => 'Job posted successfully.',

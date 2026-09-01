@@ -1,0 +1,879 @@
+openapi: 3.1.0
+info:
+  title: SkillBridge REST API
+  version: 2.0.0
+  description: |
+    ## SkillBridge Career Platform API
+
+    A production-grade REST API powering intelligent skill-based job matching
+    between students and verified companies.
+
+    ### Authentication
+    All protected endpoints require a **Bearer JWT** in the `Authorization` header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    Tokens are obtained via `/auth/login` and expire in **2 hours**.
+    Use `/auth/refresh` with a refresh token (stored in `HttpOnly` cookie) to rotate.
+
+    ### Response Envelope
+    Every response uses a consistent JSON structure:
+
+    **Success**:
+    ```json
+    { "success": true, "data": {}, "meta": { "request_id": "req_...", "timestamp": "...", "version": "2.0.0" } }
+    ```
+
+    **Error**:
+    ```json
+    { "success": false, "error": "message", "code": "MACHINE_CODE", "meta": {...} }
+    ```
+
+    ### Rate Limits
+    | Scope | Limit |
+    |---|---|
+    | Global API | 120 req/min |
+    | Auth Login / Register | 15 req/min |
+    | Auth Refresh | 30 req/min |
+
+  contact:
+    name: SkillBridge Engineering
+    email: api@skillbridge.dev
+    url: https://skillbridge.dev
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local Development (PHP Built-in Server)
+  - url: https://api.skillbridge.dev/api
+    description: Production (Neon PostgreSQL + Cloudflare CDN)
+
+tags:
+  - name: Health
+    description: Service uptime and diagnostics
+  - name: Auth
+    description: Registration, login, JWT refresh, and logout
+  - name: Jobs
+    description: Job listing, creation, and management
+  - name: Companies
+    description: Company profiles, verification, and geocoding
+  - name: Students
+    description: Student profiles, skills, and resume handling
+  - name: Applications
+    description: Application pipeline, stage management, timelines
+  - name: Notifications
+    description: User notification inbox
+  - name: Admin
+    description: Platform governance and admin-only operations
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Meta:
+      type: object
+      properties:
+        request_id:
+          type: string
+          example: req_9f2b4a81c3d7e6f0
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: "2.0.0"
+
+    SuccessResponse:
+      type: object
+      required: [success, meta]
+      properties:
+        success:
+          type: boolean
+          example: true
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    ErrorResponse:
+      type: object
+      required: [success, error, code, meta]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Validation failed. Please correct the highlighted fields."
+        code:
+          type: string
+          enum: [BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR]
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Per-field validation errors (only present on 422)
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        per_page:
+          type: integer
+        page:
+          type: integer
+        total_pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: u_abc123
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [student, recruiter, admin]
+        created_at:
+          type: string
+          format: date-time
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          example: Senior Frontend Engineer
+        summary:
+          type: string
+        location:
+          type: string
+          example: Bengaluru (Hybrid)
+        type:
+          type: string
+          enum: [Full Time, Internship, Part Time, Contract]
+        salary_range:
+          type: string
+          example: "₹12 LPA - ₹18 LPA"
+        status:
+          type: string
+          enum: [active, paused, closed]
+        skills:
+          type: array
+          items:
+            type: string
+        company:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            verified:
+              type: boolean
+            logoUrl:
+              type: string
+            city:
+              type: string
+        match:
+          type: object
+          properties:
+            score:
+              type: integer
+              description: Percentage 0-100
+            fit_level:
+              type: string
+              enum: ["Strong Fit", "Moderate Fit", "Developing Fit"]
+            explanation:
+              type: string
+            strengths:
+              type: array
+              items:
+                type: string
+            role_fit_score:
+              type: integer
+
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        college:
+          type: string
+        program:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        stage:
+          type: string
+          enum: [applied, shortlisted, interview, offer, hired, rejected]
+        roleFitScore:
+          type: integer
+        match:
+          type: object
+
+    AuditEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        audit_at:
+          type: string
+          format: date-time
+        action:
+          type: string
+        actor_id:
+          type: string
+        actor_role:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        ip:
+          type: string
+        request_id:
+          type: string
+        meta:
+          type: object
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health check
+      description: Returns database connectivity, uptime, and environment status.
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              example:
+                status: healthy
+                database: connected
+                environment: production
+                uptime_seconds: 3600
+
+  /ping:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Pong
+          content:
+            application/json:
+              example:
+                status: pong
+                timestamp: 1725198130
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new account (student or recruiter)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, role, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                role:
+                  type: string
+                  enum: [student, recruiter]
+                name:
+                  type: string
+                college:
+                  type: string
+                  description: Required when role=student
+                program:
+                  type: string
+                  description: Required when role=student
+                company_name:
+                  type: string
+                  description: Required when role=recruiter
+                industry:
+                  type: string
+                  description: Required when role=recruiter
+      responses:
+        "201":
+          description: Registration successful
+        "409":
+          description: Email already registered
+        "422":
+          description: Validation errors
+          content:
+            application/json:
+              $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and receive JWT tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              example:
+                success: true
+                token: "eyJhbGciOiJIUzI1NiJ9..."
+                refresh_token: "rft_..."
+                user:
+                  id: u_abc123
+                  email: student@example.com
+                  role: student
+        "401":
+          description: Invalid credentials
+        "422":
+          description: Validation error
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate JWT using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: New access token issued
+        "401":
+          description: Invalid or expired refresh token
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token (server-side session invalidation)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+        "401":
+          description: Unauthorized
+
+  /jobs:
+    get:
+      tags: [Jobs]
+      summary: List active job opportunities
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Full-text search across title, summary, skills, and company name
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [Full Time, Internship, Part Time, Contract]
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated job list with optional skill match scores
+
+    post:
+      tags: [Jobs]
+      summary: Create a new job posting (Recruiter only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, location, skills]
+              properties:
+                title:
+                  type: string
+                  minLength: 3
+                  maxLength: 255
+                type:
+                  type: string
+                  enum: [Full Time, Internship, Part Time, Contract]
+                location:
+                  type: string
+                salary_range:
+                  type: string
+                skills:
+                  type: array
+                  items:
+                    type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Job created
+        "403":
+          description: Must be a recruiter
+
+  /jobs/{id}:
+    get:
+      tags: [Jobs]
+      summary: Get single job with full details and match score
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job detail with skills and company
+        "404":
+          description: Not found
+
+  /companies:
+    get:
+      tags: [Companies]
+      summary: List all companies (verified first)
+      responses:
+        "200":
+          description: Company list
+
+  /companies/{id}:
+    get:
+      tags: [Companies]
+      summary: Get company profile with geocoded location
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Company profile
+
+  /companies/profile:
+    post:
+      tags: [Companies]
+      summary: Create or update company profile and trigger geocoding
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, address, city, state]
+              properties:
+                name:
+                  type: string
+                address:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                pincode:
+                  type: string
+                country:
+                  type: string
+                website:
+                  type: string
+                  format: uri
+                about:
+                  type: string
+      responses:
+        "200":
+          description: Profile updated with geocoding result
+
+  /student/profile:
+    get:
+      tags: [Students]
+      summary: Get authenticated student profile with skills and progress
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Student profile
+
+  /student/skills:
+    post:
+      tags: [Students]
+      summary: Add a skill to student profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [skill_name]
+              properties:
+                skill_name:
+                  type: string
+                proficiency:
+                  type: string
+                  enum: [beginner, intermediate, advanced, expert]
+                  default: intermediate
+      responses:
+        "201":
+          description: Skill added
+
+  /student/resume:
+    post:
+      tags: [Students]
+      summary: Upload resume PDF (max 5MB, PDF only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                resume:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Resume uploaded and SHA-256 verified
+
+  /student/resume/download/{studentId}:
+    get:
+      tags: [Students]
+      summary: Stream protected resume (RBAC enforced)
+      description: |
+        - Student can download their own resume.
+        - Recruiter can only access resumes of students who applied to their company's jobs.
+        - Admin can access all resumes.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF file stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Access denied
+
+  /student/trust-profile:
+    get:
+      tags: [Students]
+      summary: Get student trust profile with verification badges and endorsements
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Trust profile with endorsements
+
+  /applications/apply:
+    post:
+      tags: [Applications]
+      summary: Apply to a job opportunity
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_id]
+              properties:
+                job_id:
+                  type: string
+                cover_note:
+                  type: string
+      responses:
+        "201":
+          description: Application submitted with match score
+        "409":
+          description: Already applied
+
+  /applications/candidates:
+    get:
+      tags: [Applications]
+      summary: List candidates for recruiter's jobs with smart ranking
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: stage
+          in: query
+          schema:
+            type: string
+            enum: [All, Applied, Shortlisted, Interview, Offer]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [role_fit, match_score, recent]
+            default: role_fit
+        - name: min_score
+          in: query
+          schema:
+            type: integer
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: graduation_year
+          in: query
+          schema:
+            type: integer
+        - name: skills
+          in: query
+          schema:
+            type: string
+          description: Comma-separated required skills
+      responses:
+        "200":
+          description: Ranked candidate list
+
+  /applications/stage:
+    put:
+      tags: [Applications]
+      summary: Update candidate application stage (Recruiter/Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [application_id, stage]
+              properties:
+                application_id:
+                  type: string
+                stage:
+                  type: string
+                  enum: [applied, shortlisted, interview, offer, hired, rejected]
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Stage updated, candidate notified
+        "403":
+          description: Not authorized for this application
+
+  /applications/timeline/{id}:
+    get:
+      tags: [Applications]
+      summary: Get interview status timeline for an application
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Step-by-step hiring timeline
+
+  /applications/feedback:
+    post:
+      tags: [Applications]
+      summary: Submit recruiter endorsement for a candidate
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [application_id, rating, review_text]
+              properties:
+                application_id:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                review_text:
+                  type: string
+                  minLength: 10
+      responses:
+        "200":
+          description: Endorsement published to candidate trust profile
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Get user notification inbox
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Notification list
+
+  /notifications/read:
+    post:
+      tags: [Notifications]
+      summary: Mark notifications as read
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Marked as read
+
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: Platform-wide statistics (public)
+      responses:
+        "200":
+          description: Aggregated platform metrics
+
+  /admin/verify-company:
+    post:
+      tags: [Admin]
+      summary: Grant or revoke company verification badge (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id]
+              properties:
+                company_id:
+                  type: string
+                verified:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: Verification status updated with audit entry
+
+  /admin/logs:
+    get:
+      tags: [Admin]
+      summary: Retrieve structured application logs (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Recent log entries
+
+  /admin/audit:
+    get:
+      tags: [Admin]
+      summary: Query audit trail of all sensitive actions (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: action
+          in: query
+          schema:
+            type: string
+          description: Filter by action type
+        - name: actor_id
+          in: query
+          schema:
+            type: string
+          description: Filter by user who performed action
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Paginated audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  audit_logs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'

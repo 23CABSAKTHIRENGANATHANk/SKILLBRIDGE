@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../services/MatchingService.php';
+require_once __DIR__ . '/../services/Validator.php';
+require_once __DIR__ . '/../services/AuditLogger.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 class ApplicationController {
@@ -246,13 +248,14 @@ class ApplicationController {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $appId = trim($input['application_id'] ?? '');
-        $newStage = strtolower(trim($input['stage'] ?? ''));
+        $v = new Validator($input);
+        $v->required('application_id', 'Application ID')
+          ->required('stage', 'Stage')
+          ->in('stage', ['applied', 'shortlisted', 'interview', 'offer', 'hired', 'rejected'], 'Stage');
+        $v->failOrProceed();
 
-        $validStages = ['applied', 'shortlisted', 'interview', 'offer', 'hired', 'rejected'];
-        if (!in_array($newStage, $validStages, true)) {
-            errorResponse('Invalid stage specified.');
-        }
+        $appId    = $v->get('application_id');
+        $newStage = strtolower($v->get('stage'));
 
         // 1. Verify that this application belongs to a job owned by this recruiter
         $stmt = $db->prepare('
@@ -276,6 +279,33 @@ class ApplicationController {
 
         $updateStmt = $db->prepare('UPDATE applications SET stage = ? WHERE id = ?');
         $updateStmt->execute([$newStage, $appId]);
+
+        // Write stage change history (immutable audit trail)
+        try {
+            $histStmt = $db->prepare(
+                'INSERT INTO application_stage_history
+                 (application_id, from_stage, to_stage, changed_by, changed_by_role, notes)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $histStmt->execute([
+                $appId,
+                $app['stage'] ?? 'applied',
+                $newStage,
+                $currentUser['user_id'],
+                $currentUser['role'],
+                $input['notes'] ?? null,
+            ]);
+        } catch (\Throwable) {
+            // table may not exist yet — degrade silently
+        }
+
+        // Audit log
+        AuditLogger::application('application.stage_update', $currentUser['user_id'], $currentUser['role'], $appId, [
+            'from_stage'   => $app['stage'] ?? 'unknown',
+            'to_stage'     => $newStage,
+            'job_title'    => $app['job_title'],
+            'company_name' => $app['company_name'],
+        ]);
 
         // Send status notification to candidate
         $notifStmt = $db->prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)');

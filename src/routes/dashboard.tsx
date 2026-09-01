@@ -44,6 +44,8 @@ import { useStudentDashboardQuery, useJobsQuery } from "@/hooks/use-api";
 import { useAuth } from "@/context/auth-context";
 import { demoPipeline, demoProgress } from "@/data/demo";
 import { toast } from "sonner";
+import { InterviewTimeline, type Interview } from "@/components/interview-timeline";
+import { ResumeScorer } from "@/lib/resume-scorer";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -77,7 +79,7 @@ function DashboardPage() {
   const { pipeline, progress, applications, loading } = useStudentDashboardQuery();
   const { jobs: allJobs } = useJobsQuery();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "applications" | "trust">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "profile" | "applications" | "trust" | "interviews">("overview");
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillProficiency, setNewSkillProficiency] = useState(85);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
@@ -93,6 +95,40 @@ function DashboardPage() {
 
   // Selected Application Timeline Modal
   const [selectedTimelineApp, setSelectedTimelineApp] = useState<any | null>(null);
+
+  // Resume scoring state
+  const [resumeScore] = useState(88);
+  const [resumeStrengths] = useState(["Strong technical background", "Clear career progression", "Project experience demonstrated"]);
+  const [resumeImprovements] = useState(["Add more quantifiable results", "Link to GitHub/portfolio", "Include certifications"]);
+
+  // Mock interviews data
+  const [mockInterviews] = useState<Interview[]>([
+    {
+      id: "int-1",
+      jobTitle: "Senior React Developer",
+      company: "TechCorp India",
+      scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      duration: 60,
+      interviewer: { name: "Priya Singh", role: "Engineering Manager", email: "priya@techcorp.com" },
+      type: "video",
+      meetingLink: "https://meet.google.com/abc-defg-hij",
+      status: "scheduled",
+      notes: "Discussion about React architecture and scalability",
+    },
+    {
+      id: "int-2",
+      jobTitle: "Full Stack Engineer",
+      company: "StartUp Inc",
+      scheduledAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      duration: 45,
+      interviewer: { name: "Rajesh Kumar", role: "CTO", email: "rajesh@startup.com" },
+      type: "video",
+      meetingLink: "https://zoom.us/j/xyz123",
+      status: "completed",
+      feedback: "Great technical knowledge and communication skills. Perfect fit for the team!",
+      feedbackScore: 5,
+    },
+  ]);
 
   const currentPipeline = pipeline || demoPipeline;
   const currentProgress = progress || demoProgress;
@@ -281,6 +317,18 @@ function DashboardPage() {
                 <ShieldCheck className="size-3.5" />
                 <span>Trust & Badges</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("interviews")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1 ${
+                  activeTab === "interviews"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Video className="size-3.5" />
+                <span>Interviews</span>
+              </button>
             </div>
           </div>
         </ScrollReveal>
@@ -449,6 +497,40 @@ function DashboardPage() {
                   <p className="text-xs text-muted-foreground mb-4">
                     These skills are evaluated in real time by the SkillBridge deterministic matching engine.
                   </p>
+
+                  {/* Resume Score Summary */}
+                  <div className="rounded-2xl border border-success/30 bg-success-soft/20 p-4 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-foreground">Resume Quality Score</h3>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-extrabold">
+                        {resumeScore}%
+                      </span>
+                    </div>
+                    <div className="space-y-2 mb-3">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">Strengths:</p>
+                        <ul className="space-y-1">
+                          {resumeStrengths.map((str, i) => (
+                            <li key={i} className="text-xs text-foreground flex items-start gap-2">
+                              <CheckCircle2 className="size-3 mt-0.5 text-success shrink-0" />
+                              {str}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Next Steps:</p>
+                      <ul className="space-y-1">
+                        {resumeImprovements.map((imp, i) => (
+                          <li key={i} className="text-xs text-foreground flex items-start gap-2">
+                            <AlertCircle className="size-3 mt-0.5 text-warning-foreground shrink-0" />
+                            {imp}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
 
                   <div className="flex flex-wrap gap-2 mb-6">
                     {["React", "TypeScript", "JavaScript", "CSS", "Tailwind CSS", "HTML5", "PostgreSQL", "Node.js", "Git"].map((skill) => (
@@ -786,6 +868,29 @@ function DashboardPage() {
                 </div>
               </ScrollReveal>
             </div>
+          </div>
+        )}
+
+        {/* TAB 5: INTERVIEW TIMELINE & MANAGEMENT */}
+        {activeTab === "interviews" && (
+          <div className="mt-8 space-y-6">
+            <ScrollReveal>
+              <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+                <div className="flex items-center gap-2 mb-2">
+                  <Video className="size-6 text-primary" />
+                  <h2 className="font-display text-xl font-bold text-foreground">
+                    Interview Timeline & Management
+                  </h2>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Track all scheduled interviews, access meeting links, and view feedback from completed sessions.
+                </p>
+              </div>
+            </ScrollReveal>
+
+            <ScrollReveal delay={100}>
+              <InterviewTimeline interviews={mockInterviews} />
+            </ScrollReveal>
           </div>
         )}
 

@@ -8,9 +8,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/cors.php';
 handleCors();
 
+require_once __DIR__ . '/config/response.php';    // ← consistent JSON envelope + global error handler
+registerGlobalErrorHandler();
+
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/jwt.php';
 require_once __DIR__ . '/services/Logger.php';
+require_once __DIR__ . '/services/AuditLogger.php';   // ← tamper-evident audit trail
+require_once __DIR__ . '/services/Validator.php';      // ← centralised input validation
 require_once __DIR__ . '/services/HealthService.php';
 require_once __DIR__ . '/middleware/AuthMiddleware.php';
 require_once __DIR__ . '/middleware/RateLimitMiddleware.php';
@@ -28,8 +33,18 @@ $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
 // Normalize path: strip leading /api or backend path
-$path = preg_replace('#^/api|^/backend/index\.php|^/backend#', '', $uri);
+$path = preg_replace('#^/api|^/backend/index\\.php|^/backend#', '', $uri);
 $path = '/' . trim($path, '/');
+
+// Attach per-request ID for traceability across logs
+$_SERVER['HTTP_X_REQUEST_ID'] ??= 'req_' . bin2hex(random_bytes(8));
+
+// Global Request Log
+Logger::info("API Request: {$method} {$path}", [
+    'query'      => $_GET,
+    'ip'         => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+    'request_id' => $_SERVER['HTTP_X_REQUEST_ID'],
+]);
 
 // Global Rate Limiting: 120 reqs/min for general API
 RateLimitMiddleware::check('global_api', 120, 60);
@@ -46,6 +61,17 @@ switch (true) {
     case $path === '/ping':
         jsonResponse(['status' => 'pong', 'timestamp' => time()]);
         break;
+
+    case $path === '/docs':
+        header('Content-Type: text/html; charset=UTF-8');
+        readfile(__DIR__ . '/swagger-ui.html');
+        exit;
+
+    case $path === '/openapi.yaml':
+        header('Content-Type: application/yaml; charset=UTF-8');
+        header('Access-Control-Allow-Origin: *');
+        readfile(__DIR__ . '/openapi.yaml');
+        exit;
 
     // --- Authentication (Strict Rate Limiting: 15 reqs/min) ---
     case $path === '/auth/register' && $method === 'POST':
@@ -197,7 +223,22 @@ switch (true) {
         ]);
         break;
 
+    case $path === '/admin/audit' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AuthMiddleware::requireRole($user, 'admin');
+        $action  = trim($_GET['action']  ?? '');
+        $actorId = trim($_GET['actor_id'] ?? '');
+        $limit   = min((int)($_GET['limit'] ?? 100), 500);
+        $entries = AuditLogger::getRecent($limit, $action, $actorId);
+        jsonResponse([
+            'success'    => true,
+            'audit_logs' => $entries,
+            'total'      => count($entries),
+        ]);
+        break;
+
     default:
         Logger::warning("404 Route Not Found: {$method} {$path}");
         errorResponse("Endpoint not found: {$method} {$path}", 404);
 }
+
