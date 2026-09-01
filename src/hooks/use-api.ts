@@ -128,3 +128,28 @@ export function usePlatformStatsQuery() {
 
   return stats;
 }
+
+export function useInterviewsQuery() {
+  const [interviews, setInterviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchInterviews = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await ApiClient.getInterviews();
+      setInterviews(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load interviews");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInterviews();
+  }, [fetchInterviews]);
+
+  return { interviews, loading, error, refetch: fetchInterviews };
+}

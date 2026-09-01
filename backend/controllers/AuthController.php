@@ -102,7 +102,9 @@ class AuthController {
                 ]
             ], 201);
         } catch (Exception $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             errorResponse('Registration failed: ' . $e->getMessage(), 500);
         }
     }

@@ -9,20 +9,27 @@ declare(strict_types=1);
 class Database {
     private static ?PDO $pdo = null;
 
-    private static function loadEnv(): void {
-        $envFile = dirname(__DIR__) . '/.env';
-        if (file_exists($envFile)) {
-            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if (empty($line) || str_starts_with($line, '#')) continue;
-                if (str_contains($line, '=')) {
-                    [$key, $value] = explode('=', $line, 2);
-                    $key = trim($key);
-                    $value = trim($value, " \t\n\r\0\x0B\"'");
-                    if (!getenv($key)) {
-                        putenv("{$key}={$value}");
-                        $_ENV[$key] = $value;
+    public static function loadEnv(): void {
+        $possibleFiles = [
+            dirname(__DIR__) . '/.env',
+            dirname(dirname(__DIR__)) . '/.env',
+        ];
+
+        foreach ($possibleFiles as $envFile) {
+            if (file_exists($envFile)) {
+                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (empty($line) || str_starts_with($line, '#')) continue;
+                    if (str_contains($line, '=')) {
+                        [$key, $value] = explode('=', $line, 2);
+                        $key = trim($key);
+                        $value = trim($value, " \t\n\r\0\x0B\"'");
+                        if (!str_contains($value, 'USER:PASSWORD@HOST') && !str_starts_with($value, 'CHANGE_ME')) {
+                            putenv("{$key}={$value}");
+                            $_ENV[$key] = $value;
+                            $_SERVER[$key] = $value;
+                        }
                     }
                 }
             }
@@ -36,27 +43,25 @@ class Database {
 
         self::loadEnv();
 
-        $databaseUrl = getenv('DATABASE_URL');
-
-        if (!empty($databaseUrl)) {
-            // Parse full connection string e.g. postgresql://user:pass@host:port/dbname?sslmode=require
-            $parsed = parse_url($databaseUrl);
-            $host = $parsed['host'] ?? '127.0.0.1';
-            $port = (string)($parsed['port'] ?? '5432');
-            $user = urldecode($parsed['user'] ?? '');
-            $pass = urldecode($parsed['pass'] ?? '');
-            $dbname = ltrim($parsed['path'] ?? 'neondb', '/');
-            
-            parse_str($parsed['query'] ?? '', $query);
-            $sslmode = $query['sslmode'] ?? 'require';
-        } else {
-            $host = getenv('DB_HOST') ?: '127.0.0.1';
-            $port = getenv('DB_PORT') ?: '5432';
-            $dbname = getenv('DB_NAME') ?: 'skillbridge';
-            $user = getenv('DB_USER') ?: 'postgres';
-            $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
-            $sslmode = getenv('DB_SSLMODE') ?: 'require';
+        $databaseUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? ''));
+        if (empty($databaseUrl) || str_contains($databaseUrl, '@HOST') || str_contains($databaseUrl, 'CHANGE_ME')) {
+            throw new RuntimeException('DATABASE_URL is required and must be set in backend/.env. Placeholder values are not allowed.');
         }
+
+        // Parse full connection string e.g. postgresql://user:pass@host:port/dbname?sslmode=require
+        $parsed = parse_url($databaseUrl);
+        if ($parsed === false || empty($parsed['host'])) {
+            throw new RuntimeException('DATABASE_URL is invalid. Provide a complete PostgreSQL connection string.');
+        }
+
+        $host = $parsed['host'];
+        $port = (string)($parsed['port'] ?? '5432');
+        $user = urldecode($parsed['user'] ?? '');
+        $pass = urldecode($parsed['pass'] ?? '');
+        $dbname = ltrim($parsed['path'] ?? 'skillbridge', '/');
+
+        parse_str($parsed['query'] ?? '', $query);
+        $sslmode = $query['sslmode'] ?? 'require';
 
         // Handle Neon endpoint ID for libpq compatibility
         $optionsPart = "--client_encoding=UTF8";

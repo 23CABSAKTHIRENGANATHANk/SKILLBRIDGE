@@ -22,6 +22,7 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
+import { ApiClient } from "@/lib/api-client";
 
 function CompanyVerificationRow({ company }: { company: any }) {
   const [verified, setVerified] = useState(company.verified);
@@ -131,44 +132,25 @@ function AdminPage() {
   const [stats, setStats] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchData = async () => {
     setIsRefreshing(true);
+    setError(null);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const [statsRes, healthRes] = await Promise.all([
-        fetch("http://localhost:8000/api/admin/stats", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("http://localhost:8000/api/health"),
+      const [statsData, healthData] = await Promise.all([
+        ApiClient.request<{ success: boolean; stats: any }>('/admin/stats'),
+        ApiClient.request<{ success: boolean; status: string; database?: string; uptime?: string }>('/health').catch(() => null),
       ]);
 
-      if (statsRes.ok) {
-        const sData = await statsRes.json();
-        setStats(sData.stats);
-      } else {
-        setStats({
-          total_users: 1248,
-          total_students: 892,
-          total_recruiters: 256,
-          total_companies: 48,
-          total_jobs: 312,
-          total_applications: 3456,
-          applications_this_week: 523,
-          new_users_this_week: 87,
-          active_users_today: 342,
-        });
-      }
-
-      if (healthRes.ok) {
-        const hData = await healthRes.json();
-        setHealth(hData);
-      } else {
-        setHealth({ database: "connected", status: "ok", uptime: "42d 5h 23m" });
-      }
+      setStats(statsData?.stats ?? null);
+      setHealth(healthData ?? null);
     } catch (err) {
       console.error("Error fetching data:", err);
+      setError(err instanceof Error ? err.message : "Unable to load admin metrics right now.");
+      setStats(null);
+      setHealth(null);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -266,6 +248,12 @@ function AdminPage() {
             ))}
           </div>
         </ScrollReveal>
+
+        {error && (
+          <div className="mb-6 rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
         {activeTab === "analytics" && (
           <div className="space-y-8">

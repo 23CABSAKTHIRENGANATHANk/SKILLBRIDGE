@@ -40,11 +40,11 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useStudentDashboardQuery, useJobsQuery } from "@/hooks/use-api";
+import { useStudentDashboardQuery, useJobsQuery, useInterviewsQuery } from "@/hooks/use-api";
 import { useAuth } from "@/context/auth-context";
-import { demoPipeline, demoProgress } from "@/data/demo";
 import { toast } from "sonner";
 import { InterviewTimeline, type Interview } from "@/components/interview-timeline";
+import { LoadingState, EmptyState, ErrorState } from "@/components/ui/state-views";
 import { ResumeScorer } from "@/lib/resume-scorer";
 
 import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
@@ -82,6 +82,7 @@ function DashboardPage() {
   const { user } = useAuth();
   const { pipeline, progress, applications, loading } = useStudentDashboardQuery();
   const { jobs: allJobs } = useJobsQuery();
+  const { interviews: liveInterviews, loading: interviewsLoading, error: interviewsError, refetch: refetchInterviews } = useInterviewsQuery();
 
   const [activeTab, setActiveTab] = useState<"overview" | "ai" | "profile" | "applications" | "trust" | "interviews">("overview");
   const [selectedOpportunityJob, setSelectedOpportunityJob] = useState<Job | null>(null);
@@ -135,8 +136,23 @@ function DashboardPage() {
     },
   ]);
 
-  const currentPipeline = pipeline || demoPipeline;
-  const currentProgress = progress || demoProgress;
+  const defaultPipeline = {
+    applied: 0,
+    shortlisted: 0,
+    interview: 0,
+    hired: 0,
+    rejected: 0,
+  };
+
+  const defaultProgress = {
+    percent: 0,
+    completed: 0,
+    total: 0,
+    milestones: [],
+  };
+
+  const currentPipeline = pipeline ?? defaultPipeline;
+  const currentProgress = progress ?? defaultProgress;
   const recommendedJobs = allJobs.slice(0, 4);
 
   const careerScore = Math.min(
@@ -275,6 +291,47 @@ function DashboardPage() {
       setIsVerifyingPhone(false);
     }
   };
+
+  if (loading && !pipeline && !progress) {
+    return (
+      <div className="min-h-screen bg-background">
+        <CursorDot />
+        <SiteHeader />
+        <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+          <div className="rounded-3xl border border-border/80 bg-card p-8 shadow-soft">
+            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-24 animate-pulse rounded-3xl bg-muted/80" />
+              ))}
+            </div>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!pipeline && !progress) {
+    return (
+      <div className="min-h-screen bg-background">
+        <CursorDot />
+        <SiteHeader />
+        <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+          <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center shadow-soft">
+            <h1 className="font-display text-2xl font-bold text-foreground">Dashboard data unavailable</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              We could not load your profile or application pipeline from the API. Please refresh or try again shortly.
+            </p>
+            <Button className="mt-6" onClick={() => window.location.reload()}>
+              Refresh dashboard
+            </Button>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -1018,9 +1075,40 @@ function DashboardPage() {
               </div>
             </ScrollReveal>
 
-            <ScrollReveal delay={100}>
-              <InterviewTimeline interviews={mockInterviews} />
-            </ScrollReveal>
+            {interviewsLoading ? (
+              <LoadingState message="Loading your scheduled interviews..." />
+            ) : interviewsError ? (
+              <ErrorState title="Failed to load interviews" message={interviewsError} onRetry={refetchInterviews} />
+            ) : liveInterviews.length > 0 ? (
+              <ScrollReveal delay={100}>
+                <InterviewTimeline
+                  interviews={liveInterviews.map((iv: any) => ({
+                    id: iv.id,
+                    jobTitle: iv.job_title || "Engineering Role",
+                    company: iv.company_name || "Company",
+                    scheduledAt: new Date(iv.scheduled_at),
+                    duration: 45,
+                    interviewer: {
+                      name: "Hiring Manager",
+                      role: "Technical Lead",
+                      email: "interviews@skillbridge.dev",
+                    },
+                    type: iv.meeting_link ? "video" : "phone",
+                    meetingLink: iv.meeting_link,
+                    status: iv.status || "scheduled",
+                    notes: iv.notes,
+                  }))}
+                />
+              </ScrollReveal>
+            ) : (
+              <EmptyState
+                icon={Video}
+                title="No Scheduled Interviews Yet"
+                message="When recruiters shortlist your profile and invite you to an interview, details will appear here in real-time."
+                actionLabel="Explore Matching Jobs"
+                onAction={() => setActiveTab("overview")}
+              />
+            )}
           </div>
         )}
 

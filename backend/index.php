@@ -27,6 +27,7 @@ require_once __DIR__ . '/controllers/CompanyController.php';
 require_once __DIR__ . '/controllers/StudentController.php';
 require_once __DIR__ . '/controllers/ApplicationController.php';
 require_once __DIR__ . '/controllers/NotificationController.php';
+require_once __DIR__ . '/controllers/InterviewController.php';
 require_once __DIR__ . '/controllers/AdminController.php';
 require_once __DIR__ . '/services/GeminiService.php';
 require_once __DIR__ . '/controllers/AIController.php';
@@ -193,6 +194,22 @@ switch (true) {
     case $path === '/applications/stage' && in_array($method, ['PUT', 'POST'], true):
         $user = AuthMiddleware::authenticate();
         ApplicationController::updateStage($user);
+        break;
+
+    // --- Interviews ---
+    case $path === '/interviews' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        InterviewController::list($user);
+        break;
+
+    case $path === '/interviews/schedule' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        InterviewController::schedule($user);
+        break;
+
+    case $path === '/interviews/status' && in_array($method, ['PUT', 'POST'], true):
+        $user = AuthMiddleware::authenticate();
+        InterviewController::updateStatus($user);
         break;
 
     // --- Notifications ---

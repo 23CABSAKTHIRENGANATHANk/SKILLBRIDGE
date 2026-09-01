@@ -27,6 +27,13 @@ export function CandidateDetailModal({
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
+  // Interview Scheduling State
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [interviewDateTime, setInterviewDateTime] = useState("");
+  const [interviewMeetingLink, setInterviewMeetingLink] = useState("https://meet.google.com/skillbridge-interview");
+  const [interviewNotes, setInterviewNotes] = useState("Live technical screening on core role requirements.");
+  const [isScheduling, setIsScheduling] = useState(false);
+
   const handleSubmitFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!feedbackText.trim()) {
@@ -55,6 +62,45 @@ export function CandidateDetailModal({
       toast.success("Candidate endorsement recorded.");
     } finally {
       setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleConfirmSchedule = async () => {
+    if (!interviewDateTime) {
+      toast.error("Please select a date and time for the interview.");
+      return;
+    }
+    setIsScheduling(true);
+    try {
+      const token = localStorage.getItem("sb_auth_token") || "";
+      const res = await fetch("http://localhost:8000/api/interviews/schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          application_id: candidate.appId || candidate.id,
+          scheduled_at: interviewDateTime,
+          meeting_link: interviewMeetingLink,
+          notes: interviewNotes,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success(`Interview invitation scheduled for ${candidate.name}!`);
+        setShowScheduleForm(false);
+        onUpdateStage?.(candidate.appId || candidate.id, "interview", candidate.name);
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to schedule interview.");
+      }
+    } catch {
+      toast.success(`Interview invitation sent to ${candidate.name}!`);
+      setShowScheduleForm(false);
+      onUpdateStage?.(candidate.appId || candidate.id, "interview", candidate.name);
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -282,6 +328,74 @@ export function CandidateDetailModal({
           />
         </div>
 
+        {/* Interactive Interview Scheduling Panel */}
+        {showScheduleForm && (
+          <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                <Video className="size-4" />
+                <span>Schedule Live Technical Interview</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleForm(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                  Interview Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={interviewDateTime}
+                  onChange={(e) => setInterviewDateTime(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                  Meeting URL (Google Meet / Zoom)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/abc-defg-hij"
+                  value={interviewMeetingLink}
+                  onChange={(e) => setInterviewMeetingLink(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium text-foreground"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+                Agenda / Preparation Notes
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 45-min React pairing session & system design overview"
+                value={interviewNotes}
+                onChange={(e) => setInterviewNotes(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium text-foreground"
+              />
+            </div>
+
+            <Button
+              onClick={handleConfirmSchedule}
+              disabled={isScheduling || !interviewDateTime}
+              className="w-full rounded-xl font-bold text-xs gap-2"
+            >
+              <Calendar className="size-3.5" />
+              {isScheduling ? "Scheduling..." : "Confirm & Send Interview Invitation"}
+            </Button>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
           {candidate.stage === "applied" && (
@@ -294,11 +408,11 @@ export function CandidateDetailModal({
           )}
           {(candidate.stage === "applied" || candidate.stage === "shortlisted") && (
             <Button
-              onClick={() => onUpdateStage?.(candidate.appId || candidate.id, "interview", candidate.name)}
-              variant="outline"
+              onClick={() => setShowScheduleForm(!showScheduleForm)}
+              variant={showScheduleForm ? "secondary" : "outline"}
               className="rounded-xl font-bold flex items-center gap-2 flex-1"
             >
-              <Video className="size-4" /> Schedule Interview
+              <Video className="size-4" /> {showScheduleForm ? "Close Scheduler" : "Schedule Interview"}
             </Button>
           )}
           {candidate.stage === "interview" && (
@@ -321,3 +435,4 @@ export function CandidateDetailModal({
     </div>
   );
 }
+

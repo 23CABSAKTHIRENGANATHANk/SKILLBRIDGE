@@ -9,11 +9,14 @@ require_once __DIR__ . '/database.php';
  */
 class JWT {
     private static function getSecret(): string {
-        $secret = getenv('JWT_SECRET');
-        if (!empty($secret)) {
-            return $secret;
+        Database::loadEnv();
+        $secret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? ($_SERVER['JWT_SECRET'] ?? ''));
+
+        if (empty($secret) || str_starts_with($secret, 'CHANGE_ME')) {
+            throw new RuntimeException('JWT_SECRET is required and must be set to a real secret in backend/.env.');
         }
-        return 'skillbridge_production_jwt_secret_key_2026_super_secure_enterprise_key';
+
+        return $secret;
     }
 
     /**

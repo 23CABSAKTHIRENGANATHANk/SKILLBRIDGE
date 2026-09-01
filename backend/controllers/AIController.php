@@ -321,7 +321,7 @@ class AIController {
 
         // Recent candidate names
         $ncStmt = $db->prepare("
-            SELECT DISTINCT s.name FROM applications a
+            SELECT s.name FROM applications a
             JOIN students s ON a.student_id = s.id
             JOIN jobs j ON a.job_id = j.id
             WHERE j.company_id = ? ORDER BY a.created_at DESC LIMIT 5

@@ -25,8 +25,8 @@ import { BridgeLine } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-magnetic";
 import { useParallax } from "@/hooks/use-parallax";
-import { demoJobs, demoStats } from "@/data/demo";
 import { Link } from "@tanstack/react-router";
+import { useJobsQuery, usePlatformStatsQuery } from "@/hooks/use-api";
 import type { Job } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/")({
@@ -156,14 +156,15 @@ function HeroSection() {
    STATS SECTION
    ======================================================================== */
 
-const statItems = [
-  { icon: Users, label: "Students", value: demoStats.students, suffix: "+" },
-  { icon: Briefcase, label: "Opportunities", value: demoStats.opportunities, suffix: "+" },
-  { icon: Building2, label: "Companies", value: demoStats.companies, suffix: "+" },
-  { icon: Zap, label: "Matches Made", value: demoStats.matches, suffix: "+" },
-];
-
 function StatsSection() {
+  const stats = usePlatformStatsQuery();
+  const statItems = [
+    { icon: Users, label: "Students", value: stats?.students ?? 0, suffix: "+" },
+    { icon: Briefcase, label: "Opportunities", value: stats?.opportunities ?? 0, suffix: "+" },
+    { icon: Building2, label: "Companies", value: stats?.companies ?? 0, suffix: "+" },
+    { icon: Zap, label: "Matches Made", value: stats?.matches ?? 0, suffix: "+" },
+  ];
+
   return (
     <section className="relative border-y bg-card/60 py-14 backdrop-blur-sm" aria-label="Platform statistics">
       <div className="mx-auto grid max-w-5xl grid-cols-2 gap-8 px-4 sm:px-6 md:grid-cols-4">
@@ -271,7 +272,8 @@ function FeaturesSection() {
    ======================================================================== */
 
 function OpportunitySection({ onSelectJob }: { onSelectJob: (job: Job) => void }) {
-  const featuredJobs = demoJobs.slice(0, 4);
+  const { jobs: featuredJobs, loading: jobsLoading } = useJobsQuery();
+  const jobsToShow = featuredJobs.slice(0, 4);
 
   return (
     <section className="py-20" aria-labelledby="opportunities-title">
@@ -292,11 +294,22 @@ function OpportunitySection({ onSelectJob }: { onSelectJob: (job: Job) => void }
         </ScrollReveal>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
-          {featuredJobs.map((job, i) => (
-            <ScrollReveal key={job.id} delay={i * 100} direction="up">
-              <JobCard job={job} onSelect={onSelectJob} />
-            </ScrollReveal>
-          ))}
+          {jobsLoading ? (
+            <div className="col-span-full rounded-3xl border border-dashed bg-card/60 p-12 text-center text-sm text-muted-foreground">
+              Loading opportunities...
+            </div>
+          ) : jobsToShow.length > 0 ? (
+            jobsToShow.map((job, i) => (
+              <ScrollReveal key={job.id} delay={i * 100} direction="up">
+                <JobCard job={job} onSelect={onSelectJob} />
+              </ScrollReveal>
+            ))
+          ) : (
+            <div className="col-span-full rounded-3xl border border-dashed bg-card/60 p-12 text-center">
+              <p className="font-display text-xl font-bold">No opportunities available</p>
+              <p className="mt-2 text-sm text-muted-foreground">The live job feed is empty right now.</p>
+            </div>
+          )}
         </div>
       </div>
     </section>

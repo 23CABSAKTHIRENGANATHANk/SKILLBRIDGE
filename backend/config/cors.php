@@ -52,33 +52,4 @@ function handleCors(): void {
     }
 }
 
-/**
- * Standardized JSON response helper
- */
-if (!function_exists('jsonResponse')) {
-    function jsonResponse(mixed $data, int $statusCode = 200): void {
-        http_response_code($statusCode);
-        echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-}
-
-/**
- * Production-Safe JSON error helper (Masks internal details in production)
- */
-if (!function_exists('errorResponse')) {
-    function errorResponse(string $message, int $statusCode = 400, array $extra = []): void {
-        $env = getenv('APP_ENV') ?: 'production';
-
-        // In production, mask generic 500 errors so sensitive database/stack details are never leaked
-        $safeMessage = $message;
-        if ($statusCode >= 500 && $env === 'production') {
-            $safeMessage = 'An internal server error occurred. Please try again later or contact support.';
-        }
-
-        jsonResponse(array_merge([
-            'success' => false,
-            'error' => $safeMessage
-        ], $extra), $statusCode);
-    }
-}
+require_once __DIR__ . '/response.php';

@@ -16,7 +16,6 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { Button } from "@/components/ui/button";
 import { useCompanyQuery } from "@/hooks/use-api";
-import { demoCompany } from "@/data/demo";
 
 export const Route = createFileRoute("/company")({
   head: () => ({
@@ -33,7 +32,39 @@ export const Route = createFileRoute("/company")({
 
 function CompanyPage() {
   const { company: apiCompany, companyJobs, loading } = useCompanyQuery("c1");
-  const company = apiCompany || demoCompany;
+  const company = apiCompany;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <CursorDot />
+        <SiteHeader />
+        <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+          <div className="rounded-3xl border border-dashed bg-card/60 p-12 text-center text-sm text-muted-foreground">
+            Loading company profile...
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!company) {
+    return (
+      <div className="min-h-screen">
+        <CursorDot />
+        <SiteHeader />
+        <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+          <div className="rounded-3xl border border-dashed bg-card/60 p-12 text-center">
+            <Building2 className="mx-auto size-8 text-muted-foreground" />
+            <p className="mt-4 font-display text-xl font-bold">Company profile unavailable</p>
+            <p className="mt-2 text-sm text-muted-foreground">The company details could not be loaded from the API.</p>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

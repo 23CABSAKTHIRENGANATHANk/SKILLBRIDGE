@@ -1,22 +1,13 @@
 /**
  * SkillBridge Unified Frontend API Client & Auth Interceptor
- * 
+ *
  * Features:
  * - Automatic JWT bearer token attachment.
  * - Single-flight refresh token queue to seamlessly recover expired sessions.
  * - Centralized 401 recovery and safe redirection.
- * - Offline/dev fallback mode in development (import.meta.env.DEV).
+ * - Production-safe error handling without silent mock data fallback.
  */
 
-import {
-  demoJobs,
-  demoStats,
-  demoCompany,
-  demoCandidates,
-  demoProgress,
-  demoPipeline,
-  demoApplications,
-} from "@/data/demo";
 import type {
   Job,
   Company,
@@ -30,8 +21,6 @@ import type {
 
 const API_BASE_URL =
   import.meta.env["VITE_API_URL"] || "http://localhost:8000/api";
-
-const IS_DEV = import.meta.env.DEV;
 
 export class ApiClient {
   private static isRefreshing = false;
@@ -159,9 +148,6 @@ export class ApiClient {
       if (err.name === "TypeError" && err.message?.includes("fetch")) {
         throw new Error("Unable to connect to SkillBridge. Check your internet connection or backend server.");
       }
-      if (IS_DEV && !endpoint.startsWith("/auth/")) {
-        console.warn(`[SkillBridge API Dev Fallback] Request to ${url} failed; using dev mock:`, err);
-      }
       throw err;
     }
   }
@@ -262,13 +248,8 @@ export class ApiClient {
 
   // --- Platform Stats ---
   public static async getPlatformStats(): Promise<PlatformStats> {
-    try {
-      const res = await this.request<{ success: boolean; stats: PlatformStats }>("/admin/stats");
-      return res.stats;
-    } catch (err) {
-      if (IS_DEV) return demoStats;
-      throw err;
-    }
+    const res = await this.request<{ success: boolean; stats: PlatformStats }>("/admin/stats");
+    return res.stats;
   }
 
   // --- Jobs ---
@@ -278,46 +259,26 @@ export class ApiClient {
     type?: string;
     location?: string;
   }): Promise<Job[]> {
-    try {
-      const query = new URLSearchParams();
-      if (params?.search) query.set("search", params.search);
-      if (params?.skill && params.skill !== "All") query.set("skill", params.skill);
-      if (params?.type && params.type !== "All Types") query.set("type", params.type);
-      if (params?.location) query.set("location", params.location);
+    const query = new URLSearchParams();
+    if (params?.search) query.set("search", params.search);
+    if (params?.skill && params.skill !== "All") query.set("skill", params.skill);
+    if (params?.type && params.type !== "All Types") query.set("type", params.type);
+    if (params?.location) query.set("location", params.location);
 
-      const qs = query.toString() ? `?${query.toString()}` : "";
-      const res = await this.request<{ success: boolean; jobs: Job[] }>(`/jobs${qs}`);
-      return res.jobs;
-    } catch (err) {
-      if (IS_DEV) return demoJobs;
-      throw err;
-    }
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await this.request<{ success: boolean; jobs: Job[] }>(`/jobs${qs}`);
+    return res.jobs;
   }
 
   public static async getJob(id: string): Promise<Job | null> {
-    try {
-      const res = await this.request<{ success: boolean; job: Job }>(`/jobs/${id}`);
-      return res.job;
-    } catch (err) {
-      if (IS_DEV) return demoJobs.find((j) => j.id === id) || null;
-      throw err;
-    }
+    const res = await this.request<{ success: boolean; job: Job }>(`/jobs/${id}`);
+    return res.job;
   }
 
   // --- Company ---
   public static async getCompany(id: string): Promise<{ company: Company; jobs: Job[] }> {
-    try {
-      const res = await this.request<{ success: boolean; company: Company; jobs: Job[] }>(`/companies/${id}`);
-      return { company: res.company, jobs: res.jobs || [] };
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          company: demoCompany,
-          jobs: demoJobs.filter((j) => j.company.id === id || j.company.id === "c1"),
-        };
-      }
-      throw err;
-    }
+    const res = await this.request<{ success: boolean; company: Company; jobs: Job[] }>(`/companies/${id}`);
+    return { company: res.company, jobs: res.jobs || [] };
   }
 
   // --- Student Dashboard ---
@@ -326,60 +287,36 @@ export class ApiClient {
     progress: CareerProgress;
     applications: Application[];
   }> {
-    try {
-      const res = await this.request<{
-        success: boolean;
-        pipeline: PipelineCounts;
-        progress: CareerProgress;
-        applications: Application[];
-      }>("/student/dashboard");
-      return {
-        pipeline: res.pipeline,
-        progress: res.progress,
-        applications: res.applications,
-      };
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          pipeline: demoPipeline,
-          progress: demoProgress,
-          applications: demoApplications,
-        };
-      }
-      throw err;
-    }
+    const res = await this.request<{
+      success: boolean;
+      pipeline: PipelineCounts;
+      progress: CareerProgress;
+      applications: Application[];
+    }>("/student/dashboard");
+    return {
+      pipeline: res.pipeline,
+      progress: res.progress,
+      applications: res.applications,
+    };
   }
 
   // --- Recruiter Candidates ---
   public static async getCandidates(params?: { stage?: string; search?: string }): Promise<Candidate[]> {
-    try {
-      const query = new URLSearchParams();
-      if (params?.stage && params.stage !== "All") query.set("stage", params.stage);
-      if (params?.search) query.set("search", params.search);
+    const query = new URLSearchParams();
+    if (params?.stage && params.stage !== "All") query.set("stage", params.stage);
+    if (params?.search) query.set("search", params.search);
 
-      const qs = query.toString() ? `?${query.toString()}` : "";
-      const res = await this.request<{ success: boolean; candidates: Candidate[] }>(`/applications/candidates${qs}`);
-      return res.candidates;
-    } catch (err) {
-      if (IS_DEV) return demoCandidates;
-      throw err;
-    }
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await this.request<{ success: boolean; candidates: Candidate[] }>(`/applications/candidates${qs}`);
+    return res.candidates;
   }
 
   // --- Application Apply ---
   public static async applyJob(jobId: string): Promise<{ success: boolean; message: string }> {
-    try {
-      return await this.request<{ success: boolean; message: string }>("/applications/apply", {
-        method: "POST",
-        body: JSON.stringify({ job_id: jobId }),
-      });
-    } catch (err) {
-      if (IS_DEV) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        return { success: true, message: "Application submitted successfully." };
-      }
-      throw err;
-    }
+    return await this.request<{ success: boolean; message: string }>("/applications/apply", {
+      method: "POST",
+      body: JSON.stringify({ job_id: jobId }),
+    });
   }
 
   // --- AI: Resume Summary ---
@@ -387,39 +324,14 @@ export class ApiClient {
     ai_powered: boolean;
     resume_analysis: AIResumeAnalysis;
   }> {
-    try {
-      return await this.request<{
-        success: boolean;
-        ai_powered: boolean;
-        resume_analysis: AIResumeAnalysis;
-      }>("/ai/resume-summary", {
-        method: "POST",
-        body: JSON.stringify({ resume_text: resumeText || "" }),
-      });
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          ai_powered: false,
-          resume_analysis: {
-            headline: "Aspiring Full-Stack Software Engineer & Problem Solver",
-            summary:
-              "Dedicated student with a solid background in React, TypeScript, and modern web architectures. Proven capability building responsive interfaces and scalable APIs, seeking a high-impact internship opportunity.",
-            key_strengths: [
-              "Modern React & Component State Architecture",
-              "REST API Integration & TypeScript Generics",
-              "Responsive Design & Clean Semantic Code",
-            ],
-            improvement_tips: [
-              "Quantify project outcomes with key metrics (e.g., 'Enhanced page load by 35%')",
-              "Highlight cloud deployment experience (AWS/Vercel/Docker)",
-            ],
-            ats_score: 88,
-            experience_level: "Fresher",
-          },
-        };
-      }
-      throw err;
-    }
+    return await this.request<{
+      success: boolean;
+      ai_powered: boolean;
+      resume_analysis: AIResumeAnalysis;
+    }>("/ai/resume-summary", {
+      method: "POST",
+      body: JSON.stringify({ resume_text: resumeText || "" }),
+    });
   }
 
   // --- AI: Match Explanation ---
@@ -430,44 +342,17 @@ export class ApiClient {
     match_score: number;
     explanation: AIMatchExplanation;
   }> {
-    try {
-      return await this.request<{
-        success: boolean;
-        ai_powered: boolean;
-        job_title: string;
-        company: string;
-        match_score: number;
-        explanation: AIMatchExplanation;
-      }>("/ai/match-explain", {
-        method: "POST",
-        body: JSON.stringify({ job_id: jobId }),
-      });
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          ai_powered: false,
-          job_title: "Frontend Engineer",
-          company: "TechCorp",
-          match_score: 92,
-          explanation: {
-            verdict: "Strong Match",
-            fit_paragraph:
-              "Your verified expertise in React and TypeScript directly fulfills the core engineering requirements for this position. Your foundation in modern web UI patterns gives you a major advantage.",
-            top_reasons: [
-              "Direct proficiency in React hooks and component architecture",
-              "TypeScript type-safety and state management mastery",
-              "Strong overlap with current company tech stack",
-            ],
-            gap_summary: "Minor gap in advanced Docker/CI pipeline workflows.",
-            recruiter_tip:
-              "Top tier candidate with verified technical badges — fast-track to technical screening.",
-            confidence: 94,
-            missing_skills: ["Docker"],
-          },
-        };
-      }
-      throw err;
-    }
+    return await this.request<{
+      success: boolean;
+      ai_powered: boolean;
+      job_title: string;
+      company: string;
+      match_score: number;
+      explanation: AIMatchExplanation;
+    }>("/ai/match-explain", {
+      method: "POST",
+      body: JSON.stringify({ job_id: jobId }),
+    });
   }
 
   // --- AI: Personalized Recommendations ---
@@ -476,31 +361,12 @@ export class ApiClient {
     recommendations: AIRecommendedJob[];
     student_skills: string[];
   }> {
-    try {
-      return await this.request<{
-        success: boolean;
-        ai_powered: boolean;
-        recommendations: AIRecommendedJob[];
-        student_skills: string[];
-      }>("/ai/recommendations");
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          ai_powered: false,
-          recommendations: demoJobs.slice(0, 4).map((j, i) => ({
-            ...j,
-            ai_reason:
-              i === 0
-                ? "Optimal alignment with your React & TypeScript credentials and high role fit score."
-                : "Strong match for your full-stack aspirations with clear mentorship paths.",
-            fit_label: i === 0 ? "Perfect Fit" : "Great Match",
-            missing_count: i === 0 ? 0 : 1,
-          })),
-          student_skills: ["React", "TypeScript", "Tailwind CSS", "Node.js"],
-        };
-      }
-      throw err;
-    }
+    return await this.request<{
+      success: boolean;
+      ai_powered: boolean;
+      recommendations: AIRecommendedJob[];
+      student_skills: string[];
+    }>("/ai/recommendations");
   }
 
   // --- AI: Skill Gap & Learning Path ---
@@ -511,54 +377,17 @@ export class ApiClient {
     job_skills: string[];
     gap_analysis: AISkillGapAnalysis;
   }> {
-    try {
-      return await this.request<{
-        success: boolean;
-        ai_powered: boolean;
-        job_title: string;
-        student_skills: string[];
-        job_skills: string[];
-        gap_analysis: AISkillGapAnalysis;
-      }>("/ai/skill-gap", {
-        method: "POST",
-        body: JSON.stringify({ job_id: jobId }),
-      });
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          ai_powered: false,
-          job_title: "Full Stack Engineer",
-          student_skills: ["React", "TypeScript"],
-          job_skills: ["React", "TypeScript", "PostgreSQL", "Docker"],
-          gap_analysis: {
-            gap_skills: ["PostgreSQL", "Docker"],
-            readiness_score: 75,
-            time_to_ready: "3-4 weeks",
-            roadmap: [
-              {
-                skill: "PostgreSQL",
-                priority: "High",
-                weeks: 2,
-                why_needed: "Core database layer required for data persistence and queries.",
-                resources: ["PostgreSQL Official Tutorial", "Interactive SQL Zoo"],
-                quick_win: "Spin up a local Postgres instance and write a CRUD migration.",
-              },
-              {
-                skill: "Docker",
-                priority: "Medium",
-                weeks: 1,
-                why_needed: "Containerization standard used in company staging and production.",
-                resources: ["Docker for Beginners Guide"],
-                quick_win: "Write a multi-stage Dockerfile for a React+Node app.",
-              },
-            ],
-            encouragement:
-              "You are already 75% ready for this role. Learning PostgreSQL this month will bridge the critical gap!",
-          },
-        };
-      }
-      throw err;
-    }
+    return await this.request<{
+      success: boolean;
+      ai_powered: boolean;
+      job_title: string;
+      student_skills: string[];
+      job_skills: string[];
+      gap_analysis: AISkillGapAnalysis;
+    }>("/ai/skill-gap", {
+      method: "POST",
+      body: JSON.stringify({ job_id: jobId }),
+    });
   }
 
   // --- AI: Recruiter Pipeline Insights ---
@@ -568,37 +397,40 @@ export class ApiClient {
     insights: AIRecruiterInsights;
     top_skills: string[];
   }> {
-    try {
-      return await this.request<{
-        success: boolean;
-        ai_powered: boolean;
-        pipeline_stats: { total: number; shortlisted: number; interview: number };
-        insights: AIRecruiterInsights;
-        top_skills: string[];
-      }>("/ai/recruiter-insights");
-    } catch (err) {
-      if (IS_DEV) {
-        return {
-          ai_powered: false,
-          pipeline_stats: { total: 18, shortlisted: 6, interview: 3 },
-          insights: {
-            pipeline_health: "Healthy",
-            summary:
-              "Your candidate pool shows strong technical density with 85%+ candidates possessing React and TypeScript proficiencies.",
-            top_insight:
-              "Top 3 candidates in your pipeline have verified identity and academic badges with 90%+ match scores.",
-            action_recommendations: [
-              "Review the 3 pending interview requests to prevent candidate drop-off",
-              "Send early offer indications to top-ranked role-fit candidates",
-            ],
-            conversion_tip:
-              "Candidates with interview feedback scheduled within 48 hours accept offers at 3x the standard rate.",
-            talent_pool_quality: "Strong",
-          },
-          top_skills: ["React", "TypeScript", "Node.js", "Python", "SQL"],
-        };
-      }
-      throw err;
-    }
+    return await this.request<{
+      success: boolean;
+      ai_powered: boolean;
+      pipeline_stats: { total: number; shortlisted: number; interview: number };
+      insights: AIRecruiterInsights;
+      top_skills: string[];
+    }>("/ai/recruiter-insights");
+  }
+
+  // --- Interviews System ---
+  public static async getInterviews(): Promise<any[]> {
+    const res = await this.request<{ success: boolean; count: number; interviews: any[] }>("/interviews");
+    return res.interviews || [];
+  }
+
+  public static async scheduleInterview(params: {
+    application_id: string;
+    scheduled_at: string;
+    meeting_link?: string;
+    notes?: string;
+  }): Promise<{ success: boolean; message: string; interview: any }> {
+    return await this.request<{ success: boolean; message: string; interview: any }>("/interviews/schedule", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+  }
+
+  public static async updateInterviewStatus(
+    interviewId: string,
+    status: "scheduled" | "completed" | "cancelled" | "rescheduled"
+  ): Promise<{ success: boolean; message: string }> {
+    return await this.request<{ success: boolean; message: string }>("/interviews/status", {
+      method: "POST",
+      body: JSON.stringify({ interview_id: interviewId, status }),
+    });
   }
 }
