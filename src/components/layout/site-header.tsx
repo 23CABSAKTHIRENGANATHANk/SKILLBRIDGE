@@ -143,6 +143,9 @@ export function SiteHeader() {
     ...(user?.role === "recruiter"
       ? [{ to: "/recruiter", label: "Recruiter Dashboard" }]
       : []),
+    ...(user?.role === "admin"
+      ? [{ to: "/admin", label: "Admin Console" }]
+      : []),
     { to: "/company", label: "Company Profile" },
   ];
 
