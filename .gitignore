@@ -1,3 +1,19 @@
+# Environment Configuration (Strictly blocked from version control)
+.env
+.env.*
+backend/.env
+backend/.env.*
+!.env.example
+!backend/.env.example
+
+# Local storage and private uploads
+backend/storage/resumes/*
+!backend/storage/resumes/.gitkeep
+backend/storage/logs/*
+!backend/storage/logs/.gitkeep
+backend/uploads/logos/*
+!backend/uploads/logos/.gitkeep
+
 # Logs
 logs
 *.log
@@ -7,6 +23,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies and Build Artifacts
 node_modules
 dist
 dist-ssr
