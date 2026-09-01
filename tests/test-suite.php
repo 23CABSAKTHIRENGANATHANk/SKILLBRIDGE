@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * SkillBridge Automated End-to-End Test Suite
+ * SkillBridge Automated End-to-End Test Suite (PostgreSQL / Neon Engine)
  */
 
 echo "========================================================\n";
@@ -25,13 +25,17 @@ function assertTest(string $title, bool $condition, string $details = ''): void 
 }
 
 function httpPost(string $url, array $data, ?string $token = null): array {
+    $header = "Content-Type: application/json\r\nAccept: application/json\r\nConnection: close\r\n";
+    if ($token) {
+        $header .= "Authorization: Bearer {$token}\r\n";
+    }
     $options = [
         'http' => [
-            'header' => "Content-Type: application/json\r\nAccept: application/json\r\n" . ($token ? "Authorization: Bearer {$token}\r\n" : ""),
+            'header' => $header,
             'method' => 'POST',
             'content' => json_encode($data),
             'ignore_errors' => true,
-            'timeout' => 8
+            'timeout' => 30
         ]
     ];
     $res = file_get_contents($url, false, stream_context_create($options));
@@ -42,12 +46,16 @@ function httpPost(string $url, array $data, ?string $token = null): array {
 }
 
 function httpGet(string $url, ?string $token = null): array {
+    $header = "Accept: application/json\r\nConnection: close\r\n";
+    if ($token) {
+        $header .= "Authorization: Bearer {$token}\r\n";
+    }
     $options = [
         'http' => [
-            'header' => "Accept: application/json\r\n" . ($token ? "Authorization: Bearer {$token}\r\n" : ""),
+            'header' => $header,
             'method' => 'GET',
             'ignore_errors' => true,
-            'timeout' => 8
+            'timeout' => 30
         ]
     ];
     $res = file_get_contents($url, false, stream_context_create($options));
@@ -68,7 +76,7 @@ assertTest('API is Online & Healthy', in_array($health['body']['status'] ?? '', 
 // Test 2: Student Authentication Flow
 // -------------------------------------------------------------
 echo "\n2. Testing Student Authentication & Profile...\n";
-$studentEmail = 'test_student_' . time() . '@skillbridge.dev';
+$studentEmail = 'test_student_' . time() . '_' . mt_rand(100, 999) . '@skillbridge.dev';
 $regRes = httpPost("{$baseUrl}/auth/register", [
     'email' => $studentEmail,
     'password' => 'password123',
@@ -120,7 +128,7 @@ assertTest('Duplicate Application Blocked', ($dupApply['body']['success'] ?? tru
 // Test 5: Recruiter Authentication & Real Geocoding
 // -------------------------------------------------------------
 echo "\n5. Testing Recruiter Authentication & Geocoding...\n";
-$recEmail = 'test_recruiter_' . time() . '@northwind.dev';
+$recEmail = 'test_recruiter_' . time() . '_' . mt_rand(100, 999) . '@northwind.dev';
 $recReg = httpPost("{$baseUrl}/auth/register", [
     'email' => $recEmail,
     'password' => 'password123',

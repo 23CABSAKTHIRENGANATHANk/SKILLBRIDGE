@@ -40,7 +40,14 @@ assertSec('Referrer-Policy header present', ($headers['Referrer-Policy'] ?? '') 
 echo "\n2. Testing SQL Injection Resistance...\n";
 $sqliPayload = "' OR 1=1 --";
 $sqliUrl = "{$baseUrl}/jobs?search=" . urlencode($sqliPayload);
-$res = @file_get_contents($sqliUrl);
+$options = [
+    'http' => [
+        'header' => "Connection: close\r\n",
+        'ignore_errors' => true,
+        'timeout' => 15
+    ]
+];
+$res = @file_get_contents($sqliUrl, false, stream_context_create($options));
 $data = json_decode($res ?: '{}', true);
 
 assertSec('SQL Injection payload handled safely without query crash', ($data['success'] ?? false) === true);
@@ -51,15 +58,16 @@ assertSec('SQL Injection payload handled safely without query crash', ($data['su
 echo "\n3. Testing Auth Rate Limiter...\n";
 $rateLimitTriggered = false;
 for ($i = 0; $i < 20; $i++) {
-    $options = [
+    $opts = [
         'http' => [
             'method' => 'POST',
-            'header' => "Content-Type: application/json\r\n",
+            'header' => "Content-Type: application/json\r\nConnection: close\r\n",
             'content' => json_encode(['email' => 'spam@test.com', 'password' => 'wrong']),
-            'ignore_errors' => true
+            'ignore_errors' => true,
+            'timeout' => 15
         ]
     ];
-    $r = file_get_contents("{$baseUrl}/auth/login", false, stream_context_create($options));
+    $r = file_get_contents("{$baseUrl}/auth/login", false, stream_context_create($opts));
     if (strpos($http_response_header[0] ?? '', '429') !== false) {
         $rateLimitTriggered = true;
         break;

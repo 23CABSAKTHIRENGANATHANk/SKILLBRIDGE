@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /**
  * SkillBridge Enterprise PostgreSQL Database Connection Manager
- * Automatically parses backend/.env if present, with fallback to defaults.
+ * Supports Neon Serverless PostgreSQL with SNI / Endpoint ID resolution,
+ * direct DATABASE_URL or individual DB_* env variables.
  */
 class Database {
     private static ?PDO $pdo = null;
@@ -35,18 +36,38 @@ class Database {
 
         self::loadEnv();
 
-        $driver = getenv('DB_CONNECTION') ?: 'pgsql';
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $port = getenv('DB_PORT') ?: '5432';
-        $dbname = getenv('DB_NAME') ?: 'skillbridge';
-        $user = getenv('DB_USER') ?: 'postgres';
-        $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+        $databaseUrl = getenv('DATABASE_URL');
 
-        if ($driver === 'pgsql') {
-            $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};options='--client_encoding=UTF8'";
+        if (!empty($databaseUrl)) {
+            // Parse full connection string e.g. postgresql://user:pass@host:port/dbname?sslmode=require
+            $parsed = parse_url($databaseUrl);
+            $host = $parsed['host'] ?? '127.0.0.1';
+            $port = (string)($parsed['port'] ?? '5432');
+            $user = urldecode($parsed['user'] ?? '');
+            $pass = urldecode($parsed['pass'] ?? '');
+            $dbname = ltrim($parsed['path'] ?? 'neondb', '/');
+            
+            parse_str($parsed['query'] ?? '', $query);
+            $sslmode = $query['sslmode'] ?? 'require';
         } else {
-            $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+            $host = getenv('DB_HOST') ?: '127.0.0.1';
+            $port = getenv('DB_PORT') ?: '5432';
+            $dbname = getenv('DB_NAME') ?: 'skillbridge';
+            $user = getenv('DB_USER') ?: 'postgres';
+            $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+            $sslmode = getenv('DB_SSLMODE') ?: 'require';
         }
+
+        // Handle Neon endpoint ID for libpq compatibility
+        $optionsPart = "--client_encoding=UTF8";
+        if (str_contains($host, '.neon.tech')) {
+            $parts = explode('.', $host);
+            // If host starts with pooler e.g. ep-xxx-pooler, endpoint is ep-xxx
+            $endpoint = preg_replace('/-pooler$/', '', $parts[0]);
+            $optionsPart .= " endpoint={$endpoint}";
+        }
+
+        $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode={$sslmode};options='{$optionsPart}'";
 
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -62,7 +83,7 @@ class Database {
             echo json_encode([
                 'success' => false,
                 'error' => 'Database connection failed: ' . $e->getMessage(),
-                'hint' => 'Ensure PostgreSQL service is running on ' . $host . ':' . $port . ' and configured in backend/.env'
+                'hint' => 'Check your DATABASE_URL or PostgreSQL credentials in backend/.env'
             ]);
             exit;
         }

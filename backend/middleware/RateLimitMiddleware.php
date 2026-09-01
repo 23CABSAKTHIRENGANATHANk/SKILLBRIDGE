@@ -61,7 +61,7 @@ class RateLimitMiddleware {
             errorResponse("Too many requests. Rate limit exceeded. Please try again in {$retryAfter} seconds.", 429);
         }
 
-        file_put_contents($file, json_encode($data), LOCK_EX);
+        @file_put_contents($file, json_encode($data));
 
         header("X-RateLimit-Limit: {$maxAttempts}");
         header("X-RateLimit-Remaining: " . max(0, $maxAttempts - $data['count']));
