@@ -176,11 +176,18 @@ class StudentController {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        $skillName = trim($input['skill_name'] ?? '');
-        $proficiency = $input['proficiency'] ?? 'intermediate';
-
-        if (empty($skillName)) {
+        $rawSkillInput = trim((string)($input['skill_name'] ?? ''));
+        if (empty($rawSkillInput)) {
             errorResponse('Skill name is required.');
+        }
+
+        $rawProf = $input['proficiency'] ?? 'intermediate';
+        $proficiency = 'intermediate';
+        if (is_numeric($rawProf)) {
+            $num = (int)$rawProf;
+            $proficiency = $num >= 85 ? 'expert' : ($num >= 65 ? 'advanced' : ($num >= 40 ? 'intermediate' : 'beginner'));
+        } else if (in_array(strtolower((string)$rawProf), ['beginner', 'intermediate', 'advanced', 'expert'], true)) {
+            $proficiency = strtolower((string)$rawProf);
         }
 
         $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
@@ -191,31 +198,39 @@ class StudentController {
             errorResponse('Student profile not found.', 404);
         }
 
-        // Ensure skill exists in master dictionary
-        $normName = strtolower($skillName);
-        $mStmt = $db->prepare('SELECT id FROM skills WHERE normalized_name = ? LIMIT 1');
-        $mStmt->execute([$normName]);
-        $masterSkill = $mStmt->fetch();
+        // Support single skill or comma-separated list of skills
+        $skillNames = array_filter(array_map('trim', explode(',', $rawSkillInput)));
 
-        if (!$masterSkill) {
-            $newSkillId = 'sk_' . bin2hex(random_bytes(6));
-            $insStmt = $db->prepare('INSERT INTO skills (id, name, normalized_name) VALUES (?, ?, ?)');
-            $insStmt->execute([$newSkillId, $skillName, $normName]);
-            $skillId = $newSkillId;
-        } else {
-            $skillId = $masterSkill['id'];
+        foreach ($skillNames as $skillName) {
+            if (empty($skillName)) continue;
+            $normName = strtolower($skillName);
+            $mStmt = $db->prepare('SELECT id FROM skills WHERE normalized_name = ? LIMIT 1');
+            $mStmt->execute([$normName]);
+            $masterSkill = $mStmt->fetch();
+
+            if (!$masterSkill) {
+                $newSkillId = 'sk_' . bin2hex(random_bytes(6));
+                $insStmt = $db->prepare('INSERT INTO skills (id, name, normalized_name) VALUES (?, ?, ?)');
+                $insStmt->execute([$newSkillId, $skillName, $normName]);
+                $skillId = $newSkillId;
+            } else {
+                $skillId = $masterSkill['id'];
+            }
+
+            $checkStmt = $db->prepare('SELECT id FROM student_skills WHERE student_id = ? AND skill_id = ?');
+            $checkStmt->execute([$student['id'], $skillId]);
+            if ($checkStmt->fetch()) {
+                $upStmt = $db->prepare('UPDATE student_skills SET proficiency = ? WHERE student_id = ? AND skill_id = ?');
+                $upStmt->execute([$proficiency, $student['id'], $skillId]);
+            } else {
+                $insStmt = $db->prepare('INSERT INTO student_skills (student_id, skill_id, proficiency) VALUES (?, ?, ?)');
+                $insStmt->execute([$student['id'], $skillId, $proficiency]);
+            }
         }
-
-        $stmt = $db->prepare('
-            INSERT INTO student_skills (student_id, skill_id, proficiency) 
-            VALUES (?, ?, ?) 
-            ON CONFLICT (student_id, skill_id) DO UPDATE SET proficiency = EXCLUDED.proficiency
-        ');
-        $stmt->execute([$student['id'], $skillId, $proficiency]);
 
         jsonResponse([
             'success' => true,
-            'message' => 'Skill saved to profile.'
+            'message' => 'Skill(s) saved to profile.'
         ]);
     }
 
@@ -329,11 +344,7 @@ class StudentController {
         ');
         $upStmt->execute([$name, $college, $program, $experience, $avatarUrl ?: null, $student['id']]);
 
-        // Also update users name if changed
-        $uStmt = $db->prepare('UPDATE users SET name = ? WHERE id = ?');
-        $uStmt->execute([$name, $currentUser['user_id']]);
-
-        AuditLogger::audit('student.profile_update', $currentUser['user_id'], 'student', [
+        AuditLogger::log('student.profile_update', $currentUser['user_id'], 'student', 'student', $student['id'], [
             'name' => $name,
             'college' => $college,
             'program' => $program

@@ -225,8 +225,16 @@ function DashboardPage() {
 
     setIsAddingSkill(true);
     try {
-      await ApiClient.addStudentSkill(newSkillName.trim(), newSkillProficiency);
-      toast.success(`Added ${newSkillName} to your skill profile!`);
+      const skillNames = newSkillName
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean);
+      await Promise.all(
+        skillNames.map((skill) => ApiClient.addStudentSkill(skill, newSkillProficiency)),
+      );
+      toast.success(
+        `${skillNames.length} skill${skillNames.length === 1 ? "" : "s"} added to your profile!`,
+      );
       setNewSkillName("");
       await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
     } catch {
