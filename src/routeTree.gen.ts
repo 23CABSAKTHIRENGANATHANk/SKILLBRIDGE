@@ -20,6 +20,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RecruiterRouteImport } from './routes/recruiter'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as PassportTokenRouteImport } from './routes/passport.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PassportTokenRoute = PassportTokenRouteImport.update({
+  id: '/passport/$token',
+  path: '/passport/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/recruiter': typeof RecruiterRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/passport/$token': typeof PassportTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/recruiter': typeof RecruiterRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/passport/$token': typeof PassportTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/recruiter': typeof RecruiterRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/passport/$token': typeof PassportTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/register'
     | '/settings'
+    | '/passport/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/register'
     | '/settings'
+    | '/passport/$token'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/register'
     | '/settings'
+    | '/passport/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   RecruiterRoute: typeof RecruiterRoute
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  PassportTokenRoute: typeof PassportTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/passport/$token': {
+      id: '/passport/$token'
+      path: '/passport/$token'
+      fullPath: '/passport/$token'
+      preLoaderRoute: typeof PassportTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecruiterRoute: RecruiterRoute,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  PassportTokenRoute: PassportTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

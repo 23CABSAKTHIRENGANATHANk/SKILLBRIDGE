@@ -22,6 +22,7 @@ import type {
   AIRecommendedJob,
   AISkillGapAnalysis,
   AIRecruiterInsights,
+  SkillProof,
 } from "@/types/skillbridge";
 
 const API_BASE_URL = import.meta.env["VITE_API_URL"] || "/api";
@@ -282,7 +283,10 @@ export class ApiClient {
   }
 
   public static async markNotificationRead(id: string): Promise<{ success: boolean }> {
-    return this.request(`/notifications/${id}/read`, { method: "PUT" });
+    return this.request("/notifications/read", {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    });
   }
 
   public static async deleteNotification(id: string): Promise<{ success: boolean }> {
@@ -453,6 +457,22 @@ export class ApiClient {
       phoneVerified?: boolean;
     };
     skills: Array<{ skill_id: string; skill_name: string; proficiency: number }>;
+    skill_proof?: SkillProof[];
+    projects?: Array<{
+      id: string;
+      title: string;
+      description?: string;
+      tech_stack?: string;
+      project_url?: string;
+      github_url?: string;
+    }>;
+    certificates?: Array<{
+      id: string;
+      title: string;
+      issuer: string;
+      issue_date?: string;
+      credential_url?: string;
+    }>;
   }> {
     return this.request("/student/profile");
   }
@@ -474,6 +494,45 @@ export class ApiClient {
     return this.request("/student/skills", {
       method: "DELETE",
       body: JSON.stringify({ skill_id: skillId }),
+    });
+  }
+
+  // --- Student Projects ---
+  public static async addStudentProject(data: {
+    title: string;
+    description?: string;
+    tech_stack?: string;
+    project_url?: string;
+    github_url?: string;
+  }): Promise<{ success: boolean; message: string; projectId: string }> {
+    return this.request("/student/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async deleteStudentProject(projectId: string): Promise<{ success: boolean }> {
+    return this.request(`/student/projects/${projectId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // --- Student Certificates ---
+  public static async addStudentCertificate(data: {
+    title: string;
+    issuer: string;
+    issue_date?: string;
+    credential_url?: string;
+  }): Promise<{ success: boolean; message: string; certificateId: string }> {
+    return this.request("/student/certificates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async deleteStudentCertificate(certId: string): Promise<{ success: boolean }> {
+    return this.request(`/student/certificates/${certId}`, {
+      method: "DELETE",
     });
   }
 
@@ -618,6 +677,173 @@ export class ApiClient {
     return await this.request<{ success: boolean; message: string }>("/interviews/status", {
       method: "POST",
       body: JSON.stringify({ interview_id: interviewId, status }),
+    });
+  }
+
+  // --- SkillBridge 2.0: Proof of Skill & Assessments ---
+  public static async getSkillAssessment(skillName: string): Promise<{
+    success: boolean;
+    skill_name: string;
+    total_questions: number;
+    questions: Array<{ id: string; category: string; question: string; options: Record<string, string> }>;
+  }> {
+    return this.request(`/assessment?skill=${encodeURIComponent(skillName)}`);
+  }
+
+  public static async submitSkillAssessment(data: {
+    skill_name: string;
+    answers: Record<string, string>;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    result: {
+      assessment_id: string;
+      skill_name: string;
+      score: number;
+      level: string;
+      knowledge_score: number;
+      problem_solving_score: number;
+      practical_score: number;
+      summary: string;
+    };
+    updated_skills: any[];
+  }> {
+    return this.request("/assessment/submit", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // --- Career Simulator & Gap Analysis & Career Agent ---
+  public static async simulateCareer(skills: string[]): Promise<{
+    success: boolean;
+    simulated_skills: string[];
+    current_readiness: number;
+    projected_readiness: number;
+    growth_delta: number;
+    high_fit_jobs_unlocked: number;
+    potential_roles: string[];
+    disclaimer: string;
+  }> {
+    return this.request("/career/simulate", {
+      method: "POST",
+      body: JSON.stringify({ skills }),
+    });
+  }
+
+  public static async getCareerGapAnalysis(targetRole: string): Promise<{
+    success: boolean;
+    target_role: string;
+    current_readiness: number;
+    matched_skills: string[];
+    missing_skills: string[];
+    priority_sequence: Array<{ skill: string; priority: string; time_estimate: string }>;
+    recommended_project: string;
+  }> {
+    return this.request("/career/gap-analysis", {
+      method: "POST",
+      body: JSON.stringify({ target_role: targetRole }),
+    });
+  }
+
+  public static async chatCareerAgent(message: string): Promise<{
+    success: boolean;
+    agent: {
+      reply: string;
+      suitable_roles: string[];
+      missing_competencies: string[];
+      recommended_next_action: string;
+    };
+  }> {
+    return this.request("/career/agent", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  }
+
+  // --- Skill Passports (Public & Private) ---
+  public static async getSkillPassportToken(): Promise<{
+    success: boolean;
+    passport_token: string;
+    share_url: string;
+    is_public: boolean;
+    view_count: number;
+  }> {
+    return this.request("/student/passport", { method: "POST" });
+  }
+
+  public static async getPublicSkillPassport(token: string): Promise<{
+    success: boolean;
+    passport: {
+      name: string;
+      institution: string;
+      program: string;
+      experience: string;
+      verified_readiness: number;
+      verified_skills_count: number;
+      skills: any[];
+      projects: any[];
+      certificates: any[];
+      verified_badge: boolean;
+      public_token: string;
+      verified_at: string;
+    };
+  }> {
+    return this.request(`/passport/${token}`);
+  }
+
+  // --- GitHub Proof of Work ---
+  public static async connectGitHub(githubUsername: string): Promise<{
+    success: boolean;
+    message: string;
+    profile: {
+      username: string;
+      repos_count: number;
+      languages: string[];
+      detected_skills: string[];
+      top_repositories: Array<{ name: string; language: string; stars: number; url: string; description: string }>;
+    };
+    updated_skills: any[];
+  }> {
+    return this.request("/student/github/connect", {
+      method: "POST",
+      body: JSON.stringify({ github_username: githubUsername }),
+    });
+  }
+
+  // --- AI Pre-screen Interview Studio ---
+  public static async getAIInterviewSession(role?: string): Promise<{
+    success: boolean;
+    target_role: string;
+    questions: Array<{ id: string; category: string; question: string }>;
+    session_instructions: string;
+  }> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request(`/interview-ai/session${qs}`);
+  }
+
+  public static async evaluateAIInterview(data: {
+    role: string;
+    answers: Record<string, string>;
+  }): Promise<{
+    success: boolean;
+    session_id: string;
+    target_role: string;
+    scorecard: {
+      technical_score: number;
+      problem_solving_score: number;
+      communication_score: number;
+      role_fit_score: number;
+      overall_score: number;
+      strengths: string[];
+      improvements: string[];
+      evaluator_notes: string;
+    };
+    disclaimer: string;
+  }> {
+    return this.request("/interview-ai/evaluate", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../services/MatchingService.php';
+require_once __DIR__ . '/../services/ProofOfSkillService.php';
 require_once __DIR__ . '/../services/Validator.php';
 require_once __DIR__ . '/../services/AuditLogger.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
@@ -157,6 +158,7 @@ class ApplicationController {
             ');
             $skStmt->execute([$row['student_id']]);
             $studentSkills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
+            $studentSkillConfidence = ProofOfSkillService::getStudentSkillConfidence($row['student_id']);
 
             // Job skills from normalized dictionary
             $jskStmt = $db->prepare('
@@ -169,7 +171,10 @@ class ApplicationController {
             $jobSkills = $jskStmt->fetchAll(PDO::FETCH_COLUMN);
 
             // Calculate intelligent match with reasoning & role fit
-            $match = MatchingService::calculateMatch($studentSkills, $jobSkills, ['experience' => $row['experience']]);
+            $match = MatchingService::calculateMatch($studentSkills, $jobSkills, [
+                'experience' => $row['experience'],
+                'skill_confidence' => $studentSkillConfidence,
+            ]);
 
             // Filter: Minimum Score
             if ($minScore > 0 && $match['score'] < $minScore) {
@@ -422,19 +427,67 @@ class ApplicationController {
      */
     public static function submitFeedback(array $currentUser): void {
         AuthMiddleware::requireRole($currentUser, 'recruiter', 'admin');
+        $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
         $appId = trim($input['application_id'] ?? '');
-        $rating = (int)($input['rating'] ?? 5);
-        $reviewText = trim($input['review_text'] ?? 'Excellent technical foundations and collaborative demeanor.');
+        $rating = (int)($input['rating'] ?? 0);
+        $reviewText = trim((string)($input['review_text'] ?? ''));
+
+        if ($appId === '' || $rating < 1 || $rating > 5 || $reviewText === '') {
+            errorResponse('Application, rating from 1 to 5, and review text are required.');
+        }
+
+        $stmt = $db->prepare('
+            SELECT a.id, a.student_id, c.user_id AS company_user_id, j.title AS job_title
+            FROM applications a
+            JOIN jobs j ON j.id = a.job_id
+            JOIN companies c ON c.id = j.company_id
+            WHERE a.id = ?
+        ');
+        $stmt->execute([$appId]);
+        $application = $stmt->fetch();
+
+        $isOwner = $application && $application['company_user_id'] === $currentUser['user_id'];
+        $isAdmin = ($currentUser['role'] ?? '') === 'admin';
+        if (!$application || (!$isOwner && !$isAdmin)) {
+            errorResponse('Application not found or access denied.', 403);
+        }
+
+        $endorsementId = 'end_' . bin2hex(random_bytes(8));
+        $insert = $db->prepare('
+            INSERT INTO recruiter_endorsements
+                (id, application_id, recruiter_id, student_id, rating, review_text)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ');
+        $insert->execute([
+            $endorsementId,
+            $appId,
+            $currentUser['user_id'],
+            $application['student_id'],
+            $rating,
+            $reviewText,
+        ]);
+
+        $notification = $db->prepare(
+            'INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, (SELECT user_id FROM students WHERE id = ?), ?, ?, ?)'
+        );
+        $notification->execute([
+            'n_' . bin2hex(random_bytes(8)),
+            $application['student_id'],
+            'New recruiter endorsement',
+            "A recruiter added an endorsement to your {$application['job_title']} application.",
+            '/dashboard',
+        ]);
 
         jsonResponse([
             'success' => true,
             'message' => 'Candidate endorsement and feedback submitted successfully.',
             'feedback' => [
+                'id' => $endorsementId,
                 'rating' => $rating,
                 'review_text' => $reviewText,
-                'created_at' => 'Just now'
+                'created_at' => date(DATE_ATOM)
             ]
         ]);
     }

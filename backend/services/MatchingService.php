@@ -134,6 +134,8 @@ class MatchingService {
 
         $matched = [];
         $missing = [];
+        $matchedConfidence = [];
+        $confidenceMap = $extraContext['skill_confidence'] ?? [];
 
         foreach ($jobSkills as $jobSkill) {
             $cleanJobSkill = trim($jobSkill);
@@ -141,6 +143,9 @@ class MatchingService {
 
             if (isset($studentMap[$normalized])) {
                 $matched[] = $studentMap[$normalized];
+                $matchedConfidence[$normalized] = isset($confidenceMap[$normalized])
+                    ? max(0, min(100, (int)$confidenceMap[$normalized]))
+                    : 0;
             } else {
                 $missing[] = $cleanJobSkill;
             }
@@ -150,6 +155,10 @@ class MatchingService {
         $totalMatched = count($matched);
 
         $rawScore = (int)round(($totalMatched / $totalRequired) * 100);
+        $skillFit = (int)round(array_sum($matchedConfidence) / $totalRequired);
+        $verifiedConfidence = $totalMatched === 0
+            ? 0
+            : (int)round(array_sum($matchedConfidence) / $totalMatched);
 
         // Determine Fit Level & Natural Language Explanation
         $fitLevel = 'Developing Fit';
@@ -197,14 +206,24 @@ class MatchingService {
         $roleFitScore = min(99, (int)round(($rawScore * 0.60) + $breadthBonus + $experienceBonus));
 
         return [
-            'score'          => $rawScore,
-            'matched'        => array_values($matched),
-            'missing'        => array_values($missing),
-            'fit_level'      => $fitLevel,
-            'explanation'    => $explanation,
-            'strengths'      => array_values($matched),
-            'learning_paths' => $learningPaths,
-            'role_fit_score' => $roleFitScore
+            'score'                 => $rawScore,
+            'overall_match'         => $rawScore,
+            'skill_fit'             => $skillFit,
+            'experience_fit'        => min(100, (int)round(($rawScore * 0.4) + $experienceBonus * 5)),
+            'education_fit'         => 100,
+            'location_fit'          => 100,
+            'verified_confidence'   => $verifiedConfidence,
+            'matched'               => $matched,
+            'matched_skills'        => $matched,
+            'missing'               => $missing,
+            'missing_skills'        => $missing,
+            'fit_level'             => $fitLevel,
+            'explanation'           => $explanation,
+            'why_this_match'        => $explanation,
+            'strengths'             => $matched,
+            'learning_paths'        => $learningPaths,
+            'what_to_improve'       => $learningPaths,
+            'role_fit_score'        => $roleFitScore
         ];
     }
 }

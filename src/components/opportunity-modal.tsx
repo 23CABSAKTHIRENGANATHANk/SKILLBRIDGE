@@ -42,9 +42,9 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
       const res = await ApiClient.applyJob(job.id);
       setApplyState("applied");
       setFeedbackMessage(res.message);
-    } catch {
-      setApplyState("applied");
-      setFeedbackMessage("Application submitted successfully.");
+    } catch (error) {
+      setApplyState("idle");
+      setFeedbackMessage(error instanceof Error ? error.message : "Application could not be submitted.");
     }
   };
 

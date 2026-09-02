@@ -63,9 +63,8 @@ function OnboardingPage() {
         await ApiClient.saveOnboarding(formData);
         toast.success("Profile setup complete! Welcome to SkillBridge.");
         await router.navigate({ to: "/dashboard" });
-      } catch {
-        toast.success("Profile saved! Ready to explore opportunities.");
-        await router.navigate({ to: "/dashboard" });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Profile setup could not be saved.");
       } finally {
         setIsSubmitting(false);
       }

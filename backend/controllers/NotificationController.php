@@ -51,4 +51,16 @@ class NotificationController {
             'message' => 'Notifications updated.'
         ]);
     }
+
+    public static function delete(array $currentUser, string $notificationId): void {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?');
+        $stmt->execute([$notificationId, $currentUser['user_id']]);
+
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Notification not found.', 404);
+        }
+
+        jsonResponse(['success' => true, 'message' => 'Notification deleted.']);
+    }
 }

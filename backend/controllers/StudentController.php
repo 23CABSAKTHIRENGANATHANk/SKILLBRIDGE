@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../services/MatchingService.php';
 require_once __DIR__ . '/../services/FileUploadService.php';
+require_once __DIR__ . '/../services/ProofOfSkillService.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 class StudentController {
@@ -31,18 +32,27 @@ class StudentController {
         $skStmt->execute([$student['id']]);
         $skills = $skStmt->fetchAll();
 
+        $projStmt = $db->prepare('SELECT id, title, description, tech_stack, project_url, github_url FROM student_projects WHERE student_id = ? ORDER BY created_at DESC');
+        $projStmt->execute([$student['id']]);
+        $projects = $projStmt->fetchAll();
+
+        $certStmt = $db->prepare('SELECT id, title, issuer, issue_date, credential_url FROM student_certificates WHERE student_id = ? ORDER BY created_at DESC');
+        $certStmt->execute([$student['id']]);
+        $certificates = $certStmt->fetchAll();
+
         // Calculate profile completion
         $hasCustomAvatar = !empty($student['avatar_url']);
-        $hasExperience = !empty($student['experience']) && !in_array(strtolower(trim($student['experience'])), ['fresher', 'none', '']);
+        $hasExperience = (count($projects) > 0) || (!empty($student['experience']) && !in_array(strtolower(trim($student['experience'])), ['fresher', 'none', '']));
         $hasResume = !empty($student['resume_storage_key']);
         $hasSkills = count($skills) >= 3;
+        $hasCertificates = count($certificates) > 0;
 
         $steps = [
             ['id' => 'profile', 'label' => 'Profile', 'complete' => $hasCustomAvatar],
             ['id' => 'skills', 'label' => 'Skills', 'complete' => $hasSkills],
             ['id' => 'resume', 'label' => 'Resume', 'complete' => $hasResume],
             ['id' => 'projects', 'label' => 'Projects', 'complete' => $hasExperience],
-            ['id' => 'certificates', 'label' => 'Certificates', 'complete' => false]
+            ['id' => 'certificates', 'label' => 'Certificates', 'complete' => $hasCertificates]
         ];
 
         $completedCount = count(array_filter($steps, fn($s) => $s['complete']));
@@ -59,7 +69,10 @@ class StudentController {
                 'experience' => $student['experience'],
                 'hasResume' => !empty($student['resume_storage_key'])
             ],
-            'skills'  => $skills,
+            'skills'        => $skills,
+            'skill_proof'   => ProofOfSkillService::getStudentSkillsWithProof($student['id']),
+            'projects'      => $projects,
+            'certificates'  => $certificates,
             'progress' => [
                 'percent' => $percent,
                 'steps'   => $steps
@@ -136,23 +149,32 @@ class StudentController {
             ];
         }
 
-        // 3. Student skills count
+        // 3. Counts for skills, projects, and certificates
         $skStmt = $db->prepare('SELECT COUNT(*) FROM student_skills WHERE student_id = ?');
         $skStmt->execute([$student['id']]);
         $skillsCount = (int)$skStmt->fetchColumn();
 
+        $projStmt = $db->prepare('SELECT COUNT(*) FROM student_projects WHERE student_id = ?');
+        $projStmt->execute([$student['id']]);
+        $projectsCount = (int)$projStmt->fetchColumn();
+
+        $certStmt = $db->prepare('SELECT COUNT(*) FROM student_certificates WHERE student_id = ?');
+        $certStmt->execute([$student['id']]);
+        $certsCount = (int)$certStmt->fetchColumn();
+
         // 4. Progress calculation
         $hasCustomAvatar = !empty($student['avatar_url']);
-        $hasExperience = !empty($student['experience']) && !in_array(strtolower(trim($student['experience'])), ['fresher', 'none', '']);
+        $hasExperience = ($projectsCount > 0) || (!empty($student['experience']) && !in_array(strtolower(trim($student['experience'])), ['fresher', 'none', '']));
         $hasResume = !empty($student['resume_storage_key']);
         $hasSkills = $skillsCount >= 3;
+        $hasCertificates = $certsCount > 0;
 
         $steps = [
             ['id' => 'profile', 'label' => 'Profile', 'complete' => $hasCustomAvatar],
             ['id' => 'skills', 'label' => 'Skills', 'complete' => $hasSkills],
             ['id' => 'resume', 'label' => 'Resume', 'complete' => $hasResume],
             ['id' => 'projects', 'label' => 'Projects', 'complete' => $hasExperience],
-            ['id' => 'certificates', 'label' => 'Certificates', 'complete' => false]
+            ['id' => 'certificates', 'label' => 'Certificates', 'complete' => $hasCertificates]
         ];
         $completedCount = count(array_filter($steps, fn($s) => $s['complete']));
         $percent = (int)round(($completedCount / count($steps)) * 100);
@@ -226,11 +248,44 @@ class StudentController {
                 $insStmt = $db->prepare('INSERT INTO student_skills (student_id, skill_id, proficiency) VALUES (?, ?, ?)');
                 $insStmt->execute([$student['id'], $skillId, $proficiency]);
             }
+
+            $evStmt = $db->prepare('
+                INSERT INTO skill_evidence (id, student_id, skill_id, source, confidence, metadata, verified_at)
+                VALUES (?, ?, ?, \'self_declared\', 100, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT (student_id, skill_id, source)
+                DO UPDATE SET confidence = EXCLUDED.confidence, metadata = EXCLUDED.metadata, verified_at = CURRENT_TIMESTAMP
+            ');
+            $evStmt->execute([
+                'ev_' . bin2hex(random_bytes(8)),
+                $student['id'],
+                $skillId,
+                json_encode(['source' => 'student_skill_entry'])
+            ]);
         }
 
         jsonResponse([
             'success' => true,
             'message' => 'Skill(s) saved to profile.'
+        ]);
+    }
+
+    /**
+     * Return deterministic proof and confidence breakdown for the current student.
+     */
+    public static function getSkillProof(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $stmt = $db->prepare('SELECT id FROM students WHERE user_id = ? LIMIT 1');
+        $stmt->execute([$currentUser['user_id']]);
+        $student = $stmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        jsonResponse([
+            'success' => true,
+            'skills' => ProofOfSkillService::getStudentSkillsWithProof($student['id'])
         ]);
     }
 
@@ -442,6 +497,133 @@ class StudentController {
                 'trust_score' => $trustScore,
                 'endorsements' => $endorsements
             ]
+        ]);
+    }
+
+    /**
+     * Add student project
+     */
+    public static function addProject(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $title = trim($input['title'] ?? '');
+        $description = trim($input['description'] ?? '');
+        $techStack = trim($input['tech_stack'] ?? '');
+        $projectUrl = trim($input['project_url'] ?? '');
+        $githubUrl = trim($input['github_url'] ?? '');
+
+        if (empty($title)) {
+            errorResponse('Project title is required.');
+        }
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $projectId = 'proj_' . bin2hex(random_bytes(8));
+        $insStmt = $db->prepare('
+            INSERT INTO student_projects (id, student_id, title, description, tech_stack, project_url, github_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ');
+        $insStmt->execute([$projectId, $student['id'], $title, $description, $techStack, $projectUrl, $githubUrl]);
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Project added to portfolio.',
+            'projectId' => $projectId
+        ], 201);
+    }
+
+    /**
+     * Delete student project
+     */
+    public static function deleteProject(array $currentUser, string $projectId): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $delStmt = $db->prepare('DELETE FROM student_projects WHERE id = ? AND student_id = ?');
+        $delStmt->execute([$projectId, $student['id']]);
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Project removed.'
+        ]);
+    }
+
+    /**
+     * Add student certificate
+     */
+    public static function addCertificate(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $title = trim($input['title'] ?? '');
+        $issuer = trim($input['issuer'] ?? '');
+        $issueDate = trim($input['issue_date'] ?? '');
+        $credentialUrl = trim($input['credential_url'] ?? '');
+
+        if (empty($title) || empty($issuer)) {
+            errorResponse('Certificate title and issuer are required.');
+        }
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $certId = 'cert_' . bin2hex(random_bytes(8));
+        $insStmt = $db->prepare('
+            INSERT INTO student_certificates (id, student_id, title, issuer, issue_date, credential_url)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ');
+        $insStmt->execute([$certId, $student['id'], $title, $issuer, $issueDate, $credentialUrl]);
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Certificate added to profile.',
+            'certificateId' => $certId
+        ], 201);
+    }
+
+    /**
+     * Delete student certificate
+     */
+    public static function deleteCertificate(array $currentUser, string $certId): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $delStmt = $db->prepare('DELETE FROM student_certificates WHERE id = ? AND student_id = ?');
+        $delStmt->execute([$certId, $student['id']]);
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Certificate removed.'
         ]);
     }
 

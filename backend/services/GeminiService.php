@@ -23,6 +23,10 @@ class GeminiService {
     // Core generation helper
     // -----------------------------------------------------------------------
 
+    public static function generateText(string $prompt, float $temperature = 0.4): string {
+        return self::generate($prompt, $temperature);
+    }
+
     private static function generate(string $prompt, float $temperature = 0.4): string {
         $apiKey = getenv('GEMINI_API_KEY') ?: '';
         if (empty($apiKey)) {

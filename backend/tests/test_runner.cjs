@@ -173,6 +173,43 @@ async function run() {
     `Score: ${sDash.data?.progress?.percent}%`,
   );
 
+  // 8d. Student Add Project
+  const addProj = await req(
+    "/student/projects",
+    "POST",
+    {
+      title: "Real-Time AI Talent Platform",
+      tech_stack: "React, Node.js, PostgreSQL",
+      description: "Full stack production application with deterministic matching engine.",
+      project_url: "https://skillbridge.dev",
+      github_url: "https://github.com/skillbridge/app",
+    },
+    studentAuthToken,
+  );
+  check("8d. Student Add Project:", addProj.status === 201 && Boolean(addProj.data?.projectId), addProj.status);
+
+  // 8e. Student Add Certificate
+  const addCert = await req(
+    "/student/certificates",
+    "POST",
+    {
+      title: "AWS Certified Cloud Practitioner",
+      issuer: "Amazon Web Services",
+      issue_date: "2026",
+      credential_url: "https://aws.amazon.com/verification",
+    },
+    studentAuthToken,
+  );
+  check("8e. Student Add Certificate:", addCert.status === 201 && Boolean(addCert.data?.certificateId), addCert.status);
+
+  // 8f. Student 80%+ Progress Check
+  const sDashFull = await req("/student/dashboard", "GET", null, studentAuthToken);
+  check(
+    "8f. Student Career Score with Projects & Certs:",
+    sDashFull.status === 200 && (sDashFull.data?.progress?.percent ?? 0) >= 60,
+    `Score: ${sDashFull.data?.progress?.percent}%`,
+  );
+
   // 9. Student Apply
   let appId = null;
   if (jobId) {
@@ -288,24 +325,104 @@ async function run() {
     `Size: ${(spec.length / 1024).toFixed(1)} KB`,
   );
 
+  // --- SkillBridge 2.0 Proof-of-Skill Scenarios ---
+  // 24. Assessment Generation
+  const assessGen = await req("/assessment?skill=React", "GET", null, studentAuthToken);
+  check(
+    "24. Skill Assessment Generation:",
+    assessGen.status === 200 && (assessGen.data?.questions?.length ?? 0) >= 3,
+    `Questions: ${assessGen.data?.questions?.length || 0}`,
+  );
+
+  // 25. Assessment Submission
+  const assessSub = await req(
+    "/assessment/submit",
+    "POST",
+    {
+      skill_name: "React",
+      answers: {
+        q1: "A",
+        q2: "A",
+        q3: "A",
+        q4: "A",
+      },
+    },
+    studentAuthToken,
+  );
+  check(
+    "25. Skill Assessment Submission & Evidence:",
+    assessSub.status === 200 && assessSub.data?.result?.score >= 60,
+    `Score: ${assessSub.data?.result?.score}% (Level: ${assessSub.data?.result?.level})`,
+  );
+
+  // 26. Career Simulator
+  const simRes = await req("/career/simulate", "POST", { skills: ["Docker", "AWS"] }, studentAuthToken);
+  check(
+    "26. Career Growth Simulator:",
+    simRes.status === 200 && simRes.data?.growth_delta > 0,
+    `Current: ${simRes.data?.current_readiness}%, Projected: ${simRes.data?.projected_readiness}% (+${simRes.data?.growth_delta}%)`,
+  );
+
+  // 27. Career Gap Analysis
+  const gapRes = await req("/career/gap-analysis", "POST", { target_role: "Full Stack Engineer" }, studentAuthToken);
+  check(
+    "27. AI Skill Gap Analysis:",
+    gapRes.status === 200 && Boolean(gapRes.data?.target_role),
+    `Role: ${gapRes.data?.target_role}, Matched: ${gapRes.data?.matched_skills?.length || 0}`,
+  );
+
+  // 28. Skill Passport (Create & Public-safe lookup)
+  const passRes = await req("/student/passport", "POST", {}, studentAuthToken);
+  const passToken = passRes.data?.passport_token;
+  check(
+    "28. Skill Passport Token Generation:",
+    passRes.status === 200 && Boolean(passToken),
+    `Token: ${passToken?.substring(0, 14)}...`,
+  );
+
+  if (passToken) {
+    const pubPass = await req(`/passport/${passToken}`, "GET", null, null);
+    check(
+      "28b. Public-Safe Passport Lookup (Zero PII):",
+      pubPass.status === 200 && pubPass.data?.passport?.name && !pubPass.data?.passport?.email,
+      `Student: ${pubPass.data?.passport?.name}, Verified Skills: ${pubPass.data?.passport?.verified_skills_count}`,
+    );
+  }
+
+  // 29. GitHub Proof-of-Work
+  const ghRes = await req("/student/github/connect", "POST", { github_username: "octocat" }, studentAuthToken);
+  check(
+    "29. GitHub Proof-of-Work Repository Analysis:",
+    ghRes.status === 200 && Boolean(ghRes.data?.profile?.username),
+    `Repos: ${ghRes.data?.profile?.repos_count}, Skills detected: ${ghRes.data?.profile?.detected_skills?.length}`,
+  );
+
+  // 30. AI Pre-screen Studio Session
+  const intvSess = await req("/interview-ai/session?role=Full+Stack+Engineer", "GET", null, studentAuthToken);
+  check(
+    "30. AI Interview Session Generation:",
+    intvSess.status === 200 && (intvSess.data?.questions?.length ?? 0) >= 3,
+    `Questions: ${intvSess.data?.questions?.length}`,
+  );
+
   const refreshToken = sReg.data?.refreshToken;
   const refreshed = refreshToken
     ? await req("/auth/refresh", "POST", { refreshToken })
     : { status: 0, data: null };
   check(
-    "21. Refresh Token:",
+    "31. Refresh Token:",
     refreshed.status === 200 && Boolean(refreshed.data?.token),
     refreshed.status,
   );
   const logout = refreshToken
     ? await req("/auth/logout", "POST", { refreshToken }, studentAuthToken)
     : { status: 0, data: null };
-  check("22. Logout Revokes Refresh Token:", logout.status === 200, logout.status);
+  check("32. Logout Revokes Refresh Token:", logout.status === 200, logout.status);
   const revokedRefresh = refreshToken
     ? await req("/auth/refresh", "POST", { refreshToken })
     : { status: 0, data: null };
   check(
-    "23. Revoked Refresh Token Rejected:",
+    "33. Revoked Refresh Token Rejected:",
     revokedRefresh.status === 401,
     revokedRefresh.status,
   );

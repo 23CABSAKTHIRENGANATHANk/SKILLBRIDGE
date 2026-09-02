@@ -44,7 +44,7 @@ function NotificationsPage() {
             title: n.title || "New Notification",
             message: n.message || "",
             timestamp: new Date(n.created_at),
-            read: n.read_at !== null,
+            read: Boolean(n.is_read),
             actionUrl: n.action_url,
             actionLabel: n.action_label,
             metadata: n.metadata,

@@ -26,6 +26,10 @@ import {
   AlertCircle,
   ExternalLink,
   Lock,
+  Code2,
+  Globe,
+  FolderGit2,
+  Trash2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -54,6 +58,10 @@ import { LoadingState, EmptyState, ErrorState } from "@/components/ui/state-view
 
 import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
 import { OpportunityModal } from "@/components/opportunity-modal";
+import { SkillAssessmentModal } from "@/components/proof-of-skill/skill-assessment-modal";
+import { CareerSimulatorCard } from "@/components/career/career-simulator-card";
+import { SkillPassportModal } from "@/components/career/skill-passport-modal";
+import { AIInterviewModal } from "@/components/interview/ai-interview-modal";
 import type { Job, CareerProgress } from "@/types/skillbridge";
 import { ApiClient } from "@/lib/api-client";
 
@@ -141,6 +149,30 @@ function DashboardPage() {
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [resumeFilename, setResumeFilename] = useState("");
 
+  // Projects state
+  const [projectTitle, setProjectTitle] = useState("");
+  const [projectTechStack, setProjectTechStack] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [projectUrl, setProjectUrl] = useState("");
+  const [projectGithubUrl, setProjectGithubUrl] = useState("");
+  const [isAddingProject, setIsAddingProject] = useState(false);
+
+  // Certificates state
+  const [certTitle, setCertTitle] = useState("");
+  const [certIssuer, setCertIssuer] = useState("");
+  const [certIssueDate, setCertIssueDate] = useState("");
+  const [certCredentialUrl, setCertCredentialUrl] = useState("");
+  const [isAddingCert, setIsAddingCert] = useState(false);
+
+  // SkillBridge 2.0 State
+  const [assessmentSkill, setAssessmentSkill] = useState<string | null>(null);
+  const [isAssessmentOpen, setIsAssessmentOpen] = useState(false);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [passportToken, setPassportToken] = useState<string | null>(null);
+  const [isAIInterviewOpen, setIsAIInterviewOpen] = useState(false);
+  const [githubUsername, setGithubUsername] = useState("");
+  const [isConnectingGithub, setIsConnectingGithub] = useState(false);
+
   // Selected Application Timeline Modal
   const [selectedTimelineApp, setSelectedTimelineApp] = useState<any | null>(null);
 
@@ -195,6 +227,24 @@ function DashboardPage() {
     profile?.student.college || (user?.profile as any)?.college || "College not set";
   const studentProgram =
     profile?.student.program || (user?.profile as any)?.program || "Program not set";
+    const handleVerifyPhone = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!phoneInput.trim()) {
+        toast.error("Phone number is required.");
+        return;
+      }
+      setIsVerifyingPhone(true);
+      try {
+        await ApiClient.verifyPhone(phoneInput.trim());
+        setPhoneVerified(true);
+        toast.success("Phone number verified successfully.");
+        await refetchProfile();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Phone verification failed.");
+      } finally {
+        setIsVerifyingPhone(false);
+      }
+    };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -282,18 +332,113 @@ function DashboardPage() {
     }
   };
 
-  const handleVerifyPhone = async (e: React.FormEvent) => {
+  const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsVerifyingPhone(true);
-    try {
-      await ApiClient.verifyPhone(phoneInput);
-      setPhoneVerified(true);
-      toast.success(`Phone number ${phoneInput} verified via secure SMS OTP.`);
-    } catch {
-      toast.error("Phone verification failed. Please try again.");
-    } finally {
-      setIsVerifyingPhone(false);
+    if (!projectTitle.trim()) {
+      toast.error("Project title is required.");
+      return;
     }
+    setIsAddingProject(true);
+    try {
+      await ApiClient.addStudentProject({
+        title: projectTitle.trim(),
+        tech_stack: projectTechStack.trim(),
+        description: projectDescription.trim(),
+        project_url: projectUrl.trim(),
+        github_url: projectGithubUrl.trim(),
+      });
+      toast.success("Project added to your portfolio!");
+      setProjectTitle("");
+      setProjectTechStack("");
+      setProjectDescription("");
+      setProjectUrl("");
+      setProjectGithubUrl("");
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add project.");
+    } finally {
+      setIsAddingProject(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string, title: string) => {
+    try {
+      await ApiClient.deleteStudentProject(projectId);
+      toast.success(`Removed project "${title}".`);
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch {
+      toast.error("Failed to remove project.");
+    }
+  };
+
+  const handleAddCertificate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!certTitle.trim() || !certIssuer.trim()) {
+      toast.error("Certificate title and issuing organization are required.");
+      return;
+    }
+    setIsAddingCert(true);
+    try {
+      await ApiClient.addStudentCertificate({
+        title: certTitle.trim(),
+        issuer: certIssuer.trim(),
+        issue_date: certIssueDate.trim(),
+        credential_url: certCredentialUrl.trim(),
+      });
+      toast.success("Certificate added to your profile!");
+      setCertTitle("");
+      setCertIssuer("");
+      setCertIssueDate("");
+      setCertCredentialUrl("");
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add certificate.");
+    } finally {
+      setIsAddingCert(false);
+    }
+  };
+
+  const handleDeleteCertificate = async (certId: string, title: string) => {
+    try {
+      await ApiClient.deleteStudentCertificate(certId);
+      toast.success(`Removed certificate "${title}".`);
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch {
+      toast.error("Failed to remove certificate.");
+    }
+  };
+
+  const handleOpenPassport = async () => {
+    try {
+      const res = await ApiClient.getSkillPassportToken();
+      setPassportToken(res.passport_token);
+      setIsPassportOpen(true);
+    } catch {
+      toast.error("Failed to generate Skill Passport.");
+    }
+  };
+
+  const handleConnectGithub = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!githubUsername.trim()) {
+      toast.error("GitHub username is required.");
+      return;
+    }
+    setIsConnectingGithub(true);
+    try {
+      const res = await ApiClient.connectGitHub(githubUsername.trim());
+      toast.success(res.message || "GitHub profile analyzed!");
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch {
+      toast.error("Failed to analyze GitHub repositories.");
+    } finally {
+      setIsConnectingGithub(false);
+    }
+  };
+
+  const handleOpenAssessment = (skillName: string) => {
+    setAssessmentSkill(skillName);
+    setIsAssessmentOpen(true);
   };
 
   if (loading && !pipeline && !progress) {
@@ -438,6 +583,28 @@ function DashboardPage() {
                 <span>Interviews</span>
               </button>
             </div>
+
+            {/* Quick Action Badges */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleOpenPassport}
+                className="rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 border-primary/40 text-primary hover:bg-primary-soft"
+              >
+                <Award className="size-3.5" />
+                <span>Skill Passport</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsAIInterviewOpen(true)}
+                className="rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 border-border hover:bg-secondary"
+              >
+                <Video className="size-3.5" />
+                <span>AI Pre-Screen</span>
+              </Button>
+            </div>
           </div>
         </ScrollReveal>
 
@@ -518,22 +685,50 @@ function DashboardPage() {
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {skillClusterData.length > 0 ? (
-                  skillClusterData.map((item) => (
+                  skillClusterData.map((skill) => (
                     <div
-                      key={item.skill_id}
+                      key={skill.skill_id}
                       className="rounded-2xl border border-border/70 bg-background/50 p-3"
                     >
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{item.skill_name}</span>
-                        <span className="font-bold text-success">{item.proficiency}%</span>
+                        <span>{skill.skill_name}</span>
+                        <span className="font-bold text-success">{skill.proficiency}%</span>
                       </div>
                       <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full bg-accent"
-                          style={{ width: `${item.proficiency}%` }}
+                          style={{ width: `${skill.proficiency}%` }}
                         />
                       </div>
-                      <p className="mt-2 text-sm font-bold text-foreground">Verified proficiency</p>
+                      {(() => {
+                        const proof = profile?.skill_proof?.find(
+                          (proofItem) => proofItem.skill_id === skill.skill_id,
+                        );
+                        return (
+                          <>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <p className="text-sm font-bold text-foreground">
+                                {proof?.confidence_score ?? 0}% evidence confidence
+                              </p>
+                              <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                                {proof?.confidence_level ?? "Self-Declared"}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              {proof
+                                ? `${[
+                                    proof.evidence.project_evidence && "Project",
+                                    proof.evidence.assessment && "Assessment",
+                                    proof.evidence.resume_evidence && "Resume",
+                                    proof.evidence.github_evidence && "GitHub",
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" + ") || "Self declaration only"} evidence`
+                                : "Self declaration only"}
+                            </p>
+                          </>
+                        );
+                      })()}
                     </div>
                   ))
                 ) : (
@@ -709,6 +904,13 @@ function DashboardPage() {
                 </section>
               </ScrollReveal>
             </div>
+
+            {/* Career Simulator */}
+            <div className="lg:col-span-2 mt-4">
+              <ScrollReveal delay={280}>
+                <CareerSimulatorCard />
+              </ScrollReveal>
+            </div>
           </div>
         )}
 
@@ -859,6 +1061,19 @@ function DashboardPage() {
                         >
                           <Sparkles className="size-3" />
                           {skill.skill_name}
+                          {profile.skill_proof?.find((proof) => proof.skill_id === skill.skill_id) && (
+                            <span className="text-[10px] font-semibold text-muted-foreground">
+                              {profile.skill_proof.find((proof) => proof.skill_id === skill.skill_id)?.confidence_level}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAssessment(skill.skill_name)}
+                            className="ml-1 rounded-md px-1.5 py-0.5 bg-primary/20 text-[10px] font-extrabold hover:bg-primary hover:text-primary-foreground transition-colors"
+                            title="Take Technical Skill Assessment"
+                          >
+                            Verify
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteSkill(skill.skill_id, skill.skill_name)}
@@ -879,7 +1094,7 @@ function DashboardPage() {
                   {/* Add Skill Form */}
                   <form
                     onSubmit={handleAddSkill}
-                    className="rounded-2xl border border-border/70 bg-background/50 p-4"
+                    className="rounded-2xl border border-border/70 bg-background/50 p-4 mb-4"
                   >
                     <h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">
                       Add New Skill to Profile
@@ -899,6 +1114,38 @@ function DashboardPage() {
                       >
                         <Plus className="size-4 mr-1.5" />
                         Add Skill
+                      </Button>
+                    </div>
+                  </form>
+
+                  {/* GitHub Proof of Work */}
+                  <form
+                    onSubmit={handleConnectGithub}
+                    className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <FolderGit2 className="size-4 text-primary" /> GitHub Proof of Work
+                      </h3>
+                      <span className="text-[10px] text-muted-foreground font-semibold">Optional Signal</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Connect your GitHub profile to extract public repository languages, frameworks, and activity evidence.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                      <Input
+                        type="text"
+                        placeholder="e.g. torvalds or octocat"
+                        value={githubUsername}
+                        onChange={(e) => setGithubUsername(e.target.value)}
+                        className="rounded-xl border-border bg-background text-xs"
+                      />
+                      <Button
+                        type="submit"
+                        disabled={isConnectingGithub || !githubUsername.trim()}
+                        className="rounded-xl font-bold shrink-0 text-xs"
+                      >
+                        {isConnectingGithub ? "Analyzing Repos..." : "Analyze Repositories"}
                       </Button>
                     </div>
                   </form>
@@ -968,6 +1215,313 @@ function DashboardPage() {
                       </label>
                     </div>
                   </div>
+                </div>
+              </ScrollReveal>
+            </div>
+
+            {/* Featured Projects Portfolio */}
+            <div className="lg:col-span-7 space-y-6">
+              <ScrollReveal delay={200}>
+                <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 text-foreground font-bold">
+                      <FolderGit2 className="size-5 text-primary" />
+                      <h2 className="font-display text-xl font-bold">Featured Projects Portfolio</h2>
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-soft text-primary">
+                      {profile?.projects?.length || 0} Projects
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Showcase your full-stack applications, repositories, and technical deliverables to recruiters.
+                  </p>
+
+                  {/* List of Added Projects */}
+                  <div className="space-y-3 mb-6">
+                    {profile?.projects?.length ? (
+                      profile.projects.map((proj) => (
+                        <div
+                          key={proj.id}
+                          className="rounded-2xl border border-border/70 bg-background/50 p-4 transition-all hover:shadow-soft"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-display text-sm font-bold text-foreground">
+                                  {proj.title}
+                                </h4>
+                                {proj.tech_stack && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-[11px] font-semibold text-secondary-foreground">
+                                    <Code2 className="size-3" />
+                                    {proj.tech_stack}
+                                  </span>
+                                )}
+                              </div>
+                              {proj.description && (
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {proj.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 pt-1">
+                                {proj.project_url && (
+                                  <a
+                                    href={proj.project_url.startsWith("http") ? proj.project_url : `https://${proj.project_url}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                                  >
+                                    <Globe className="size-3" /> Live Demo
+                                  </a>
+                                )}
+                                {proj.github_url && (
+                                  <a
+                                    href={proj.github_url.startsWith("http") ? proj.github_url : `https://${proj.github_url}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground"
+                                  >
+                                    <ExternalLink className="size-3" /> Source Code
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteProject(proj.id, proj.title)}
+                              className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
+                              title="Delete project"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-border/80 p-6 text-center">
+                        <FolderGit2 className="size-8 text-muted-foreground/50 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">
+                          No projects added yet. Showcase your technical apps to boost your Career Score by +20%!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Project Form */}
+                  <form
+                    onSubmit={handleAddProject}
+                    className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-3"
+                  >
+                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      Add New Project
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Project Title *</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. AI Career Matcher"
+                          value={projectTitle}
+                          onChange={(e) => setProjectTitle(e.target.value)}
+                          className="mt-1 rounded-xl border-border bg-background text-xs"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Tech Stack</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. React, Node.js, PostgreSQL"
+                          value={projectTechStack}
+                          onChange={(e) => setProjectTechStack(e.target.value)}
+                          className="mt-1 rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Live Demo URL</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. https://my-app.vercel.app"
+                          value={projectUrl}
+                          onChange={(e) => setProjectUrl(e.target.value)}
+                          className="mt-1 rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">GitHub Repository</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. https://github.com/user/repo"
+                          value={projectGithubUrl}
+                          onChange={(e) => setProjectGithubUrl(e.target.value)}
+                          className="mt-1 rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">Description</Label>
+                      <Input
+                        type="text"
+                        placeholder="Brief summary of key features, architecture, and problem solved"
+                        value={projectDescription}
+                        onChange={(e) => setProjectDescription(e.target.value)}
+                        className="mt-1 rounded-xl border-border bg-background text-xs"
+                      />
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        type="submit"
+                        disabled={isAddingProject || !projectTitle.trim()}
+                        className="rounded-xl font-bold text-xs"
+                      >
+                        <Plus className="size-4 mr-1.5" />
+                        {isAddingProject ? "Saving..." : "Add Project"}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </ScrollReveal>
+            </div>
+
+            {/* Certifications & Accreditations */}
+            <div className="lg:col-span-5 space-y-6">
+              <ScrollReveal delay={250}>
+                <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 text-foreground font-bold">
+                      <Award className="size-5 text-primary" />
+                      <h2 className="font-display text-xl font-bold">Certifications & Accreditations</h2>
+                    </div>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-soft text-primary">
+                      {profile?.certificates?.length || 0} Certified
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Verified certificates, licenses, and professional credentials recognized by recruiters.
+                  </p>
+
+                  {/* List of Added Certificates */}
+                  <div className="space-y-3 mb-6">
+                    {profile?.certificates?.length ? (
+                      profile.certificates.map((cert) => (
+                        <div
+                          key={cert.id}
+                          className="rounded-2xl border border-border/70 bg-background/50 p-4 transition-all hover:shadow-soft"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-display text-sm font-bold text-foreground">
+                                  {cert.title}
+                                </h4>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success/15 text-success text-[11px] font-bold">
+                                  <BadgeCheck className="size-3" />
+                                  {cert.issuer}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {cert.issue_date && <span>Issued: {cert.issue_date}</span>}
+                                {cert.credential_url && (
+                                  <a
+                                    href={cert.credential_url.startsWith("http") ? cert.credential_url : `https://${cert.credential_url}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+                                  >
+                                    <ExternalLink className="size-3" /> Verify Credential
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteCertificate(cert.id, cert.title)}
+                              className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
+                              title="Delete certificate"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-border/80 p-6 text-center">
+                        <Award className="size-8 text-muted-foreground/50 mx-auto mb-2" />
+                        <p className="text-xs text-muted-foreground">
+                          No certificates added yet. Add verified credentials to complete your profile to 100%!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Certificate Form */}
+                  <form
+                    onSubmit={handleAddCertificate}
+                    className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-3"
+                  >
+                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      Add Certification
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Certificate Title *</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. AWS Certified Solutions Architect"
+                          value={certTitle}
+                          onChange={(e) => setCertTitle(e.target.value)}
+                          className="mt-1 rounded-xl border-border bg-background text-xs"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs font-medium text-muted-foreground">Issuing Authority *</Label>
+                          <Input
+                            type="text"
+                            placeholder="e.g. Amazon Web Services / Meta / Google"
+                            value={certIssuer}
+                            onChange={(e) => setCertIssuer(e.target.value)}
+                            className="mt-1 rounded-xl border-border bg-background text-xs"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-muted-foreground">Issue Date / Year</Label>
+                          <Input
+                            type="text"
+                            placeholder="e.g. 2026 or Sep 2026"
+                            value={certIssueDate}
+                            onChange={(e) => setCertIssueDate(e.target.value)}
+                            className="mt-1 rounded-xl border-border bg-background text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground">Credential URL</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. https://www.credly.com/badges/..."
+                          value={certCredentialUrl}
+                          onChange={(e) => setCertCredentialUrl(e.target.value)}
+                          className="mt-1 rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        type="submit"
+                        disabled={isAddingCert || !certTitle.trim() || !certIssuer.trim()}
+                        className="rounded-xl font-bold text-xs"
+                      >
+                        <Plus className="size-4 mr-1.5" />
+                        {isAddingCert ? "Saving..." : "Add Certificate"}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
               </ScrollReveal>
             </div>
@@ -1431,6 +1985,31 @@ function DashboardPage() {
           job={selectedOpportunityJob}
           isOpen={!!selectedOpportunityJob}
           onClose={() => setSelectedOpportunityJob(null)}
+        />
+
+        {/* SkillBridge 2.0: Technical Assessment Modal */}
+        <SkillAssessmentModal
+          skillName={assessmentSkill}
+          isOpen={isAssessmentOpen}
+          onClose={() => setIsAssessmentOpen(false)}
+          onAssessmentCompleted={() => {
+            void Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+          }}
+        />
+
+        {/* SkillBridge 2.0: Skill Passport Modal */}
+        <SkillPassportModal
+          isOpen={isPassportOpen}
+          onClose={() => setIsPassportOpen(false)}
+          passportToken={passportToken}
+          profile={profile}
+        />
+
+        {/* SkillBridge 2.0: AI Pre-Screen Interview Studio Modal */}
+        <AIInterviewModal
+          isOpen={isAIInterviewOpen}
+          onClose={() => setIsAIInterviewOpen(false)}
+          targetRole={profile?.student?.program || "Full Stack Engineer"}
         />
       </main>
 

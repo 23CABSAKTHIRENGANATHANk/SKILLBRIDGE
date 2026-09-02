@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../services/MatchingService.php';
+require_once __DIR__ . '/../services/ProofOfSkillService.php';
 require_once __DIR__ . '/../services/Validator.php';
 require_once __DIR__ . '/../services/AuditLogger.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
@@ -23,6 +24,7 @@ class JobController {
 
         // 1. Fetch current student skills if authenticated as student
         $studentSkills = [];
+        $studentSkillConfidence = [];
         if ($authUser && ($authUser['role'] ?? '') === 'student') {
             $skStmt = $db->prepare('
                 SELECT s.name 
@@ -33,6 +35,12 @@ class JobController {
             ');
             $skStmt->execute([$authUser['user_id']]);
             $studentSkills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
+            $studentStmt = $db->prepare('SELECT id FROM students WHERE user_id = ? LIMIT 1');
+            $studentStmt->execute([$authUser['user_id']]);
+            $student = $studentStmt->fetch();
+            if ($student) {
+                $studentSkillConfidence = ProofOfSkillService::getStudentSkillConfidence($student['id']);
+            }
         }
 
         // 2. Query active jobs
@@ -97,7 +105,9 @@ class JobController {
             // Deterministic skill matching calculation
             $match = null;
             if ($authUser && ($authUser['role'] ?? '') === 'student') {
-                $match = MatchingService::calculateMatch($studentSkills, $skills);
+                $match = MatchingService::calculateMatch($studentSkills, $skills, [
+                    'skill_confidence' => $studentSkillConfidence,
+                ]);
             }
 
             $diff = time() - strtotime($row['posted_at'] ?? 'now');
@@ -169,6 +179,7 @@ class JobController {
         $skills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
 
         $studentSkills = [];
+        $studentSkillConfidence = [];
         if ($authUser && ($authUser['role'] ?? '') === 'student') {
             $sStmt = $db->prepare('
                 SELECT s.name 
@@ -179,11 +190,19 @@ class JobController {
             ');
             $sStmt->execute([$authUser['user_id']]);
             $studentSkills = $sStmt->fetchAll(PDO::FETCH_COLUMN);
+            $studentStmt = $db->prepare('SELECT id FROM students WHERE user_id = ? LIMIT 1');
+            $studentStmt->execute([$authUser['user_id']]);
+            $student = $studentStmt->fetch();
+            if ($student) {
+                $studentSkillConfidence = ProofOfSkillService::getStudentSkillConfidence($student['id']);
+            }
         }
 
         $match = null;
         if (!empty($studentSkills)) {
-            $match = MatchingService::calculateMatch($studentSkills, $skills);
+            $match = MatchingService::calculateMatch($studentSkills, $skills, [
+                'skill_confidence' => $studentSkillConfidence,
+            ]);
         }
 
         jsonResponse([

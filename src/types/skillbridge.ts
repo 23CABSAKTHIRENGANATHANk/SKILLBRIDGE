@@ -33,12 +33,22 @@ export interface LearningRecommendation {
 export interface SkillMatch {
   /** 0-100, computed server-side. */
   score: number;
+  overall_match?: number;
+  skill_fit?: number;
+  experience_fit?: number;
+  education_fit?: number;
+  location_fit?: number;
+  verified_confidence?: number;
   matched: string[];
+  matched_skills?: string[];
   missing: string[];
+  missing_skills?: string[];
   fit_level?: "Strong Fit" | "Moderate Fit" | "Developing Fit" | string;
   explanation?: string;
+  why_this_match?: string;
   strengths?: string[];
   learning_paths?: LearningRecommendation[];
+  what_to_improve?: LearningRecommendation[];
   role_fit_score?: number;
 }
 
@@ -98,6 +108,23 @@ export interface PipelineCounts {
   interview: number;
   offer: number;
   hired: number;
+}
+
+export interface SkillProof {
+  skill_id: string;
+  skill_name: string;
+  proficiency: string;
+  confidence_score: number;
+  confidence_level: string;
+  is_verified: boolean;
+  evidence: {
+    self_declared: boolean;
+    resume_evidence: boolean;
+    project_evidence: boolean;
+    assessment: boolean;
+    assessment_score: number;
+    github_evidence: boolean;
+  };
 }
 
 export type UserRole = "student" | "recruiter" | "admin";

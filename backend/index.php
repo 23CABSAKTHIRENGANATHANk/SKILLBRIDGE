@@ -32,6 +32,12 @@ require_once __DIR__ . '/controllers/InterviewController.php';
 require_once __DIR__ . '/controllers/AdminController.php';
 require_once __DIR__ . '/services/GeminiService.php';
 require_once __DIR__ . '/controllers/AIController.php';
+require_once __DIR__ . '/services/ProofOfSkillService.php';
+require_once __DIR__ . '/controllers/AssessmentController.php';
+require_once __DIR__ . '/controllers/CareerCopilotController.php';
+require_once __DIR__ . '/controllers/PassportController.php';
+require_once __DIR__ . '/controllers/GitHubController.php';
+require_once __DIR__ . '/controllers/InterviewAIController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -161,6 +167,43 @@ switch (true) {
         StudentController::deleteSkill($user);
         break;
 
+    case $path === '/student/skill-proof' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        StudentController::getSkillProof($user);
+        break;
+
+    case preg_match('#^/student/assessments/([^/]+)$#', $path, $matches) && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::getAssessment($user, urldecode($matches[1]));
+        break;
+
+    case $path === '/student/assessments' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::submitAssessment($user);
+        break;
+
+    // --- Student Projects ---
+    case $path === '/student/projects' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        StudentController::addProject($user);
+        break;
+
+    case preg_match('#^/student/projects/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'DELETE':
+        $user = AuthMiddleware::authenticate();
+        StudentController::deleteProject($user, $matches[1]);
+        break;
+
+    // --- Student Certificates ---
+    case $path === '/student/certificates' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        StudentController::addCertificate($user);
+        break;
+
+    case preg_match('#^/student/certificates/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'DELETE':
+        $user = AuthMiddleware::authenticate();
+        StudentController::deleteCertificate($user, $matches[1]);
+        break;
+
     case ($path === '/student/resume' || $path === '/student/resume/upload') && $method === 'POST':
         $user = AuthMiddleware::authenticate();
         StudentController::uploadResume($user);
@@ -234,6 +277,11 @@ switch (true) {
         NotificationController::markRead($user);
         break;
 
+    case preg_match('#^/notifications/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'DELETE':
+        $user = AuthMiddleware::authenticate();
+        NotificationController::delete($user, $matches[1]);
+        break;
+
     // --- Admin & Monitoring ---
     case $path === '/stats' && $method === 'GET':
         AdminController::getPublicStats();
@@ -301,6 +349,63 @@ switch (true) {
         RateLimitMiddleware::check('ai_features', 20, 60);
         $user = AuthMiddleware::authenticate();
         AIController::recruiterInsights($user);
+        break;
+
+    // --- Proof of Skill & Assessments ---
+    case $path === '/assessment' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        $skill = trim((string)($_GET['skill'] ?? 'React'));
+        AssessmentController::getAssessment($user, $skill);
+        break;
+
+    case $path === '/assessment/submit' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::submitAssessment($user);
+        break;
+
+    // --- Career Simulator & Gap Analysis & Career Agent ---
+    case $path === '/career/simulate' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        CareerCopilotController::simulate($user);
+        break;
+
+    case $path === '/career/gap-analysis' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        CareerCopilotController::gapAnalysis($user);
+        break;
+
+    case $path === '/career/agent' && $method === 'POST':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        CareerCopilotController::chatAgent($user);
+        break;
+
+    // --- Skill Passports (Public & Private) ---
+    case $path === '/student/passport' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        PassportController::getOrCreateToken($user);
+        break;
+
+    case preg_match('#^/passport/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'GET':
+        PassportController::getPublicPassport($matches[1]);
+        break;
+
+    // --- GitHub Proof of Work ---
+    case $path === '/student/github/connect' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        GitHubController::connectProfile($user);
+        break;
+
+    // --- AI Pre-screen Interview Studio ---
+    case $path === '/interview-ai/session' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        InterviewAIController::startSession($user);
+        break;
+
+    case $path === '/interview-ai/evaluate' && $method === 'POST':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        InterviewAIController::evaluateSession($user);
         break;
 
     default:

@@ -189,8 +189,8 @@ function RecruiterPage() {
       await ApiClient.updateApplicationStage(appId, nextStage.toLowerCase());
       toast.success(`Updated ${candidateName} to ${nextStage.toUpperCase()} stage.`);
       if (refetch) refetch();
-    } catch {
-      toast.info(`Updated candidate stage.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Candidate stage could not be updated.");
     }
   };
 
