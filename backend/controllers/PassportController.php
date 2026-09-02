@@ -96,9 +96,9 @@ class PassportController {
                 'skills' => $skillsProof,
                 'projects' => $projects,
                 'certificates' => $certs,
-                'verified_badge' => true,
+                'verified_badge' => $verifiedCount > 0,
                 'public_token' => $passport['public_token'],
-                'verified_at' => date('c')
+                'verified_at' => $passport['updated_at'] ?? null
             ]
         ]);
     }

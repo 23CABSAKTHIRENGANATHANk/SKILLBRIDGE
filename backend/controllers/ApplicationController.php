@@ -274,7 +274,7 @@ class ApplicationController {
 
         // 1. Verify that this application belongs to a job owned by this recruiter
         $stmt = $db->prepare('
-            SELECT a.id, a.student_id, s.user_id as student_user_id, j.title as job_title, c.name as company_name, c.user_id as company_user_id 
+            SELECT a.id, a.stage, a.student_id, s.user_id as student_user_id, j.title as job_title, c.name as company_name, c.user_id as company_user_id
             FROM applications a
             JOIN students s ON a.student_id = s.id
             JOIN jobs j ON a.job_id = j.id
@@ -290,6 +290,19 @@ class ApplicationController {
 
         if ($currentUser['role'] === 'recruiter' && $app['company_user_id'] !== $currentUser['user_id']) {
             errorResponse('Access Denied: You can only update applications for your own company postings.', 403);
+        }
+
+        $allowedTransitions = [
+            'applied' => ['applied', 'shortlisted', 'rejected'],
+            'shortlisted' => ['shortlisted', 'interview', 'rejected'],
+            'interview' => ['interview', 'offer', 'rejected'],
+            'offer' => ['offer', 'hired', 'rejected'],
+            'hired' => ['hired'],
+            'rejected' => ['rejected'],
+        ];
+        $currentStage = strtolower((string)$app['stage']);
+        if (!in_array($newStage, $allowedTransitions[$currentStage] ?? [], true)) {
+            errorResponse("Invalid application transition from {$currentStage} to {$newStage}.", 409);
         }
 
         $updateStmt = $db->prepare('UPDATE applications SET stage = ? WHERE id = ?');

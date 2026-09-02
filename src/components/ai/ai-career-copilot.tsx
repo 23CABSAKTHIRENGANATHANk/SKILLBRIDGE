@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { useAIResumeSummary, useAIRecommendations, useAISkillGap } from "@/hooks/use-ai";
 import type { Job } from "@/types/skillbridge";
+import { ApiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
 interface AICareerCopilotProps {
@@ -53,6 +54,28 @@ export function AICareerCopilot({ onSelectJob, hasResume, hasSkills }: AICareerC
     loading: gapLoading,
     analyze: analyzeGap,
   } = useAISkillGap(selectedJobIdForGap);
+  const [agentMessage, setAgentMessage] = useState("");
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentResponse, setAgentResponse] = useState<Awaited<ReturnType<typeof ApiClient.chatCareerAgent>>["agent"] | null>(null);
+
+  const askCareerAgent = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const message = agentMessage.trim();
+    if (!message || agentLoading) return;
+
+    setAgentLoading(true);
+    setAgentError(null);
+    try {
+      const response = await ApiClient.chatCareerAgent(message);
+      setAgentResponse(response.agent);
+      setAgentMessage("");
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : "Career Agent is temporarily unavailable.");
+    } finally {
+      setAgentLoading(false);
+    }
+  };
 
   // Auto-generate resume summary on first load
   useEffect(() => {
@@ -464,6 +487,68 @@ export function AICareerCopilot({ onSelectJob, hasResume, hasSkills }: AICareerC
             </div>
           )}
         </div>
+      </ScrollReveal>
+
+      <ScrollReveal delay={0.4}>
+        <section className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-soft" aria-labelledby="career-agent-title">
+          <div className="flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Bot className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div>
+                <h3 id="career-agent-title" className="font-heading text-lg font-bold text-foreground">Career Agent</h3>
+                <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
+                  Ask about your next role, readiness, or the best next step. Responses use your saved profile, evidence, and active opportunities.
+                </p>
+              </div>
+            </div>
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+              <ShieldCheck className="h-3 w-3" aria-hidden="true" /> AI-assisted · grounded in your data
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_0.8fr]">
+            <form onSubmit={askCareerAgent} className="space-y-3">
+              <label htmlFor="career-agent-message" className="text-xs font-semibold text-foreground">What are you working toward?</label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="career-agent-message"
+                  value={agentMessage}
+                  onChange={(event) => setAgentMessage(event.target.value)}
+                  placeholder="I want a backend developer role"
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  maxLength={500}
+                  disabled={agentLoading}
+                />
+                <Button type="submit" disabled={agentLoading || !agentMessage.trim()} className="h-10 rounded-xl text-xs font-bold">
+                  {agentLoading ? "Analyzing..." : "Ask Agent"}
+                  {!agentLoading && <ArrowRight className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />}
+                </Button>
+              </div>
+              {agentError && <p className="text-xs text-destructive" role="alert">{agentError}</p>}
+            </form>
+
+            <div className="min-h-28 rounded-2xl border border-border/70 bg-background/60 p-4">
+              {agentResponse ? (
+                <div className="space-y-3 text-xs">
+                  <p className="leading-relaxed text-foreground">{agentResponse.reply}</p>
+                  {agentResponse.suitable_roles.length > 0 && (
+                    <div>
+                      <p className="mb-1 font-bold text-foreground">Roles in the current dataset</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {agentResponse.suitable_roles.map((role) => <span key={role} className="rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">{role}</span>)}
+                      </div>
+                    </div>
+                  )}
+                  <p className="border-t border-border/60 pt-2 text-muted-foreground"><span className="font-semibold text-foreground">Next action:</span> {agentResponse.recommended_next_action}</p>
+                </div>
+              ) : (
+                <p className="flex min-h-20 items-center justify-center text-center text-xs text-muted-foreground">Your grounded career guidance will appear here.</p>
+              )}
+            </div>
+          </div>
+        </section>
       </ScrollReveal>
     </div>
   );

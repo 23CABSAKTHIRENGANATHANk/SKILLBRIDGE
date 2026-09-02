@@ -51,7 +51,7 @@ function PublicPassportPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-success text-success-foreground text-xs font-black">
-                      <BadgeCheck className="size-3.5" /> SkillBridge 2.0 Verified
+                      <BadgeCheck className="size-3.5" /> SkillBridge Skill Passport
                     </span>
                     <span className="text-xs text-muted-foreground font-mono">
                       Token: {passport.public_token.substring(0, 16)}...

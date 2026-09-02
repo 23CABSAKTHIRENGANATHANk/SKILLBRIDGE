@@ -74,6 +74,7 @@ class CareerCopilotController {
         $avgCurrent = !empty($currentMatches) ? (int)round(array_sum($currentMatches) / count($currentMatches)) : 0;
         $avgProjected = !empty($projectedMatches) ? (int)round(array_sum($projectedMatches) / count($projectedMatches)) : 0;
         $unlockedHighFit = count(array_filter($projectedMatches, fn($s) => $s >= 75));
+        $roleTitles = array_values(array_unique(array_column($jobs, 'title')));
 
         jsonResponse([
             'success' => true,
@@ -82,11 +83,7 @@ class CareerCopilotController {
             'projected_readiness' => $avgProjected,
             'growth_delta' => max(0, $avgProjected - $avgCurrent),
             'high_fit_jobs_unlocked' => $unlockedHighFit,
-            'potential_roles' => [
-                'Full Stack AI Engineer',
-                'Cloud Backend Specialist',
-                'Systems Integration Developer'
-            ],
+            'potential_roles' => array_slice($roleTitles, 0, 5),
             'disclaimer' => 'Projected readiness is a deterministic skill model estimate based on current employer listings.'
         ]);
     }
@@ -104,8 +101,13 @@ class CareerCopilotController {
         $sStmt->execute([$currentUser['user_id']]);
         $student = $sStmt->fetch();
 
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
         $skillsWithProof = ProofOfSkillService::getStudentSkillsWithProof($student['id']);
         $studentSkillNames = array_column($skillsWithProof, 'skill_name');
+        $studentSkillConfidence = ProofOfSkillService::getStudentSkillConfidence($student['id']);
 
         // Fetch real market skills for target role
         $roleStmt = $db->prepare('
@@ -119,20 +121,13 @@ class CareerCopilotController {
         $roleStmt->execute(['%' . $targetRole . '%']);
         $marketSkills = array_column($roleStmt->fetchAll(), 'name');
 
-        if (empty($marketSkills)) {
-            $marketSkills = ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Docker', 'REST API', 'AWS'];
-        }
-
-        $matchedSkills = array_values(array_intersect(
-            array_map('strtolower', $studentSkillNames),
-            array_map('strtolower', $marketSkills)
-        ));
-        $missingSkills = array_values(array_diff(
-            array_map('strtolower', $marketSkills),
-            array_map('strtolower', $studentSkillNames)
-        ));
-
-        $readiness = (int)round((count($matchedSkills) / max(1, count($marketSkills))) * 100);
+        $marketSkills = array_values(array_unique($marketSkills));
+        $match = MatchingService::calculateMatch($studentSkillNames, $marketSkills, [
+            'skill_confidence' => $studentSkillConfidence,
+        ]);
+        $matchedSkills = $match['matched_skills'];
+        $missingSkills = $match['missing_skills'];
+        $readiness = $match['skill_fit'];
 
         jsonResponse([
             'success' => true,
@@ -140,12 +135,18 @@ class CareerCopilotController {
             'current_readiness' => $readiness,
             'matched_skills' => $matchedSkills,
             'missing_skills' => array_slice($missingSkills, 0, 5),
-            'priority_sequence' => [
-                ['skill' => $missingSkills[0] ?? 'Docker', 'priority' => 'High', 'time_estimate' => '1-2 weeks'],
-                ['skill' => $missingSkills[1] ?? 'AWS', 'priority' => 'Medium', 'time_estimate' => '2-3 weeks'],
-                ['skill' => $missingSkills[2] ?? 'System Design', 'priority' => 'Medium', 'time_estimate' => '1 week']
-            ],
-            'recommended_project' => "Build a containerized {$targetRole} web platform using " . implode(', ', array_slice($marketSkills, 0, 3)) . "."
+            'priority_sequence' => array_map(
+                fn($skill, $index) => [
+                    'skill' => $skill,
+                    'priority' => $index === 0 ? 'High' : 'Medium',
+                    'time_estimate' => 'Based on the selected role requirements',
+                ],
+                array_slice($missingSkills, 0, 5),
+                array_keys(array_slice($missingSkills, 0, 5))
+            ),
+            'recommended_project' => empty($missingSkills)
+                ? 'Strengthen the projects already listed in your profile with measurable outcomes.'
+                : "Build a {$targetRole} project demonstrating " . implode(', ', array_slice($missingSkills, 0, 3)) . "."
         ]);
     }
 
@@ -190,18 +191,23 @@ Respond in structured JSON format with:
   \"recommended_next_action\": \"Specific action e.g. take Docker assessment or upload portfolio project.\"
 }";
 
-        $rawResponse = AIService::generateText($prompt);
+        $rawResponse = GeminiService::generateText($prompt);
         $parsed = null;
         if (preg_match('/\{[\s\S]*\}/', $rawResponse, $m)) {
             $parsed = json_decode($m[0], true);
         }
 
         if (!$parsed) {
+            $jobTitles = array_values(array_unique(array_column($activeJobs, 'title')));
             $parsed = [
-                'reply' => "Based on your verified skills (" . implode(', ', array_slice(array_column($skillsWithProof, 'skill_name'), 0, 3)) . "), you have strong technical foundation. Focusing on missing cloud & containerization skills will boost your match across enterprise roles.",
-                'suitable_roles' => ['Full Stack Developer', 'Software Engineer'],
-                'missing_competencies' => ['Docker', 'AWS'],
-                'recommended_next_action' => 'Complete a skill assessment to verify your core competency.'
+                'reply' => empty($skillsWithProof)
+                    ? 'Your profile has no recorded skill evidence yet. Add a skill and complete an assessment to create a grounded career plan.'
+                    : 'Your current plan is based on the skills and active roles recorded in SkillBridge.',
+                'suitable_roles' => array_slice($jobTitles, 0, 5),
+                'missing_competencies' => [],
+                'recommended_next_action' => empty($activeJobs)
+                    ? 'Add evidence to your skills profile; no active roles are available for comparison yet.'
+                    : 'Review an active role and complete the assessment for one of its required skills.'
             ];
         }
 

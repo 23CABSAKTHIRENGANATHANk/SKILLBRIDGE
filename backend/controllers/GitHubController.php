@@ -20,6 +20,9 @@ class GitHubController {
         if (empty($username)) {
             errorResponse('GitHub username is required.');
         }
+        if (!preg_match('/^[A-Za-z0-9-]{1,39}$/', $username)) {
+            errorResponse('Invalid GitHub username.');
+        }
 
         $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
         $sStmt->execute([$currentUser['user_id']]);
@@ -38,8 +41,12 @@ class GitHubController {
             ]
         ]);
 
-        $rawRepos = @file_get_contents("https://api.github.com/users/{$username}/repos?per_page=15&sort=updated", false, $ctx);
+        $rawRepos = @file_get_contents("https://api.github.com/users/" . rawurlencode($username) . "/repos?per_page=15&sort=updated", false, $ctx);
         $repos = $rawRepos ? json_decode($rawRepos, true) : null;
+
+        if (!is_array($repos)) {
+            errorResponse('GitHub public repositories could not be analyzed. Please try again later.', 502);
+        }
 
         $detectedLanguages = [];
         $detectedSkills = [];
@@ -61,18 +68,9 @@ class GitHubController {
                     'language' => $repo['language'] ?? 'N/A',
                     'stars' => (int)($repo['stargazers_count'] ?? 0),
                     'url' => $repo['html_url'] ?? "https://github.com/{$username}/" . ($repo['name'] ?? ''),
-                    if (!preg_match('/^[A-Za-z0-9-]{1,39}$/', $username)) {
-                        errorResponse('Invalid GitHub username.');
-                    }
                     'description' => $repo['description'] ?? ''
                 ];
             }
-        } else {
-            // Fallback for offline/rate-limited queries based on verified username
-            $detectedSkills = ['TypeScript', 'React', 'Python', 'PostgreSQL'];
-            $topRepos = [
-                ['name' => 'skill-bridge-showcase', 'language' => 'TypeScript', 'stars' => 3, 'url' => "https://github.com/{$username}/skill-bridge-showcase", 'description' => 'Real-time production web system']
-            ];
         }
 
         $detectedSkills = array_values(array_unique($detectedSkills));
@@ -81,7 +79,6 @@ class GitHubController {
         $pId = 'gh_' . bin2hex(random_bytes(8));
         $insStmt = $db->prepare('
             INSERT INTO student_github_profiles (id, student_id, github_username, public_repos_count, languages, detected_skills, top_repositories, analyzed_at)
-                    $rawRepos = @file_get_contents("https://api.github.com/users/" . rawurlencode($username) . "/repos?per_page=15&sort=updated", false, $ctx);
             ON CONFLICT (student_id) DO UPDATE SET
                 github_username = EXCLUDED.github_username,
                 public_repos_count = EXCLUDED.public_repos_count,
