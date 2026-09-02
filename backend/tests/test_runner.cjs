@@ -346,7 +346,7 @@ async function run() {
 
   // --- SkillBridge 2.0 Proof-of-Skill Scenarios ---
   // 24. Assessment Generation
-  const assessGen = await req("/assessment?skill=React", "GET", null, studentAuthToken);
+  const assessGen = await req("/student/assessments/React", "GET", null, studentAuthToken);
   check(
     "24. Skill Assessment Generation:",
     assessGen.status === 200 && (assessGen.data?.questions?.length ?? 0) >= 3,
@@ -355,7 +355,7 @@ async function run() {
 
   // 25. Assessment Submission
   const assessSub = await req(
-    "/assessment/submit",
+    "/student/assessments",
     "POST",
     {
       skill_name: "React",
@@ -378,7 +378,11 @@ async function run() {
   const simRes = await req("/career/simulate", "POST", { skills: ["Docker", "AWS"] }, studentAuthToken);
   check(
     "26. Career Growth Simulator:",
-    simRes.status === 200 && simRes.data?.growth_delta > 0,
+    simRes.status === 200 &&
+      typeof simRes.data?.current_readiness === "number" &&
+      typeof simRes.data?.projected_readiness === "number" &&
+      simRes.data.projected_readiness >= simRes.data.current_readiness &&
+      simRes.data.growth_delta === simRes.data.projected_readiness - simRes.data.current_readiness,
     `Current: ${simRes.data?.current_readiness}%, Projected: ${simRes.data?.projected_readiness}% (+${simRes.data?.growth_delta}%)`,
   );
 
