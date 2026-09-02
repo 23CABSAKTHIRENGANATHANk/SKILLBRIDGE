@@ -469,8 +469,8 @@ function DashboardPage() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Skill insights will appear after adding skills.
+                  <p className="text-xs text-muted-foreground">
+                    No skills added yet. Add your skills to unlock personalized job matching.
                   </p>
                 )}
               </div>
@@ -483,8 +483,8 @@ function DashboardPage() {
                 </h2>
                 <span className="text-[11px] font-bold text-primary">Live demand</span>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Live regional demand insights will appear when market data is available.
+              <p className="mt-4 text-xs text-muted-foreground">
+                Market insights are unavailable right now.
               </p>
             </div>
           </div>
@@ -500,8 +500,8 @@ function DashboardPage() {
                 View roles
               </Link>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Recommendations will appear after your profile and skills are analyzed.
+            <p className="mt-4 text-xs text-muted-foreground">
+              No personalized recommendations yet. Complete your profile and add skills to unlock recommendations.
             </p>
           </div>
         </ScrollReveal>

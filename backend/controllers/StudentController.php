@@ -32,11 +32,16 @@ class StudentController {
         $skills = $skStmt->fetchAll();
 
         // Calculate profile completion
+        $hasCustomAvatar = !empty($student['avatar_url']);
+        $hasExperience = !empty($student['experience']) && !in_array(strtolower(trim($student['experience'])), ['fresher', 'none', '']);
+        $hasResume = !empty($student['resume_storage_key']);
+        $hasSkills = count($skills) >= 3;
+
         $steps = [
-            ['id' => 'profile', 'label' => 'Profile', 'complete' => !empty($student['name']) && !empty($student['college'])],
-            ['id' => 'skills', 'label' => 'Skills', 'complete' => count($skills) >= 3],
-            ['id' => 'resume', 'label' => 'Resume', 'complete' => !empty($student['resume_storage_key'])],
-            ['id' => 'projects', 'label' => 'Projects', 'complete' => !empty($student['experience'])],
+            ['id' => 'profile', 'label' => 'Profile', 'complete' => $hasCustomAvatar],
+            ['id' => 'skills', 'label' => 'Skills', 'complete' => $hasSkills],
+            ['id' => 'resume', 'label' => 'Resume', 'complete' => $hasResume],
+            ['id' => 'projects', 'label' => 'Projects', 'complete' => $hasExperience],
             ['id' => 'certificates', 'label' => 'Certificates', 'complete' => false]
         ];
 
@@ -136,11 +141,16 @@ class StudentController {
         $skillsCount = (int)$skStmt->fetchColumn();
 
         // 4. Progress calculation
+        $hasCustomAvatar = !empty($student['avatar_url']);
+        $hasExperience = !empty($student['experience']) && !in_array(strtolower(trim($student['experience'])), ['fresher', 'none', '']);
+        $hasResume = !empty($student['resume_storage_key']);
+        $hasSkills = $skillsCount >= 3;
+
         $steps = [
-            ['id' => 'profile', 'label' => 'Profile', 'complete' => !empty($student['name'])],
-            ['id' => 'skills', 'label' => 'Skills', 'complete' => $skillsCount >= 3],
-            ['id' => 'resume', 'label' => 'Resume', 'complete' => !empty($student['resume_storage_key'])],
-            ['id' => 'projects', 'label' => 'Projects', 'complete' => !empty($student['experience'])],
+            ['id' => 'profile', 'label' => 'Profile', 'complete' => $hasCustomAvatar],
+            ['id' => 'skills', 'label' => 'Skills', 'complete' => $hasSkills],
+            ['id' => 'resume', 'label' => 'Resume', 'complete' => $hasResume],
+            ['id' => 'projects', 'label' => 'Projects', 'complete' => $hasExperience],
             ['id' => 'certificates', 'label' => 'Certificates', 'complete' => false]
         ];
         $completedCount = count(array_filter($steps, fn($s) => $s['complete']));
