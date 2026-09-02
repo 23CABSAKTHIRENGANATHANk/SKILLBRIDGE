@@ -34,7 +34,9 @@ export function NotificationsCenter({
   onDelete?: (id: string) => void;
 }) {
   const [notifications, setNotifications] = useState(initialNotifications);
-  const [filter, setFilter] = useState<"all" | "unread" | "jobs" | "applications" | "interviews">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "jobs" | "applications" | "interviews">(
+    "all",
+  );
 
   const filteredNotifications = notifications.filter((n) => {
     if (filter === "all") return true;
@@ -141,7 +143,9 @@ export function NotificationsCenter({
             <div
               key={notif.id}
               className={`rounded-2xl border p-4 transition-all ${
-                notif.read ? `border-border/70 bg-background/50` : `${getColorClass(notif.type)} border`
+                notif.read
+                  ? `border-border/70 bg-background/50`
+                  : `${getColorClass(notif.type)} border`
               }`}
             >
               <div className="flex items-start gap-4">
@@ -165,11 +169,7 @@ export function NotificationsCenter({
 
                   {notif.actionUrl && (
                     <div className="mt-3 flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-lg text-xs font-bold"
-                      >
+                      <Button size="sm" variant="outline" className="rounded-lg text-xs font-bold">
                         {notif.actionLabel || "View"}
                       </Button>
                       {!notif.read && (

@@ -44,7 +44,15 @@ export function MatchRing({
             <stop offset="100%" stopColor="oklch(0.7 0.13 200)" />
           </linearGradient>
         </defs>
-        <circle cx="50" cy="50" r={r} fill="none" stroke="currentColor" strokeWidth="8" className="text-muted" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="8"
+          className="text-muted"
+        />
         <circle
           cx="50"
           cy="50"
@@ -82,10 +90,9 @@ export function SkillMatchPanel({
 
   // Show "Great Match" label after ring animation completes
   useEffect(() => {
-    if (revealed) {
-      const timer = setTimeout(() => setShowLabel(true), 1000);
-      return () => clearTimeout(timer);
-    }
+    if (!revealed) return;
+    const timer = setTimeout(() => setShowLabel(true), 1000);
+    return () => clearTimeout(timer);
   }, [revealed]);
 
   return (

@@ -28,12 +28,8 @@ export function CursorDot() {
       if (!dot) return;
 
       const isBtn =
-        target.closest("button") ||
-        target.closest("a") ||
-        target.closest("[role='button']");
-      const isCta =
-        target.closest("[data-cta]") ||
-        target.closest(".btn-ripple");
+        target.closest("button") || target.closest("a") || target.closest("[role='button']");
+      const isCta = target.closest("[data-cta]") || target.closest(".btn-ripple");
 
       dot.classList.toggle("interactive", !!isBtn && !isCta);
       dot.classList.toggle("cta", !!isCta);

@@ -47,11 +47,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (!roles.includes(user.role)) {
       const targetDashboard =
-        user.role === "recruiter"
-          ? "/recruiter"
-          : user.role === "admin"
-          ? "/admin"
-          : "/dashboard";
+        user.role === "recruiter" ? "/recruiter" : user.role === "admin" ? "/admin" : "/dashboard";
 
       return (
         <div className="flex min-h-[70vh] items-center justify-center px-4">

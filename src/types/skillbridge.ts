@@ -7,12 +7,7 @@
 export type JobType = "Full Time" | "Internship" | "Part Time" | "Contract";
 
 export type ApplicationStage =
-  | "applied"
-  | "shortlisted"
-  | "interview"
-  | "offer"
-  | "hired"
-  | "rejected";
+  "applied" | "shortlisted" | "interview" | "offer" | "hired" | "rejected";
 
 export interface Company {
   id: string;

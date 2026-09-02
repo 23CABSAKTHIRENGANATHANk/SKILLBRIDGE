@@ -117,9 +117,14 @@ if (!function_exists('errorResponse')) {
             $code = $codeMap[$status] ?? 'ERROR';
         }
 
+        $isProd = (getenv('APP_ENV') ?: 'production') === 'production';
+        $clientMessage = ($isProd && $status >= 500)
+            ? 'An unexpected server error occurred.'
+            : $message;
+
         $body = [
             'success' => false,
-            'error'   => $message,
+            'error'   => $clientMessage,
             'code'    => $code,
             'meta'    => apiMeta(),
         ];

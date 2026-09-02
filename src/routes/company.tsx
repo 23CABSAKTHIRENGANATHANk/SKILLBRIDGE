@@ -1,12 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  BadgeCheck,
-  Building2,
-  Globe,
-  MapPin,
-  Users,
-} from "lucide-react";
+import { ArrowRight, BadgeCheck, Building2, Globe, MapPin, Users } from "lucide-react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { CursorDot } from "@/components/cursor-dot";
@@ -23,7 +16,8 @@ export const Route = createFileRoute("/company")({
       { title: "Northwind Labs — SkillBridge" },
       {
         name: "description",
-        content: "Learn more about company profiles, open positions, and geocoded office locations on SkillBridge.",
+        content:
+          "Learn more about company profiles, open positions, and geocoded office locations on SkillBridge.",
       },
     ],
   }),
@@ -58,7 +52,9 @@ function CompanyPage() {
           <div className="rounded-3xl border border-dashed bg-card/60 p-12 text-center">
             <Building2 className="mx-auto size-8 text-muted-foreground" />
             <p className="mt-4 font-display text-xl font-bold">Company profile unavailable</p>
-            <p className="mt-2 text-sm text-muted-foreground">The company details could not be loaded from the API.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The company details could not be loaded from the API.
+            </p>
           </div>
         </main>
         <BottomNav />
@@ -75,16 +71,15 @@ function CompanyPage() {
         {/* Company header */}
         <ScrollReveal>
           <div className="relative overflow-hidden rounded-[2rem] border bg-card p-8 shadow-soft sm:p-10">
-            <div className="grid-field pointer-events-none absolute inset-0 opacity-30" aria-hidden="true" />
+            <div
+              className="grid-field pointer-events-none absolute inset-0 opacity-30"
+              aria-hidden="true"
+            />
             <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
               {/* Logo */}
               <div className="flex size-20 shrink-0 items-center justify-center rounded-3xl bg-primary-soft text-primary shadow-soft">
                 {company.logoUrl ? (
-                  <img
-                    src={company.logoUrl}
-                    alt=""
-                    className="size-20 rounded-3xl object-cover"
-                  />
+                  <img src={company.logoUrl} alt="" className="size-20 rounded-3xl object-cover" />
                 ) : (
                   <Building2 className="size-8" aria-hidden="true" />
                 )}
@@ -143,9 +138,9 @@ function CompanyPage() {
         <ScrollReveal delay={100}>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
-              { icon: Users, label: "Team Size", value: 85, suffix: "+" },
-              { icon: BadgeCheck, label: "Active Roles", value: companyJobs.length || 4, suffix: "" },
-              { icon: ArrowRight, label: "Avg Response Time", value: 48, suffix: "h" },
+              { icon: Users, label: "Team Size", value: "Not available" },
+              { icon: BadgeCheck, label: "Active Roles", value: companyJobs.length.toString() },
+              { icon: ArrowRight, label: "Avg Response Time", value: "Not available" },
             ].map((stat) => (
               <div
                 key={stat.label}
@@ -156,11 +151,13 @@ function CompanyPage() {
                 </span>
                 <div>
                   <p className="font-display text-2xl font-extrabold leading-none">
-                    <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                    {typeof stat.value === "number" ? (
+                      <AnimatedCounter value={stat.value} />
+                    ) : (
+                      stat.value
+                    )}
                   </p>
-                  <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-                    {stat.label}
-                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-muted-foreground">{stat.label}</p>
                 </div>
               </div>
             ))}
@@ -173,10 +170,7 @@ function CompanyPage() {
           <section aria-labelledby="company-jobs-title">
             <ScrollReveal>
               <div className="flex items-center justify-between">
-                <h2
-                  id="company-jobs-title"
-                  className="font-display text-xl font-bold"
-                >
+                <h2 id="company-jobs-title" className="font-display text-xl font-bold">
                   Open Positions
                 </h2>
                 <Button variant="ghost" size="sm" className="text-xs" asChild>

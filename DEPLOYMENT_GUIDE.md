@@ -1,122 +1,89 @@
-# SkillBridge — Complete Production Deployment Runbook
+# SkillBridge Production Deployment Guide
 
-This guide covers the deployment of the SkillBridge frontend, PHP 8 REST API, and MySQL database to production servers.
+SkillBridge consists of a React/Vite frontend, a PHP 8.x REST API, and PostgreSQL 16+ (including Neon). MySQL, MariaDB, and PDO MySQL are not supported.
 
----
+## 1. Database
 
-## 1. Domain & DNS Configuration
-
-Configure DNS A records with your registrar or Cloudflare:
-
-| Type | Name / Host | Target IP | Proxy Status |
-|---|---|---|---|
-| **A** | `skillbridge.dev` | `<YOUR_VPS_IP>` | Proxied (Cloudflare) / DNS Only |
-| **A** | `www` | `<YOUR_VPS_IP>` | Proxied (Cloudflare) / DNS Only |
-| **A** | `api` | `<YOUR_VPS_IP>` | DNS Only (or Proxied) |
-
----
-
-## 2. Server Setup (Single-Command Bootstrap)
-
-On a fresh **Ubuntu 22.04 / 24.04 LTS VPS**:
+Create a PostgreSQL 16+ database, either in Neon or on a managed/private server. Require TLS for remote connections. Apply the schema from the repository:
 
 ```bash
-# 1. Clone repository to /var/www/skillbridge
-sudo git clone https://github.com/<your-username>/skill-bridge-connect.git /var/www/skillbridge
-
-# 2. Run automated server provisioner
-cd /var/www/skillbridge
-sudo bash setup-server.sh
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/schema.sql
 ```
 
-The script automatically:
-- Installs Nginx, PHP 8.1 FPM, MariaDB, Node.js, and Certbot.
-- Creates least-privilege MySQL user `skillbridge_app`.
-- Generates a random cryptographic `JWT_SECRET`.
-- Configures firewall (UFW) and daily automated database backups.
-
----
-
-## 3. SSL / HTTPS Certificate Installation
-
-Run Certbot to obtain free Let's Encrypt certificates:
+For a staging environment only, load the deterministic seed data:
 
 ```bash
-sudo certbot --nginx -d skillbridge.dev -d www.skillbridge.dev -d api.skillbridge.dev
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/seed.sql
 ```
 
----
+Use a dedicated least-privilege PostgreSQL role. [backend/database/production-setup.sql](backend/database/production-setup.sql) contains the role and grant statements; replace its password placeholder before execution and never commit the replacement.
 
-## 4. Production Database Initialization
+For Neon, copy the pooled or direct connection string from the Neon dashboard and preserve `sslmode=require`. Do not place credentials in documentation, source code, or frontend variables.
 
-Import the database schema:
+## 2. Backend environment
 
-```bash
-mysql -u root -p skillbridge < /var/www/skillbridge/backend/database/schema.sql
-```
-
-*(Optional)* Import seed data for staging/demo environments:
-```bash
-mysql -u root -p skillbridge < /var/www/skillbridge/backend/database/seed.sql
-```
-
----
-
-## 5. Environment Variables Configuration
-
-Ensure `/var/www/skillbridge/backend/.env` has production credentials:
+Copy `backend/.env.example` to `backend/.env` and set real values outside version control:
 
 ```ini
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=skillbridge
-DB_USER=skillbridge_app
-DB_PASS=YourStrongProductionPassword
-JWT_SECRET=YourGenerated48CharacterHexSecret
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
+DB_CONNECTION=pgsql
+JWT_SECRET=<at-least-32-random-characters>
 APP_ENV=production
-API_PORT=80
+API_PORT=8000
+FRONTEND_URL=https://skillbridge.dev
+NOMINATIM_USER_AGENT=SkillBridge/1.0 contact@example.com
+UPLOAD_MAX_SIZE=5242880
 ```
 
----
+`DATABASE_URL` and `JWT_SECRET` are mandatory. The API rejects placeholders. Keep the file mode restricted, for example `chmod 600 backend/.env`.
 
-## 6. Continuous Zero-Downtime Deployments
+## 3. Backend deployment
 
-To deploy new code and updates:
+Install PHP 8.x with `pdo_pgsql`, `curl`, `mbstring`, `xml`, `zip`, `gd`, and `intl`, plus Nginx and PHP-FPM. Serve `backend/index.php` through Nginx/FPM and keep `backend/storage` outside the public web root. The existing `setup-server.sh` provisions PostgreSQL, PHP-FPM, Nginx, Node.js, TLS tooling, storage permissions, and backups for a Linux VPS.
+
+After deployment, verify:
 
 ```bash
-cd /var/www/skillbridge
-sudo bash deploy.sh
+curl -fsS https://api.skillbridge.dev/api/ping
+curl -fsS https://api.skillbridge.dev/api/health
 ```
 
----
+The health endpoint must report a healthy database and writable required storage before traffic is enabled.
 
-## 7. Production Observability & Monitoring
+## 4. Frontend deployment
 
-### A. Live Health Diagnostics
+Set the API URL at build time:
+
+```ini
+VITE_API_URL=https://api.skillbridge.dev/api
+```
+
+Build and publish the generated Vite assets:
+
 ```bash
-curl https://api.skillbridge.dev/api/health
+npm ci
+npm run lint
+npm run build
 ```
 
-Expected output:
-```json
-{
-  "status": "healthy",
-  "checks": {
-    "database": { "status": "healthy", "latency_ms": 2.1, "connected": true },
-    "storage": { "status": "healthy", "resumes_writable": true, "logs_writable": true },
-    "system": { "php_version": "8.1.25", "memory_used_mb": 2.4 }
-  }
-}
-```
+Configure the web server to serve the SPA entry point for client-side routes. Do not expose backend `.env`, storage, logs, or uploaded files through the frontend host.
 
-### B. Live Application Logs
-```bash
-tail -f /var/www/skillbridge/backend/storage/logs/app-$(date +%F).log
-```
+## 5. CORS and HTTPS
 
-### C. Automated Database Backups
-Backups are compressed and saved to `/var/backups/skillbridge/` daily at 02:00 AM.
-To run manual backup:
-```bash
-sudo bash /var/www/skillbridge/backend/database/backup.sh
-```
+Set the backend frontend origin to the exact production origin. CORS must allow only configured frontend origins and the `Authorization` and `Content-Type` headers. Use HTTPS for both hosts and enable HSTS only after HTTPS is working. Never use wildcard origins with credentials.
+
+## 6. Backups and recovery
+
+Use `backend/database/backup.sh` with a protected `DATABASE_URL` or PostgreSQL environment variables. Store encrypted backups outside the application server, retain multiple recovery points, and periodically test restoration into an isolated database. Do not print connection strings in backup or CI logs.
+
+## 7. Rollback
+
+Keep the last known-good frontend artifact and application release. To roll back, deploy that artifact, restore the previous application version, and run only backwards-compatible database changes. Do not rerun the destructive development `schema.sql` against production. Restore a database backup only after confirming the target recovery point and recording the incident.
+
+## 8. Operational checks
+
+- Rotate database and JWT secrets if they were ever exposed.
+- Review application and audit logs without exposing them publicly.
+- Confirm uploads are stored privately and downloads require authorization.
+- Run the repository test suite against a real PostgreSQL environment before production release.
+- Keep the production seed process disabled unless explicitly required for a non-production environment.

@@ -76,7 +76,10 @@ function HeroSection() {
       {/* Background glows */}
       <div className="sb-hero-glow sb-hero-glow-1" style={getTransform(2)} aria-hidden="true" />
       <div className="sb-hero-glow sb-hero-glow-2" style={getTransform(3)} aria-hidden="true" />
-      <div className="grid-field pointer-events-none absolute inset-0 opacity-40" aria-hidden="true" />
+      <div
+        className="grid-field pointer-events-none absolute inset-0 opacity-40"
+        aria-hidden="true"
+      />
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:pb-24 lg:pt-20">
         {/* Left: Text content */}
@@ -115,9 +118,9 @@ function HeroSection() {
             className="mt-6 text-lg leading-relaxed text-muted-foreground"
             style={{ animation: "sb-blur-clear 600ms cubic-bezier(0.22, 1, 0.36, 1) 600ms both" }}
           >
-            SkillBridge connects students and early-career professionals with
-            verified opportunities through transparent skill matching. Build
-            your profile, discover your match score, and launch your career.
+            SkillBridge connects students and early-career professionals with verified opportunities
+            through transparent skill matching. Build your profile, discover your match score, and
+            launch your career.
           </p>
 
           <div style={{ animation: "sb-slide-up 500ms cubic-bezier(0.22, 1, 0.36, 1) 750ms both" }}>
@@ -166,7 +169,10 @@ function StatsSection() {
   ];
 
   return (
-    <section className="relative border-y bg-card/60 py-14 backdrop-blur-sm" aria-label="Platform statistics">
+    <section
+      className="relative border-y bg-card/60 py-14 backdrop-blur-sm"
+      aria-label="Platform statistics"
+    >
       <div className="mx-auto grid max-w-5xl grid-cols-2 gap-8 px-4 sm:px-6 md:grid-cols-4">
         {statItems.map((stat, i) => (
           <ScrollReveal key={stat.label} delay={i * 80} direction="up">
@@ -195,13 +201,18 @@ function JourneySection() {
     <section className="py-20" aria-labelledby="journey-title">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-accent">How It Works</p>
-          <h2 id="journey-title" className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-accent">
+            How It Works
+          </p>
+          <h2
+            id="journey-title"
+            className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl"
+          >
             Your Career <span className="bridge-gradient-text">Journey</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            From discovering opportunities to landing your dream role — SkillBridge
-            guides you through every step.
+            From discovering opportunities to landing your dream role — SkillBridge guides you
+            through every step.
           </p>
         </ScrollReveal>
         <div className="mt-14">
@@ -225,12 +236,14 @@ const features = [
   {
     icon: Shield,
     title: "Verified Companies",
-    description: "Only admin-verified employers can post opportunities. Your trust is non-negotiable.",
+    description:
+      "Only admin-verified employers can post opportunities. Your trust is non-negotiable.",
   },
   {
     icon: BarChart3,
     title: "Career Analytics",
-    description: "Track applications, interview rates, and profile strength — all in one dashboard.",
+    description:
+      "Track applications, interview rates, and profile strength — all in one dashboard.",
   },
   {
     icon: Sparkles,
@@ -244,8 +257,13 @@ function FeaturesSection() {
     <section className="py-20 surface-gradient" aria-labelledby="features-title">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-accent">Platform Features</p>
-          <h2 id="features-title" className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-accent">
+            Platform Features
+          </p>
+          <h2
+            id="features-title"
+            className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl"
+          >
             Built for <span className="bridge-gradient-text">Modern Careers</span>
           </h2>
         </ScrollReveal>
@@ -257,7 +275,9 @@ function FeaturesSection() {
                   <feat.icon className="size-5" aria-hidden="true" />
                 </span>
                 <h3 className="mt-4 font-display text-lg font-bold">{feat.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feat.description}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {feat.description}
+                </p>
               </div>
             </ScrollReveal>
           ))}
@@ -281,14 +301,20 @@ function OpportunitySection({ onSelectJob }: { onSelectJob: (job: Job) => void }
         <ScrollReveal className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-accent">Featured</p>
-            <h2 id="opportunities-title" className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <h2
+              id="opportunities-title"
+              className="mt-3 font-display text-3xl font-extrabold tracking-tight sm:text-4xl"
+            >
               Latest <span className="bridge-gradient-text">Opportunities</span>
             </h2>
           </div>
           <Button variant="outline" asChild className="group">
             <Link to="/jobs">
               View all jobs
-              <ArrowRight className="ml-1 size-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+              <ArrowRight
+                className="ml-1 size-4 transition-transform duration-200 group-hover:translate-x-1"
+                aria-hidden="true"
+              />
             </Link>
           </Button>
         </ScrollReveal>
@@ -307,7 +333,9 @@ function OpportunitySection({ onSelectJob }: { onSelectJob: (job: Job) => void }
           ) : (
             <div className="col-span-full rounded-3xl border border-dashed bg-card/60 p-12 text-center">
               <p className="font-display text-xl font-bold">No opportunities available</p>
-              <p className="mt-2 text-sm text-muted-foreground">The live job feed is empty right now.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                The live job feed is empty right now.
+              </p>
             </div>
           )}
         </div>
@@ -328,13 +356,20 @@ function CTASection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal>
           <div className="relative overflow-hidden rounded-[2rem] bridge-gradient-bg p-10 text-center sm:p-16">
-            <div className="grid-field pointer-events-none absolute inset-0 opacity-20" aria-hidden="true" />
+            <div
+              className="grid-field pointer-events-none absolute inset-0 opacity-20"
+              aria-hidden="true"
+            />
             <div className="relative">
-              <h2 id="cta-title" className="font-display text-3xl font-extrabold text-white sm:text-4xl">
+              <h2
+                id="cta-title"
+                className="font-display text-3xl font-extrabold text-white sm:text-4xl"
+              >
                 Ready to Bridge the Gap?
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
-                Join thousands of students already discovering their perfect career match on SkillBridge.
+                Join thousands of students already discovering their perfect career match on
+                SkillBridge.
               </p>
               <Button
                 ref={btnRef}
@@ -376,24 +411,46 @@ function Footer() {
           <div>
             <p className="text-sm font-semibold">Platform</p>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li><Link to="/jobs" className="link-underline hover:text-foreground">Explore Jobs</Link></li>
-              <li><Link to="/dashboard" className="link-underline hover:text-foreground">For Students</Link></li>
-              <li><Link to="/recruiter" className="link-underline hover:text-foreground">For Recruiters</Link></li>
+              <li>
+                <Link to="/jobs" className="link-underline hover:text-foreground">
+                  Explore Jobs
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard" className="link-underline hover:text-foreground">
+                  For Students
+                </Link>
+              </li>
+              <li>
+                <Link to="/recruiter" className="link-underline hover:text-foreground">
+                  For Recruiters
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
             <p className="text-sm font-semibold">Company</p>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li><span className="hover:text-foreground cursor-default">About</span></li>
-              <li><span className="hover:text-foreground cursor-default">Blog</span></li>
-              <li><span className="hover:text-foreground cursor-default">Careers</span></li>
+              <li>
+                <span className="hover:text-foreground cursor-default">About</span>
+              </li>
+              <li>
+                <span className="hover:text-foreground cursor-default">Blog</span>
+              </li>
+              <li>
+                <span className="hover:text-foreground cursor-default">Careers</span>
+              </li>
             </ul>
           </div>
           <div>
             <p className="text-sm font-semibold">Legal</p>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li><span className="hover:text-foreground cursor-default">Privacy</span></li>
-              <li><span className="hover:text-foreground cursor-default">Terms</span></li>
+              <li>
+                <span className="hover:text-foreground cursor-default">Privacy</span>
+              </li>
+              <li>
+                <span className="hover:text-foreground cursor-default">Terms</span>
+              </li>
             </ul>
           </div>
         </div>

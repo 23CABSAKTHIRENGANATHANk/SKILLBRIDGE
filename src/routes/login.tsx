@@ -21,13 +21,14 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const loginSearchSchema = z.object({
+  redirect: z.string().optional(),
+});
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>) => {
-    return {
-      redirect: typeof search.redirect === "string" ? search.redirect : undefined,
-    };
-  },
+  validateSearch: loginSearchSchema,
   component: LoginPage,
 });
 
@@ -49,8 +50,7 @@ function LoginPage() {
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && user) {
       const destination =
-        search.redirect ||
-        (user.role === "recruiter" ? "/recruiter" : "/dashboard");
+        search.redirect || (user.role === "recruiter" ? "/recruiter" : "/dashboard");
       navigate({ to: destination as any });
     }
   }, [isAuthLoading, isAuthenticated, user, navigate, search.redirect]);
@@ -88,8 +88,7 @@ function LoginPage() {
 
       setTimeout(() => {
         const destination =
-          search.redirect ||
-          (result.user.role === "recruiter" ? "/recruiter" : "/dashboard");
+          search.redirect || (result.user.role === "recruiter" ? "/recruiter" : "/dashboard");
         navigate({ to: destination as any });
       }, 500);
     } catch (err: any) {
@@ -97,14 +96,6 @@ function LoginPage() {
       setErrorMessage(err.message || "Failed to sign in. Please try again.");
       toast.error(err.message || "Login failed");
     }
-  };
-
-  const handleDevQuickFill = (demoEmail: string, demoRole: string) => {
-    setEmail(demoEmail);
-    setPassword("password123");
-    setFieldErrors({});
-    setErrorMessage(null);
-    toast.info(`Filled credentials for demo ${demoRole}`);
   };
 
   return (
@@ -144,7 +135,8 @@ function LoginPage() {
             </h1>
 
             <p className="mt-4 text-base text-muted-foreground leading-relaxed max-w-md">
-              Sign in to your SkillBridge account to access real-time skill matching, track active job applications, and engage with top recruiters.
+              Sign in to your SkillBridge account to access real-time skill matching, track active
+              job applications, and engage with top recruiters.
             </p>
           </div>
 
@@ -156,7 +148,9 @@ function LoginPage() {
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">For Students</p>
-                <p className="text-xs text-muted-foreground">Deterministic skill matches & 1-tap applications</p>
+                <p className="text-xs text-muted-foreground">
+                  Deterministic skill matches & 1-tap applications
+                </p>
               </div>
             </div>
 
@@ -166,7 +160,9 @@ function LoginPage() {
               </div>
               <div>
                 <p className="text-sm font-bold text-foreground">For Recruiters</p>
-                <p className="text-xs text-muted-foreground">Automated talent pipeline & geocoded company profiles</p>
+                <p className="text-xs text-muted-foreground">
+                  Automated talent pipeline & geocoded company profiles
+                </p>
               </div>
             </div>
           </div>
@@ -223,7 +219,7 @@ function LoginPage() {
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
-                      if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                      if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: "" }));
                     }}
                     disabled={status === "submitting"}
                     className={`pl-9 rounded-xl border-border/80 bg-background/60 focus:bg-background ${
@@ -244,7 +240,11 @@ function LoginPage() {
                   </Label>
                   <button
                     type="button"
-                    onClick={() => toast.info("Password reset instructions will be sent to your registered email.")}
+                    onClick={() =>
+                      toast.info(
+                        "Password reset instructions will be sent to your registered email.",
+                      )
+                    }
                     className="text-[11px] font-medium text-primary hover:underline"
                   >
                     Forgot password?
@@ -263,11 +263,14 @@ function LoginPage() {
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                      if (fieldErrors.password)
+                        setFieldErrors((prev) => ({ ...prev, password: "" }));
                     }}
                     disabled={status === "submitting"}
                     className={`pl-9 pr-10 rounded-xl border-border/80 bg-background/60 focus:bg-background ${
-                      fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""
+                      fieldErrors.password
+                        ? "border-destructive focus-visible:ring-destructive"
+                        : ""
                     }`}
                   />
                   <button
@@ -293,7 +296,10 @@ function LoginPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="size-4 rounded border-border text-primary focus:ring-primary/30"
                 />
-                <Label htmlFor="rememberMe" className="text-xs text-muted-foreground font-normal cursor-pointer">
+                <Label
+                  htmlFor="rememberMe"
+                  className="text-xs text-muted-foreground font-normal cursor-pointer"
+                >
                   Remember this device
                 </Label>
               </div>
@@ -333,42 +339,6 @@ function LoginPage() {
                 Create an account
               </Link>
             </div>
-
-            {/* Development Only Demo Account Quick Switcher */}
-            {import.meta.env.DEV && (
-              <div className="mt-6 pt-5 border-t border-border/60">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Dev Demo Accounts
-                  </p>
-                  <span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
-                    DEV ONLY
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDevQuickFill("student@skillbridge.dev", "Student")}
-                    className="text-xs h-8 rounded-lg"
-                  >
-                    <GraduationCap className="size-3 mr-1 text-primary" />
-                    Student
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDevQuickFill("recruiter@northwind.dev", "Recruiter")}
-                    className="text-xs h-8 rounded-lg"
-                  >
-                    <Briefcase className="size-3 mr-1 text-accent" />
-                    Recruiter
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

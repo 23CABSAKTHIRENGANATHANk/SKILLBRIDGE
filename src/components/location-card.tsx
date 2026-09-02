@@ -7,8 +7,7 @@ import type { Company } from "@/types/skillbridge";
  * nothing here is hardcoded to a specific company.
  */
 export function LocationCard({ company }: { company: Company }) {
-  const hasCoords =
-    typeof company.latitude === "number" && typeof company.longitude === "number";
+  const hasCoords = typeof company.latitude === "number" && typeof company.longitude === "number";
   const mapsUrl = hasCoords
     ? `https://www.google.com/maps/search/?api=1&query=${company.latitude},${company.longitude}`
     : null;

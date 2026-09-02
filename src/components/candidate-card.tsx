@@ -1,4 +1,13 @@
-import { Clock, GraduationCap, UserRound, MapPin, Sparkles, Check, CheckCircle2, ChevronRight } from "lucide-react";
+import {
+  Clock,
+  GraduationCap,
+  UserRound,
+  MapPin,
+  Sparkles,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MatchRing } from "@/components/match-ring";
 import type { Candidate } from "@/types/skillbridge";
@@ -27,9 +36,12 @@ export function CandidateCard({
   onToggleShortlist?: (candidateId: string, nextValue: boolean) => void;
   onNoteChange?: (candidateId: string, nextNote: string) => void;
 }) {
-  const roleFitScore = candidate.roleFitScore || candidate.match?.role_fit_score || candidate.match?.score || 88;
+  const roleFitScore =
+    candidate.roleFitScore || candidate.match?.role_fit_score || candidate.match?.score || 88;
   const match = candidate.match;
-  const fitLevel = match?.fit_level || (roleFitScore >= 85 ? "Strong Fit" : roleFitScore >= 65 ? "Moderate Fit" : "Developing Fit");
+  const fitLevel =
+    match?.fit_level ||
+    (roleFitScore >= 85 ? "Strong Fit" : roleFitScore >= 65 ? "Moderate Fit" : "Developing Fit");
 
   return (
     <article className="card-lift rounded-3xl border border-border/80 bg-card p-5 shadow-soft transition-all hover:border-primary/40">
@@ -63,9 +75,7 @@ export function CandidateCard({
               <GraduationCap className="size-3.5" aria-hidden="true" />
               {candidate.college}
             </span>
-            {candidate.graduationYear && (
-              <span>• Batch of {candidate.graduationYear}</span>
-            )}
+            {candidate.graduationYear && <span>• Batch of {candidate.graduationYear}</span>}
             {candidate.location && (
               <span className="flex items-center gap-1">
                 <MapPin className="size-3 text-muted-foreground" />
@@ -150,7 +160,9 @@ export function CandidateCard({
 
       <div className="mt-3 rounded-2xl border border-border/70 bg-background/50 p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recruiter note</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Recruiter note
+          </span>
           <button
             type="button"
             onClick={() => onToggleShortlist?.(candidate.id, !shortlisted)}

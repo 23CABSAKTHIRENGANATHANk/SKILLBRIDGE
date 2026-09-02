@@ -6,16 +6,19 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: { email: string; password: string }) => Promise<{ success: boolean; user: AuthUser }>;
+  login: (credentials: {
+    email: string;
+    password: string;
+  }) => Promise<{ success: boolean; user: AuthUser }>;
   register: (data: {
     email: string;
     password: string;
     role: "student" | "recruiter";
-    name?: string;
-    college?: string;
-    program?: string;
-    company_name?: string;
-    industry?: string;
+    name?: string | undefined;
+    college?: string | undefined;
+    program?: string | undefined;
+    company_name?: string | undefined;
+    industry?: string | undefined;
   }) => Promise<{ success: boolean; user: AuthUser }>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
@@ -102,11 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string;
     password: string;
     role: "student" | "recruiter";
-    name?: string;
-    college?: string;
-    program?: string;
-    company_name?: string;
-    industry?: string;
+    name?: string | undefined;
+    college?: string | undefined;
+    program?: string | undefined;
+    company_name?: string | undefined;
+    industry?: string | undefined;
   }) => {
     setIsLoading(true);
     try {

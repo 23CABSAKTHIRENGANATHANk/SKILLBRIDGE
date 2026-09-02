@@ -17,10 +17,15 @@ import type {
   PipelineCounts,
   Application,
   AuthUser,
+  AIResumeAnalysis,
+  AIMatchExplanation,
+  AIRecommendedJob,
+  AISkillGapAnalysis,
+  AIRecruiterInsights,
 } from "@/types/skillbridge";
 
-const API_BASE_URL =
-  import.meta.env["VITE_API_URL"] || "http://localhost:8000/api";
+const API_BASE_URL = import.meta.env["VITE_API_URL"] || "/api";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiClient {
   private static isRefreshing = false;
@@ -65,32 +70,46 @@ export class ApiClient {
     this.refreshSubscribers.push(callback);
   }
 
+  public static getApiUrl(endpoint: string): string {
+    const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    return `${API_BASE_URL}${cleanEndpoint}`;
+  }
+
   public static async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    isRetry = false
+    isRetry = false,
   ): Promise<T> {
     const token = this.getToken();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(options.headers as Record<string, string>),
-    };
+    const headers = new Headers(options.headers);
+    headers.set("Accept", "application/json");
+    if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
 
     if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    const url = `${API_BASE_URL}${cleanEndpoint}`;
+    const url = this.getApiUrl(cleanEndpoint);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: options.signal ?? controller.signal,
       });
 
-      if (response.status === 401 && !isRetry && !endpoint.includes("/auth/login") && !endpoint.includes("/auth/register") && !endpoint.includes("/auth/refresh")) {
+      if (
+        response.status === 401 &&
+        !isRetry &&
+        !endpoint.includes("/auth/login") &&
+        !endpoint.includes("/auth/register") &&
+        !endpoint.includes("/auth/refresh")
+      ) {
         const refreshToken = this.getRefreshToken();
         if (refreshToken) {
           if (!this.isRefreshing) {
@@ -135,9 +154,12 @@ export class ApiClient {
         let friendlyMessage = errorBody.error || errorBody.message;
         if (!friendlyMessage) {
           if (response.status === 401) friendlyMessage = "Incorrect email or password.";
-          else if (response.status === 403) friendlyMessage = "Your account does not currently have access.";
-          else if (response.status === 429) friendlyMessage = "Too many requests. Please try again in a few moments.";
-          else if (response.status >= 500) friendlyMessage = "Something went wrong on the server. Please try again.";
+          else if (response.status === 403)
+            friendlyMessage = "Your account does not currently have access.";
+          else if (response.status === 429)
+            friendlyMessage = "Too many requests. Please try again in a few moments.";
+          else if (response.status >= 500)
+            friendlyMessage = "Something went wrong on the server. Please try again.";
           else friendlyMessage = `Request failed (Status ${response.status}).`;
         }
         throw new Error(friendlyMessage);
@@ -145,11 +167,134 @@ export class ApiClient {
 
       return await response.json();
     } catch (err: any) {
+      if (err.name === "AbortError") {
+        throw new Error("SkillBridge took too long to respond. Please try again.");
+      }
       if (err.name === "TypeError" && err.message?.includes("fetch")) {
-        throw new Error("Unable to connect to SkillBridge. Check your internet connection or backend server.");
+        throw new Error(
+          "Unable to connect to SkillBridge. Check your internet connection or backend server.",
+        );
       }
       throw err;
+    } finally {
+      clearTimeout(timeout);
     }
+  }
+
+  public static async getHealth(): Promise<{
+    success?: boolean;
+    status: string;
+    database?: string;
+    uptime?: string;
+  }> {
+    return this.request("/health");
+  }
+
+  public static async verifyCompany(
+    companyId: string,
+    verified: boolean,
+  ): Promise<{ success: boolean }> {
+    return this.request("/admin/verify-company", {
+      method: "POST",
+      body: JSON.stringify({ company_id: companyId, verified }),
+    });
+  }
+
+  public static async addStudentSkill(
+    skillName: string,
+    proficiency: number,
+  ): Promise<{ success: boolean }> {
+    return this.request("/student/skills", {
+      method: "POST",
+      body: JSON.stringify({ skill_name: skillName, proficiency }),
+    });
+  }
+
+  public static async uploadResume(file: File): Promise<{ success: boolean; filename?: string }> {
+    const formData = new FormData();
+    formData.append("resume", file);
+    return this.request("/student/resume", { method: "POST", body: formData });
+  }
+
+  public static async verifyPhone(phone: string): Promise<{ success: boolean }> {
+    return this.request("/student/verify-phone", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+  }
+
+  public static async saveOnboarding(data: Record<string, unknown>): Promise<{ success: boolean }> {
+    return this.request("/student/onboarding", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async updateStudentProfile(
+    data: Record<string, unknown>,
+  ): Promise<{ success: boolean }> {
+    return this.request("/student/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async submitFeedback(data: {
+    application_id: string;
+    rating: number;
+    review_text: string;
+  }): Promise<{ success: boolean }> {
+    return this.request("/applications/feedback", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async updateApplicationStage(
+    applicationId: string,
+    stage: string,
+  ): Promise<{ success: boolean }> {
+    return this.request("/applications/stage", {
+      method: "PUT",
+      body: JSON.stringify({ application_id: applicationId, stage }),
+    });
+  }
+
+  public static async createJob(
+    data: Record<string, unknown>,
+  ): Promise<{ success: boolean; job?: Job }> {
+    return this.request("/jobs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async updateCompanyProfile(
+    data: Record<string, unknown>,
+  ): Promise<{
+    success: boolean;
+    geocoding?: { coordinates?: { latitude: number; longitude: number } };
+  }> {
+    return this.request("/companies/profile", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async getNotifications(): Promise<{ notifications: any[]; unreadCount?: number }> {
+    return this.request("/notifications");
+  }
+
+  public static async markAllNotificationsRead(): Promise<{ success: boolean }> {
+    return this.request("/notifications/read", { method: "POST", body: JSON.stringify({}) });
+  }
+
+  public static async markNotificationRead(id: string): Promise<{ success: boolean }> {
+    return this.request(`/notifications/${id}/read`, { method: "PUT" });
+  }
+
+  public static async deleteNotification(id: string): Promise<{ success: boolean }> {
+    return this.request(`/notifications/${id}`, { method: "DELETE" });
   }
 
   // --- Auth API ---
@@ -182,11 +327,11 @@ export class ApiClient {
     email: string;
     password: string;
     role: "student" | "recruiter";
-    name?: string;
-    college?: string;
-    program?: string;
-    company_name?: string;
-    industry?: string;
+    name?: string | undefined;
+    college?: string | undefined;
+    program?: string | undefined;
+    company_name?: string | undefined;
+    industry?: string | undefined;
   }): Promise<{
     success: boolean;
     token: string;
@@ -248,7 +393,7 @@ export class ApiClient {
 
   // --- Platform Stats ---
   public static async getPlatformStats(): Promise<PlatformStats> {
-    const res = await this.request<{ success: boolean; stats: PlatformStats }>("/admin/stats");
+    const res = await this.request<{ success: boolean; stats: PlatformStats }>("/stats");
     return res.stats;
   }
 
@@ -277,7 +422,9 @@ export class ApiClient {
 
   // --- Company ---
   public static async getCompany(id: string): Promise<{ company: Company; jobs: Job[] }> {
-    const res = await this.request<{ success: boolean; company: Company; jobs: Job[] }>(`/companies/${id}`);
+    const res = await this.request<{ success: boolean; company: Company; jobs: Job[] }>(
+      `/companies/${id}`,
+    );
     return { company: res.company, jobs: res.jobs || [] };
   }
 
@@ -300,14 +447,37 @@ export class ApiClient {
     };
   }
 
+  public static async getStudentProfile(): Promise<{
+    success: boolean;
+    student: {
+      id: string;
+      name: string;
+      avatarUrl?: string | null;
+      college: string;
+      program: string;
+      experience?: string;
+      hasResume: boolean;
+      phone?: string | null;
+      phoneVerified?: boolean;
+    };
+    skills: Array<{ skill_id: string; skill_name: string; proficiency: number }>;
+  }> {
+    return this.request("/student/profile");
+  }
+
   // --- Recruiter Candidates ---
-  public static async getCandidates(params?: { stage?: string; search?: string }): Promise<Candidate[]> {
+  public static async getCandidates(params?: {
+    stage?: string;
+    search?: string;
+  }): Promise<Candidate[]> {
     const query = new URLSearchParams();
     if (params?.stage && params.stage !== "All") query.set("stage", params.stage);
     if (params?.search) query.set("search", params.search);
 
     const qs = query.toString() ? `?${query.toString()}` : "";
-    const res = await this.request<{ success: boolean; candidates: Candidate[] }>(`/applications/candidates${qs}`);
+    const res = await this.request<{ success: boolean; candidates: Candidate[] }>(
+      `/applications/candidates${qs}`,
+    );
     return res.candidates;
   }
 
@@ -408,7 +578,9 @@ export class ApiClient {
 
   // --- Interviews System ---
   public static async getInterviews(): Promise<any[]> {
-    const res = await this.request<{ success: boolean; count: number; interviews: any[] }>("/interviews");
+    const res = await this.request<{ success: boolean; count: number; interviews: any[] }>(
+      "/interviews",
+    );
     return res.interviews || [];
   }
 
@@ -418,15 +590,18 @@ export class ApiClient {
     meeting_link?: string;
     notes?: string;
   }): Promise<{ success: boolean; message: string; interview: any }> {
-    return await this.request<{ success: boolean; message: string; interview: any }>("/interviews/schedule", {
-      method: "POST",
-      body: JSON.stringify(params),
-    });
+    return await this.request<{ success: boolean; message: string; interview: any }>(
+      "/interviews/schedule",
+      {
+        method: "POST",
+        body: JSON.stringify(params),
+      },
+    );
   }
 
   public static async updateInterviewStatus(
     interviewId: string,
-    status: "scheduled" | "completed" | "cancelled" | "rescheduled"
+    status: "scheduled" | "completed" | "cancelled" | "rescheduled",
   ): Promise<{ success: boolean; message: string }> {
     return await this.request<{ success: boolean; message: string }>("/interviews/status", {
       method: "POST",

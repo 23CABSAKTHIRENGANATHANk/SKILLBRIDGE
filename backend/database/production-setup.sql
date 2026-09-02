@@ -7,14 +7,14 @@
 -- Note: Run in psql: CREATE DATABASE skillbridge WITH ENCODING 'UTF8';
 
 -- 2. Create least-privilege production application user
--- Replace 'StrongPostgresProdPassword2026!#' with a secure secret in production
+-- Replace 'REPLACE_WITH_A_SECURE_RANDOM_PASSWORD' with a secure secret in production
 DO
 $do$
 BEGIN
    IF NOT EXISTS (
       SELECT FROM pg_catalog.pg_roles
       WHERE rolname = 'skillbridge_app') THEN
-      CREATE ROLE skillbridge_app WITH LOGIN PASSWORD 'StrongPostgresProdPassword2026!#';
+      CREATE ROLE skillbridge_app WITH LOGIN PASSWORD 'REPLACE_WITH_A_SECURE_RANDOM_PASSWORD';
    END IF;
 END
 $do$;

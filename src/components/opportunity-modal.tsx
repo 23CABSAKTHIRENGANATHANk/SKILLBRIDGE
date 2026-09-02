@@ -55,12 +55,18 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
   };
 
   const match = job.match;
-  const fitLevel = match?.fit_level || (match && match.score >= 85 ? "Strong Fit" : match && match.score >= 60 ? "Moderate Fit" : "Developing Fit");
-  const explanation = match?.explanation || (
-    match
+  const fitLevel =
+    match?.fit_level ||
+    (match && match.score >= 85
+      ? "Strong Fit"
+      : match && match.score >= 60
+        ? "Moderate Fit"
+        : "Developing Fit");
+  const explanation =
+    match?.explanation ||
+    (match
       ? `You match ${match.matched.length} of ${job.skills.length} core competencies. Adding ${match.missing.join(", ")} will complete your qualification.`
-      : ""
-  );
+      : "");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -102,7 +108,9 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-muted-foreground">{job.company.name}</span>
+              <span className="text-sm font-semibold text-muted-foreground">
+                {job.company.name}
+              </span>
               {job.company.verified && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">
                   <BadgeCheck className="size-3" aria-hidden="true" /> Verified
@@ -174,7 +182,9 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
             <div className="mt-4 grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
               {/* Student skills side */}
               <div className="rounded-xl border bg-card/80 p-3 backdrop-blur-sm">
-                <p className="text-[11px] font-semibold text-muted-foreground">Matched Profile Skills</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Matched Profile Skills
+                </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {match.matched.length > 0 ? (
                     match.matched.map((skill) => (
@@ -198,7 +208,9 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
 
               {/* Required skills */}
               <div className="rounded-xl border bg-card/80 p-3 backdrop-blur-sm">
-                <p className="text-[11px] font-semibold text-muted-foreground">Missing / Required</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Missing / Required
+                </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {match.missing.length > 0 ? (
                     match.missing.map((skill) => (
@@ -235,7 +247,9 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
                           {path.skill}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground">{path.time_to_learn}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {path.time_to_learn}
+                          </span>
                           <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
                             +{path.score_boost}% Match Boost
                           </span>
@@ -243,7 +257,10 @@ export function OpportunityModal({ job, isOpen, onClose }: OpportunityModalProps
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {path.key_topics.map((topic) => (
-                          <span key={topic} className="rounded bg-secondary/80 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          <span
+                            key={topic}
+                            className="rounded bg-secondary/80 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                          >
                             {topic}
                           </span>
                         ))}

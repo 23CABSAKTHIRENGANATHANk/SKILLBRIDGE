@@ -16,11 +16,11 @@ import { MatchRing } from "@/components/match-ring";
 
 interface AIMatchModalProps {
   jobId: string | null;
-  jobTitle?: string;
-  companyName?: string;
+  jobTitle?: string | undefined;
+  companyName?: string | undefined;
   onClose: () => void;
-  onApply?: () => void;
-  hasApplied?: boolean;
+  onApply?: (() => void) | (() => Promise<void>) | undefined;
+  hasApplied?: boolean | undefined;
 }
 
 export function AIMatchModal({
@@ -67,8 +67,12 @@ export function AIMatchModal({
         {loading ? (
           <div className="py-12 space-y-4 text-center animate-pulse">
             <Brain className="h-10 w-10 mx-auto text-primary animate-bounce" />
-            <p className="text-sm font-semibold text-foreground">Evaluating skill overlap with Google Gemini...</p>
-            <p className="text-xs text-muted-foreground">Analyzing direct matches, project alignment, and gap metrics.</p>
+            <p className="text-sm font-semibold text-foreground">
+              Evaluating skill overlap with Google Gemini...
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Analyzing direct matches, project alignment, and gap metrics.
+            </p>
           </div>
         ) : explanation ? (
           <div className="space-y-5 text-xs">
@@ -85,7 +89,7 @@ export function AIMatchModal({
               </div>
 
               <div className="flex items-center gap-3">
-                <MatchRing score={meta?.matchScore ?? explanation.confidence} size={64} strokeWidth={6} />
+                <MatchRing score={meta?.matchScore ?? explanation.confidence} size={64} />
               </div>
             </div>
 
@@ -123,9 +127,7 @@ export function AIMatchModal({
                 <AlertCircle className="h-4 w-4" />
                 <span>Identified Skill Gaps</span>
               </div>
-              <p className="text-muted-foreground leading-relaxed">
-                {explanation.gap_summary}
-              </p>
+              <p className="text-muted-foreground leading-relaxed">{explanation.gap_summary}</p>
               {explanation.missing_skills && explanation.missing_skills.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {explanation.missing_skills.map((sk, idx) => (
@@ -146,9 +148,7 @@ export function AIMatchModal({
                 <Zap className="h-4 w-4" />
                 <span>What the Hiring Team Sees:</span>
               </div>
-              <p className="text-muted-foreground italic">
-                "{explanation.recruiter_tip}"
-              </p>
+              <p className="text-muted-foreground italic">"{explanation.recruiter_tip}"</p>
             </div>
           </div>
         ) : (

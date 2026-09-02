@@ -4,16 +4,13 @@ import { useEffect, useRef, useCallback } from "react";
  * Magnetic button effect: button moves slightly toward cursor on approach.
  * Automatically disabled on mobile/touch devices and reduced-motion.
  */
-export function useMagnetic<T extends HTMLElement = HTMLButtonElement>(
-  strength: number = 0.3,
-) {
+export function useMagnetic<T extends HTMLElement = HTMLButtonElement>(strength: number = 0.3) {
   const ref = useRef<T>(null);
   const rafId = useRef(0);
 
   const isTouch = typeof window !== "undefined" && "ontouchstart" in window;
   const reducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {

@@ -5,13 +5,14 @@ declare(strict_types=1);
  * SkillBridge Central REST API Router (Production Hardened & Monitored)
  */
 
+require_once __DIR__ . '/config/database.php';
+Database::loadEnv();
 require_once __DIR__ . '/config/cors.php';
 handleCors();
 
 require_once __DIR__ . '/config/response.php';    // ← consistent JSON envelope + global error handler
 registerGlobalErrorHandler();
 
-require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/jwt.php';
 require_once __DIR__ . '/services/Logger.php';
 require_once __DIR__ . '/services/AuditLogger.php';   // ← tamper-evident audit trail
@@ -224,8 +225,13 @@ switch (true) {
         break;
 
     // --- Admin & Monitoring ---
+    case $path === '/stats' && $method === 'GET':
+        AdminController::getPublicStats();
+        break;
+
     case $path === '/admin/stats' && $method === 'GET':
-        AdminController::getStats();
+        $user = AuthMiddleware::authenticate();
+        AdminController::getStats($user);
         break;
 
     case $path === '/admin/verify-company' && $method === 'POST':

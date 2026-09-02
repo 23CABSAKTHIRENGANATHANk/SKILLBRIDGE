@@ -22,13 +22,8 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { ApiClient } from "@/lib/api-client";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
@@ -49,7 +44,7 @@ function ThemeToggle() {
 }
 
 export function SiteHeader() {
-  const { user, isAuthenticated, logout, login } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const [scrolled, setScrolled] = useState(false);
@@ -63,17 +58,9 @@ export function SiteHeader() {
   const fetchNotifs = async () => {
     if (!isAuthenticated) return;
     try {
-      const token = localStorage.getItem("sb_auth_token");
-      const res = await fetch("http://localhost:8000/api/notifications", {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
-      }
+      const data = await ApiClient.getNotifications();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
     } catch {
       // Fallback
     }
@@ -98,7 +85,7 @@ export function SiteHeader() {
       setShowLogoutConfirm(false);
       setShowAccountModal(false);
       toast.success("Signed out successfully");
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: {} });
     } catch {
       toast.error("Logout failed");
     } finally {
@@ -106,27 +93,9 @@ export function SiteHeader() {
     }
   };
 
-  const handleQuickLogin = async (email: string) => {
-    try {
-      await login({ email, password: "password123" });
-      setShowAccountModal(false);
-      toast.success("Signed in successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Quick sign-in failed");
-    }
-  };
-
   const handleMarkAllRead = async () => {
     try {
-      const token = localStorage.getItem("sb_auth_token");
-      await fetch("http://localhost:8000/api/notifications/read", {
-        method: "POST",
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
+      await ApiClient.markAllNotificationsRead();
       setUnreadCount(0);
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
@@ -137,15 +106,9 @@ export function SiteHeader() {
   // Dynamic Navigation Links based on Auth & Role
   const navItems = [
     { to: "/jobs", label: "Explore Jobs" },
-    ...(user?.role === "student"
-      ? [{ to: "/dashboard", label: "Student Dashboard" }]
-      : []),
-    ...(user?.role === "recruiter"
-      ? [{ to: "/recruiter", label: "Recruiter Dashboard" }]
-      : []),
-    ...(user?.role === "admin"
-      ? [{ to: "/admin", label: "Admin Console" }]
-      : []),
+    ...(user?.role === "student" ? [{ to: "/dashboard", label: "Student Dashboard" }] : []),
+    ...(user?.role === "recruiter" ? [{ to: "/recruiter", label: "Recruiter Dashboard" }] : []),
+    ...(user?.role === "admin" ? [{ to: "/admin", label: "Admin Console" }] : []),
     { to: "/company", label: "Company Profile" },
   ];
 
@@ -241,9 +204,7 @@ export function SiteHeader() {
                         </div>
                       ))
                     ) : (
-                      <p className="py-6 text-center text-muted-foreground">
-                        No new notifications
-                      </p>
+                      <p className="py-6 text-center text-muted-foreground">No new notifications</p>
                     )}
                   </div>
                 </div>
@@ -260,7 +221,7 @@ export function SiteHeader() {
               className="flex items-center gap-2 rounded-full border-border/80 px-3 py-1.5 transition-all hover:border-primary/60 hover:bg-primary-soft/40"
             >
               <div className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                {(user.name || user.email)[0].toUpperCase()}
+                {(user.name || user.email || "U")[0]!.toUpperCase()}
               </div>
               <span className="max-w-[100px] truncate text-xs font-bold sm:max-w-[140px]">
                 {user.name || user.email.split("@")[0]}
@@ -271,7 +232,7 @@ export function SiteHeader() {
             </Button>
           ) : (
             <div className="hidden sm:flex items-center gap-2">
-              <Link to="/login">
+              <Link to="/login" search={{}}>
                 <Button variant="ghost" size="sm" className="font-bold text-xs">
                   Sign In
                 </Button>
@@ -312,8 +273,12 @@ export function SiteHeader() {
                   {isAuthenticated && user ? (
                     <div className="space-y-3">
                       <div className="p-3 bg-secondary/60 rounded-xl">
-                        <p className="text-xs font-bold text-foreground">{user.name || user.email}</p>
-                        <p className="text-[11px] text-muted-foreground capitalize">{user.role} Account</p>
+                        <p className="text-xs font-bold text-foreground">
+                          {user.name || user.email}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground capitalize">
+                          {user.role} Account
+                        </p>
                       </div>
                       <Button
                         variant="destructive"
@@ -326,7 +291,7 @@ export function SiteHeader() {
                     </div>
                   ) : (
                     <div className="grid gap-2">
-                      <Link to="/login" className="w-full">
+                      <Link to="/login" search={{}} className="w-full">
                         <Button variant="outline" className="w-full font-bold">
                           Sign In
                         </Button>
@@ -394,20 +359,14 @@ export function SiteHeader() {
               </Link>
 
               {/* Settings Link */}
-              <Link
-                to="/settings"
-                onClick={() => setShowAccountModal(false)}
-              >
+              <Link to="/settings" onClick={() => setShowAccountModal(false)}>
                 <Button variant="outline" className="w-full font-bold">
                   Account Settings
                 </Button>
               </Link>
 
               {/* Notifications Link */}
-              <Link
-                to="/notifications"
-                onClick={() => setShowAccountModal(false)}
-              >
+              <Link to="/notifications" onClick={() => setShowAccountModal(false)}>
                 <Button variant="outline" className="w-full font-bold">
                   <Bell className="size-4 mr-2" />
                   View All Notifications
@@ -452,7 +411,8 @@ export function SiteHeader() {
               Sign out of SkillBridge?
             </h3>
             <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-              You will need to enter your credentials again to access your applications and dashboard.
+              You will need to enter your credentials again to access your applications and
+              dashboard.
             </p>
 
             <div className="mt-6 flex items-center gap-3">

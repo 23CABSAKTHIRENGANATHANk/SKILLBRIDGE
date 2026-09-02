@@ -18,18 +18,16 @@ class FileUploadService {
 
     private const ALLOWED_RESUME_TYPES = [
         'application/pdf' => 'pdf',
-        'application/msword' => 'doc',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx'
     ];
 
     private const ALLOWED_IMAGE_TYPES = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
-        'image/webp' => 'webp',
-        'image/svg+xml' => 'svg'
+        'image/webp' => 'webp'
     ];
 
-    private const MAX_RESUME_SIZE = 10 * 1024 * 1024; // 10MB
+    private const MAX_RESUME_SIZE = 5 * 1024 * 1024; // 5MB
     private const MAX_IMAGE_SIZE = 5 * 1024 * 1024;   // 5MB
 
     public static function getStorageRoot(): string {
@@ -126,8 +124,9 @@ class FileUploadService {
      * Stream a protected file with appropriate headers
      */
     public static function streamProtectedFile(string $storageKey, string $downloadName = 'resume.pdf'): void {
-        $filePath = self::getStorageRoot() . '/' . ltrim($storageKey, '/');
-        if (!file_exists($filePath) || !is_readable($filePath)) {
+        $storageRoot = realpath(self::getStorageRoot());
+        $filePath = $storageRoot === false ? false : realpath($storageRoot . '/' . ltrim($storageKey, '/'));
+        if ($storageRoot === false || $filePath === false || !str_starts_with($filePath, $storageRoot . DIRECTORY_SEPARATOR) || !is_file($filePath) || !is_readable($filePath)) {
             http_response_code(404);
             echo json_encode(['success' => false, 'error' => 'File not found on server.']);
             exit;

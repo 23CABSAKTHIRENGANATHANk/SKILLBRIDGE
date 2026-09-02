@@ -295,8 +295,8 @@ Create a visual circular/ring score.
 Example:
 
     85%
- GREAT MATCH
 
+GREAT MATCH
 
 Then:
 
@@ -791,10 +791,8 @@ When someone opens SkillBridge, they should immediately think:
 
 It should feel like:
 
-A modern career operating system
-+
-A skill intelligence platform
-+
+A modern career operating system +
+A skill intelligence platform +
 A talent marketplace
 
 The interface should be visually unique, highly usable, premium, and production-ready.
@@ -835,5 +833,7 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-#   S K I L L B R I D G E  
+
+#   S K I L L B R I D G E 
+ 
  

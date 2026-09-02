@@ -15,7 +15,7 @@ declare(strict_types=1);
  * or the request fails, so the app never breaks.
  */
 class GeminiService {
-    private const API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    private const API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
     private const TIMEOUT  = 12; // seconds
 
     // -----------------------------------------------------------------------

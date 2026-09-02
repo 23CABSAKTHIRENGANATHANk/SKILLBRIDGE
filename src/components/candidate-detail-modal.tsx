@@ -1,9 +1,26 @@
-import { X, ExternalLink, Download, Mail, Phone, MapPin, FileText, Award, Video, Calendar, CheckCircle2, BadgeCheck, ShieldCheck, Star, Send } from "lucide-react";
+import {
+  X,
+  ExternalLink,
+  Download,
+  Mail,
+  Phone,
+  MapPin,
+  FileText,
+  Award,
+  Video,
+  Calendar,
+  CheckCircle2,
+  BadgeCheck,
+  ShieldCheck,
+  Star,
+  Send,
+} from "lucide-react";
 import type { Candidate } from "@/types/skillbridge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ApiClient } from "@/lib/api-client";
 
 export function CandidateDetailModal({
   candidate,
@@ -18,8 +35,10 @@ export function CandidateDetailModal({
   onClose: () => void;
   onUpdateStage?: (appId: string, stage: string, name: string) => void;
 }) {
-  const roleFitScore = candidate.roleFitScore || candidate.match?.role_fit_score || candidate.match?.score || 88;
-  const fitLevel = candidate.match?.fit_level || (roleFitScore >= 85 ? "Strong Fit" : "Moderate Fit");
+  const roleFitScore =
+    candidate.roleFitScore || candidate.match?.role_fit_score || candidate.match?.score || 88;
+  const fitLevel =
+    candidate.match?.fit_level || (roleFitScore >= 85 ? "Strong Fit" : "Moderate Fit");
 
   // Recruiter Endorsement State
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -30,8 +49,12 @@ export function CandidateDetailModal({
   // Interview Scheduling State
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [interviewDateTime, setInterviewDateTime] = useState("");
-  const [interviewMeetingLink, setInterviewMeetingLink] = useState("https://meet.google.com/skillbridge-interview");
-  const [interviewNotes, setInterviewNotes] = useState("Live technical screening on core role requirements.");
+  const [interviewMeetingLink, setInterviewMeetingLink] = useState(
+    "https://meet.google.com/skillbridge-interview",
+  );
+  const [interviewNotes, setInterviewNotes] = useState(
+    "Live technical screening on core role requirements.",
+  );
   const [isScheduling, setIsScheduling] = useState(false);
 
   const handleSubmitFeedback = async (e: React.FormEvent) => {
@@ -42,21 +65,15 @@ export function CandidateDetailModal({
     }
     setIsSubmittingFeedback(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      await fetch("http://localhost:8000/api/applications/feedback", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          application_id: candidate.appId || candidate.id,
-          rating: feedbackRating,
-          review_text: feedbackText.trim(),
-        }),
+      await ApiClient.submitFeedback({
+        application_id: candidate.appId || candidate.id,
+        rating: feedbackRating,
+        review_text: feedbackText.trim(),
       });
       setFeedbackSubmitted(true);
-      toast.success(`Endorsement for ${candidate.name} submitted and visible on their trust profile!`);
+      toast.success(
+        `Endorsement for ${candidate.name} submitted and visible on their trust profile!`,
+      );
     } catch {
       setFeedbackSubmitted(true);
       toast.success("Candidate endorsement recorded.");
@@ -72,29 +89,15 @@ export function CandidateDetailModal({
     }
     setIsScheduling(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const res = await fetch("http://localhost:8000/api/interviews/schedule", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          application_id: candidate.appId || candidate.id,
-          scheduled_at: interviewDateTime,
-          meeting_link: interviewMeetingLink,
-          notes: interviewNotes,
-        }),
+      await ApiClient.scheduleInterview({
+        application_id: candidate.appId || candidate.id,
+        scheduled_at: interviewDateTime,
+        meeting_link: interviewMeetingLink,
+        notes: interviewNotes,
       });
-
-      if (res.ok) {
-        toast.success(`Interview invitation scheduled for ${candidate.name}!`);
-        setShowScheduleForm(false);
-        onUpdateStage?.(candidate.appId || candidate.id, "interview", candidate.name);
-      } else {
-        const data = await res.json();
-        toast.error(data.error || "Failed to schedule interview.");
-      }
+      toast.success(`Interview invitation scheduled for ${candidate.name}!`);
+      setShowScheduleForm(false);
+      onUpdateStage?.(candidate.appId || candidate.id, "interview", candidate.name);
     } catch {
       toast.success(`Interview invitation sent to ${candidate.name}!`);
       setShowScheduleForm(false);
@@ -132,7 +135,9 @@ export function CandidateDetailModal({
             {candidate.avatarUrl ? (
               <img src={candidate.avatarUrl} alt="" className="size-16 rounded-2xl object-cover" />
             ) : (
-              <span className="text-2xl font-bold">{candidate.name?.slice(0, 2).toUpperCase()}</span>
+              <span className="text-2xl font-bold">
+                {candidate.name?.slice(0, 2).toUpperCase()}
+              </span>
             )}
           </div>
           <div className="flex-1">
@@ -143,7 +148,9 @@ export function CandidateDetailModal({
                 <BadgeCheck className="size-3" /> Verified Academic
               </span>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{candidate.college} · Batch of {candidate.graduationYear}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {candidate.college} · Batch of {candidate.graduationYear}
+            </p>
             <div className="flex flex-wrap items-center gap-2 mt-3">
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
@@ -157,15 +164,17 @@ export function CandidateDetailModal({
               <span className="text-xs font-bold bg-primary-soft text-primary px-2.5 py-0.5 rounded-full">
                 Role Fit: {roleFitScore}%
               </span>
-              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                candidate.stage === "applied"
-                  ? "bg-primary-soft text-primary"
-                  : candidate.stage === "shortlisted"
-                    ? "bg-accent-soft text-accent"
-                    : candidate.stage === "interview"
-                      ? "bg-warning-soft text-warning-foreground"
-                      : "bg-success-soft text-success"
-              }`}>
+              <span
+                className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  candidate.stage === "applied"
+                    ? "bg-primary-soft text-primary"
+                    : candidate.stage === "shortlisted"
+                      ? "bg-accent-soft text-accent"
+                      : candidate.stage === "interview"
+                        ? "bg-warning-soft text-warning-foreground"
+                        : "bg-success-soft text-success"
+                }`}
+              >
                 {candidate.stage.charAt(0).toUpperCase() + candidate.stage.slice(1)}
               </span>
             </div>
@@ -190,29 +199,40 @@ export function CandidateDetailModal({
 
         {/* Contact & Links */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <a href={`mailto:${candidate.id}@skillbridge.dev`} className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors">
+          <a
+            href={`mailto:${candidate.id}@skillbridge.dev`}
+            className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors"
+          >
             <Mail className="size-4 text-primary" />
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Email</p>
               <p className="text-xs font-bold text-foreground truncate">student@skillbridge.dev</p>
             </div>
           </a>
-          <a href="#" className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors">
+          <a
+            href="#"
+            className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors"
+          >
             <Phone className="size-4 text-accent" />
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Phone (Verified)</p>
               <p className="text-xs font-bold text-foreground">+91 98765 43210</p>
             </div>
           </a>
-          <a href="#" className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors">
+          <a
+            href="#"
+            className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors"
+          >
             <MapPin className="size-4 text-warning-foreground" />
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Location</p>
-              <p className="text-xs font-bold text-foreground truncate">{candidate.location || "Coimbatore"}</p>
+              <p className="text-xs font-bold text-foreground truncate">
+                {candidate.location || "Coimbatore"}
+              </p>
             </div>
           </a>
           <a
-            href={`http://localhost:8000/api/student/resume/download/${candidate.id}`}
+            href={ApiClient.getApiUrl(`/student/resume/download/${candidate.id}`)}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3 hover:bg-background/70 transition-colors"
@@ -230,7 +250,10 @@ export function CandidateDetailModal({
           <p className="text-xs font-bold text-muted-foreground uppercase mb-3">Verified Skills</p>
           <div className="flex flex-wrap gap-2">
             {candidate.skills.map((skill) => (
-              <span key={skill} className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-secondary/60 px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+              <span
+                key={skill}
+                className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-secondary/60 px-2.5 py-1 text-xs font-medium text-secondary-foreground"
+              >
                 {skill}
               </span>
             ))}
@@ -273,7 +296,8 @@ export function CandidateDetailModal({
             <p className="text-sm font-bold text-foreground">Submit Recruiter Endorsement</p>
           </div>
           <p className="text-xs text-muted-foreground mb-4">
-            Your verified endorsement will appear on the candidate's public trust profile and improve their hiring chances platform-wide.
+            Your verified endorsement will appear on the candidate's public trust profile and
+            improve their hiring chances platform-wide.
           </p>
 
           {feedbackSubmitted ? (
@@ -319,7 +343,9 @@ export function CandidateDetailModal({
 
         {/* Recruiter Note */}
         <div className="mb-6">
-          <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Your Private Hiring Notes</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase mb-2">
+            Your Private Hiring Notes
+          </p>
           <Textarea
             value={note}
             onChange={(e) => onNoteChange?.(e.target.value)}
@@ -400,7 +426,9 @@ export function CandidateDetailModal({
         <div className="flex flex-wrap gap-3">
           {candidate.stage === "applied" && (
             <Button
-              onClick={() => onUpdateStage?.(candidate.appId || candidate.id, "shortlisted", candidate.name)}
+              onClick={() =>
+                onUpdateStage?.(candidate.appId || candidate.id, "shortlisted", candidate.name)
+              }
               className="rounded-xl font-bold flex items-center gap-2 flex-1"
             >
               <CheckCircle2 className="size-4" /> Mark Shortlisted
@@ -412,22 +440,21 @@ export function CandidateDetailModal({
               variant={showScheduleForm ? "secondary" : "outline"}
               className="rounded-xl font-bold flex items-center gap-2 flex-1"
             >
-              <Video className="size-4" /> {showScheduleForm ? "Close Scheduler" : "Schedule Interview"}
+              <Video className="size-4" />{" "}
+              {showScheduleForm ? "Close Scheduler" : "Schedule Interview"}
             </Button>
           )}
           {candidate.stage === "interview" && (
             <Button
-              onClick={() => onUpdateStage?.(candidate.appId || candidate.id, "offer", candidate.name)}
+              onClick={() =>
+                onUpdateStage?.(candidate.appId || candidate.id, "offer", candidate.name)
+              }
               className="rounded-xl font-bold flex items-center gap-2 flex-1 bg-success hover:bg-success/90 text-success-foreground"
             >
               <Award className="size-4" /> Send Offer
             </Button>
           )}
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="rounded-xl font-bold flex-1"
-          >
+          <Button onClick={onClose} variant="outline" className="rounded-xl font-bold flex-1">
             Close
           </Button>
         </div>
@@ -435,4 +462,3 @@ export function CandidateDetailModal({
     </div>
   );
 }
-

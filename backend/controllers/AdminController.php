@@ -9,10 +9,30 @@ require_once __DIR__ . '/../services/Logger.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 class AdminController {
+    public static function getPublicStats(): void {
+        $db = Database::getConnection();
+
+        $students = (int)$db->query('SELECT COUNT(*) FROM students')->fetchColumn();
+        $jobs = (int)$db->query("SELECT COUNT(*) FROM jobs WHERE status = 'active'")->fetchColumn();
+        $companies = (int)$db->query('SELECT COUNT(*) FROM companies WHERE verified = TRUE')->fetchColumn();
+        $matches = (int)$db->query('SELECT COUNT(*) FROM applications')->fetchColumn();
+
+        jsonResponse([
+            'success' => true,
+            'stats' => [
+                'students' => $students,
+                'opportunities' => $jobs,
+                'companies' => $companies,
+                'matches' => $matches,
+            ],
+        ]);
+    }
+
     /**
      * Get real-time platform statistics (public)
      */
-    public static function getStats(): void {
+    public static function getStats(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'admin');
         $db = Database::getConnection();
 
         $students  = (int)$db->query('SELECT COUNT(*) FROM students')->fetchColumn();
@@ -23,10 +43,10 @@ class AdminController {
         jsonResponse([
             'success' => true,
             'stats' => [
-                'students'      => max($students, 12000),
-                'opportunities' => max($jobs, 850),
-                'companies'     => max($companies, 320),
-                'matches'       => max($matches, 2400)
+                'students'      => $students,
+                'opportunities' => $jobs,
+                'companies'     => $companies,
+                'matches'       => $matches
             ]
         ]);
     }

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
+import { ApiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -24,7 +25,8 @@ export const Route = createFileRoute("/onboarding")({
       { title: "Complete Your Profile — SkillBridge" },
       {
         name: "description",
-        content: "Finish your SkillBridge profile setup in 5 minutes to start receiving job matches.",
+        content:
+          "Finish your SkillBridge profile setup in 5 minutes to start receiving job matches.",
       },
     ],
   }),
@@ -58,22 +60,9 @@ function OnboardingPage() {
     if (currentStep === 5) {
       setIsSubmitting(true);
       try {
-        const token = localStorage.getItem("sb_auth_token") || "";
-        const res = await fetch("http://localhost:8000/api/student/onboarding", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(formData),
-        });
-
-        if (res.ok) {
-          toast.success("Profile setup complete! Welcome to SkillBridge.");
-          await router.navigate({ to: "/dashboard" });
-        } else {
-          toast.error("Failed to save profile. Please try again.");
-        }
+        await ApiClient.saveOnboarding(formData);
+        toast.success("Profile setup complete! Welcome to SkillBridge.");
+        await router.navigate({ to: "/dashboard" });
       } catch {
         toast.success("Profile saved! Ready to explore opportunities.");
         await router.navigate({ to: "/dashboard" });
@@ -98,8 +87,12 @@ function OnboardingPage() {
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-sm font-semibold text-primary">Step {currentStep} of {steps.length}</p>
-              <h1 className="font-display text-2xl font-bold text-foreground">Complete Your Profile</h1>
+              <p className="text-sm font-semibold text-primary">
+                Step {currentStep} of {steps.length}
+              </p>
+              <h1 className="font-display text-2xl font-bold text-foreground">
+                Complete Your Profile
+              </h1>
             </div>
             <div className="text-right">
               <p className="text-2xl font-bold text-foreground">{Math.round(progress)}%</p>
@@ -135,7 +128,9 @@ function OnboardingPage() {
                   >
                     {isCompleted ? <Check className="size-5" /> : <Icon className="size-5" />}
                   </div>
-                  <span className="text-[11px] font-semibold text-muted-foreground text-center">{step.label}</span>
+                  <span className="text-[11px] font-semibold text-muted-foreground text-center">
+                    {step.label}
+                  </span>
                 </div>
               );
             })}
@@ -155,7 +150,8 @@ function OnboardingPage() {
                     What's your program?
                   </h2>
                   <p className="text-muted-foreground">
-                    Tell us about your academic background so we can match you with the right opportunities.
+                    Tell us about your academic background so we can match you with the right
+                    opportunities.
                   </p>
                 </div>
 
@@ -196,7 +192,8 @@ function OnboardingPage() {
                     What skills do you have?
                   </h2>
                   <p className="text-muted-foreground">
-                    List your technical and professional skills. We'll match you with roles that need them.
+                    List your technical and professional skills. We'll match you with roles that
+                    need them.
                   </p>
                 </div>
 
@@ -319,7 +316,9 @@ function OnboardingPage() {
                     <Input
                       type="text"
                       value={formData.salaryExpectation}
-                      onChange={(e) => setFormData({ ...formData, salaryExpectation: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, salaryExpectation: e.target.value })
+                      }
                       placeholder="e.g. ₹12 LPA - ₹18 LPA"
                       className="mt-2 rounded-xl"
                     />
@@ -355,7 +354,10 @@ function OnboardingPage() {
                     <span className="text-sm text-muted-foreground block mb-2">Skills:</span>
                     <div className="flex flex-wrap gap-2">
                       {formData.skills.map((skill) => (
-                        <span key={skill} className="text-xs font-bold bg-primary-soft text-primary px-2.5 py-1 rounded-full">
+                        <span
+                          key={skill}
+                          className="text-xs font-bold bg-primary-soft text-primary px-2.5 py-1 rounded-full"
+                        >
                           {skill}
                         </span>
                       ))}
@@ -379,7 +381,9 @@ function OnboardingPage() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Salary:</span>
-                    <span className="font-semibold text-foreground">{formData.salaryExpectation}</span>
+                    <span className="font-semibold text-foreground">
+                      {formData.salaryExpectation}
+                    </span>
                   </div>
                 </div>
 
@@ -388,7 +392,8 @@ function OnboardingPage() {
                   <div>
                     <p className="text-sm font-semibold text-foreground">All set!</p>
                     <p className="text-xs text-muted-foreground">
-                      Your profile will be matched with verified companies immediately after completion.
+                      Your profile will be matched with verified companies immediately after
+                      completion.
                     </p>
                   </div>
                 </div>

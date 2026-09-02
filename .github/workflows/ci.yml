@@ -1,0 +1,94 @@
+name: SkillBridge CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm audit --audit-level=high
+      - run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: skillbridge_ci
+          POSTGRES_PASSWORD: skillbridge_ci_password
+          POSTGRES_DB: skillbridge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U skillbridge_ci -d skillbridge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: curl,mbstring,xml,zip,gd,intl,pdo_pgsql
+      - name: Validate PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Scan for unsupported database drivers
+        shell: bash
+        run: |
+          if grep -RInE 'mysqli|PDO[[:space:]]*\([^)]*mysql|mysql://|MariaDB|PDO MySQL|AUTO_INCREMENT|ENGINE=|CHARSET=|COLLATE=' \
+            --include='*.php' --include='*.sql' backend; then
+            echo 'Unsupported MySQL/MariaDB implementation found.'
+            exit 1
+          fi
+      - name: Scan for committed credential patterns
+        shell: bash
+        run: |
+          if grep -RInE 'npg_[A-Za-z0-9]+|StrongPostgresProdPassword|skillbridge_enterprise_jwt_super_key' \
+            --exclude='*.log' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.output .; then
+            echo 'Credential-shaped value found.'
+            exit 1
+          fi
+      - name: Prepare PostgreSQL integration database
+        env:
+          PGPASSWORD: skillbridge_ci_password
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge -v ON_ERROR_STOP=1 -f backend/database/schema.sql
+      - name: Configure backend test environment
+        run: |
+          cat > backend/.env <<'EOF'
+          DATABASE_URL=postgresql://skillbridge_ci:skillbridge_ci_password@127.0.0.1:5432/skillbridge?sslmode=disable
+          JWT_SECRET=ci-only-secret-that-is-longer-than-thirty-two-characters
+          APP_ENV=testing
+          API_PORT=8000
+          FRONTEND_URL=http://localhost:8080
+          NOMINATIM_USER_AGENT=SkillBridge-CI/1.0 ci@example.com
+          EOF
+      - name: Run backend API integration suite
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:8000 backend/index.php >/tmp/skillbridge-php.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/api/ping >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/api/ping >/dev/null
+          node backend/tests/test_runner.cjs

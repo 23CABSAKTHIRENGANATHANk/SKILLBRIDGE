@@ -1,4 +1,4 @@
-import type { ReactNode, CSSProperties } from "react";
+import type { ReactNode, CSSProperties, ElementType } from "react";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,8 @@ interface ScrollRevealProps {
   duration?: number;
   blur?: boolean;
   threshold?: number;
-  as?: keyof JSX.IntrinsicElements;
+  as?: ElementType;
+  onClick?: () => void;
 }
 
 /**
@@ -35,6 +36,7 @@ export function ScrollReveal({
   blur = false,
   threshold = 0.15,
   as: Tag = "div",
+  onClick,
 }: ScrollRevealProps) {
   const { ref, revealed } = useScrollReveal<HTMLDivElement>({ threshold });
 
@@ -47,8 +49,7 @@ export function ScrollReveal({
   };
 
   return (
-    // @ts-expect-error -- dynamic tag
-    <Tag ref={ref} className={cn(className)} style={style}>
+    <Tag ref={ref} className={cn(className)} style={style} onClick={onClick}>
       {children}
     </Tag>
   );

@@ -40,16 +40,22 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useStudentDashboardQuery, useJobsQuery, useInterviewsQuery } from "@/hooks/use-api";
+import {
+  useStudentDashboardQuery,
+  useStudentProfileQuery,
+  useJobsQuery,
+  useInterviewsQuery,
+} from "@/hooks/use-api";
+import { useAIResumeSummary } from "@/hooks/use-ai";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
-import { InterviewTimeline, type Interview } from "@/components/interview-timeline";
+import { InterviewTimeline } from "@/components/interview-timeline";
 import { LoadingState, EmptyState, ErrorState } from "@/components/ui/state-views";
-import { ResumeScorer } from "@/lib/resume-scorer";
 
 import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
 import { OpportunityModal } from "@/components/opportunity-modal";
-import type { Job } from "@/types/skillbridge";
+import type { Job, CareerProgress } from "@/types/skillbridge";
+import { ApiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -81,60 +87,39 @@ const stageColors: Record<string, string> = {
 function DashboardPage() {
   const { user } = useAuth();
   const { pipeline, progress, applications, loading } = useStudentDashboardQuery();
+  const { profile } = useStudentProfileQuery();
+  const {
+    data: resumeAnalysis,
+    loading: resumeAnalysisLoading,
+    generate: generateResumeAnalysis,
+  } = useAIResumeSummary();
   const { jobs: allJobs } = useJobsQuery();
-  const { interviews: liveInterviews, loading: interviewsLoading, error: interviewsError, refetch: refetchInterviews } = useInterviewsQuery();
+  const {
+    interviews: liveInterviews,
+    loading: interviewsLoading,
+    error: interviewsError,
+    refetch: refetchInterviews,
+  } = useInterviewsQuery();
 
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "profile" | "applications" | "trust" | "interviews">("overview");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "ai" | "profile" | "applications" | "trust" | "interviews"
+  >("overview");
   const [selectedOpportunityJob, setSelectedOpportunityJob] = useState<Job | null>(null);
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillProficiency, setNewSkillProficiency] = useState(85);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
 
   // Trust & Verification state
-  const [phoneVerified, setPhoneVerified] = useState(true);
-  const [phoneInput, setPhoneInput] = useState("+91 98765 43210");
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
 
   // Resume upload state
   const [isUploadingResume, setIsUploadingResume] = useState(false);
-  const [resumeFilename, setResumeFilename] = useState("resume_arjun_kumar.pdf");
+  const [resumeFilename, setResumeFilename] = useState("");
 
   // Selected Application Timeline Modal
   const [selectedTimelineApp, setSelectedTimelineApp] = useState<any | null>(null);
-
-  // Resume scoring state
-  const [resumeScore] = useState(88);
-  const [resumeStrengths] = useState(["Strong technical background", "Clear career progression", "Project experience demonstrated"]);
-  const [resumeImprovements] = useState(["Add more quantifiable results", "Link to GitHub/portfolio", "Include certifications"]);
-
-  // Mock interviews data
-  const [mockInterviews] = useState<Interview[]>([
-    {
-      id: "int-1",
-      jobTitle: "Senior React Developer",
-      company: "TechCorp India",
-      scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      duration: 60,
-      interviewer: { name: "Priya Singh", role: "Engineering Manager", email: "priya@techcorp.com" },
-      type: "video",
-      meetingLink: "https://meet.google.com/abc-defg-hij",
-      status: "scheduled",
-      notes: "Discussion about React architecture and scalability",
-    },
-    {
-      id: "int-2",
-      jobTitle: "Full Stack Engineer",
-      company: "StartUp Inc",
-      scheduledAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      duration: 45,
-      interviewer: { name: "Rajesh Kumar", role: "CTO", email: "rajesh@startup.com" },
-      type: "video",
-      meetingLink: "https://zoom.us/j/xyz123",
-      status: "completed",
-      feedback: "Great technical knowledge and communication skills. Perfect fit for the team!",
-      feedbackScore: 5,
-    },
-  ]);
 
   const defaultPipeline = {
     applied: 0,
@@ -144,53 +129,41 @@ function DashboardPage() {
     rejected: 0,
   };
 
-  const defaultProgress = {
+  const defaultProgress: CareerProgress = {
     percent: 0,
-    completed: 0,
-    total: 0,
-    milestones: [],
+    steps: [],
   };
 
   const currentPipeline = pipeline ?? defaultPipeline;
   const currentProgress = progress ?? defaultProgress;
   const recommendedJobs = allJobs.slice(0, 4);
 
-  const careerScore = Math.min(
-    100,
-    Math.round((currentProgress.percent * 0.7) + (resumeScore * 0.3))
-  );
+  useEffect(() => {
+    if (
+      activeTab === "profile" &&
+      profile?.student.hasResume &&
+      !resumeAnalysis &&
+      !resumeAnalysisLoading
+    ) {
+      void generateResumeAnalysis();
+    }
+  }, [
+    activeTab,
+    profile?.student.hasResume,
+    resumeAnalysis,
+    resumeAnalysisLoading,
+    generateResumeAnalysis,
+  ]);
 
-  const opportunityHeatMap = [
-    { region: "Bengaluru", score: 92, label: "AI + Product" },
-    { region: "Chennai", score: 86, label: "Full Stack" },
-    { region: "Hyderabad", score: 78, label: "Cloud" },
-    { region: "Remote", score: 90, label: "Frontend" },
-    { region: "Pune", score: 74, label: "Data" },
-    { region: "Coimbatore", score: 68, label: "Core Tech" },
-  ];
+  const careerScore = currentProgress.percent;
 
-  const skillClusterData = [
-    { skill: "Frontend", value: 94, delta: "+12%" },
-    { skill: "Backend", value: 88, delta: "+9%" },
-    { skill: "AI / ML", value: 76, delta: "+6%" },
-    { skill: "Cloud", value: 70, delta: "+4%" },
-  ];
-
-  const recommendationWidgets = [
-    { title: "Priority upskill", detail: "Add Docker + CI/CD to improve backend fit", gain: "+18% match" },
-    { title: "Best-fit role", detail: "Full Stack Developer in Chennai", gain: "92% match" },
-    { title: "Interview prep", detail: "Practice system design and product reasoning", gain: "2.3x readiness" },
-  ];
+  const skillClusterData = profile?.skills ?? [];
 
   const now = new Date();
   const greeting =
-    now.getHours() < 12
-      ? "Good morning"
-      : now.getHours() < 17
-        ? "Good afternoon"
-        : "Good evening";
+    now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
 
-  const studentName = user?.name || (user?.profile as any)?.name || "Arjun Kumar";
+  const studentName = user?.name || (user?.profile as any)?.name || "there";
   const studentCollege = (user?.profile as any)?.college || "PSG Tech Coimbatore";
   const studentProgram = (user?.profile as any)?.program || "B.Tech Information Technology";
 
@@ -200,25 +173,9 @@ function DashboardPage() {
 
     setIsAddingSkill(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const res = await fetch("http://localhost:8000/api/student/skills", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          skill_name: newSkillName.trim(),
-          proficiency: newSkillProficiency,
-        }),
-      });
-
-      if (res.ok) {
-        toast.success(`Added ${newSkillName} to your skill profile!`);
-        setNewSkillName("");
-      } else {
-        toast.error("Failed to add skill.");
-      }
+      await ApiClient.addStudentSkill(newSkillName.trim(), newSkillProficiency);
+      toast.success(`Added ${newSkillName} to your skill profile!`);
+      setNewSkillName("");
     } catch {
       toast.info("Skill saved to local profile.");
     } finally {
@@ -242,25 +199,9 @@ function DashboardPage() {
 
     setIsUploadingResume(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const formData = new FormData();
-      formData.append("resume", file);
-
-      const res = await fetch("http://localhost:8000/api/student/resume", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (res.ok) {
-        setResumeFilename(file.name);
-        toast.success("Resume securely uploaded, SHA-256 validated, and verified!");
-      } else {
-        setResumeFilename(file.name);
-        toast.success("Resume updated successfully.");
-      }
+      await ApiClient.uploadResume(file);
+      setResumeFilename(file.name);
+      toast.success("Resume securely uploaded, SHA-256 validated, and verified!");
     } catch {
       setResumeFilename(file.name);
       toast.info("Resume saved to secure local vault.");
@@ -273,15 +214,7 @@ function DashboardPage() {
     e.preventDefault();
     setIsVerifyingPhone(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      await fetch("http://localhost:8000/api/student/verify-phone", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ phone: phoneInput }),
-      });
+      await ApiClient.verifyPhone(phoneInput);
       setPhoneVerified(true);
       toast.success(`Phone number ${phoneInput} verified via secure SMS OTP.`);
     } catch {
@@ -319,9 +252,12 @@ function DashboardPage() {
         <SiteHeader />
         <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
           <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center shadow-soft">
-            <h1 className="font-display text-2xl font-bold text-foreground">Dashboard data unavailable</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              Dashboard data unavailable
+            </h1>
             <p className="mt-3 text-sm text-muted-foreground">
-              We could not load your profile or application pipeline from the API. Please refresh or try again shortly.
+              We could not load your profile or application pipeline from the API. Please refresh or
+              try again shortly.
             </p>
             <Button className="mt-6" onClick={() => window.location.reload()}>
               Refresh dashboard
@@ -471,7 +407,9 @@ function DashboardPage() {
                 key={stat.label}
                 className="card-lift flex items-center gap-4 rounded-3xl border border-border/80 bg-card p-5 shadow-soft"
               >
-                <span className={`flex size-12 items-center justify-center rounded-2xl ${stat.color}`}>
+                <span
+                  className={`flex size-12 items-center justify-center rounded-2xl ${stat.color}`}
+                >
                   <stat.icon className="size-6" aria-hidden="true" />
                 </span>
                 <div>
@@ -490,52 +428,61 @@ function DashboardPage() {
             <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Career score</p>
-                  <h2 className="mt-2 font-display text-2xl font-bold text-foreground">{careerScore}/100</h2>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                    Career score
+                  </p>
+                  <h2 className="mt-2 font-display text-2xl font-bold text-foreground">
+                    {careerScore}/100
+                  </h2>
                 </div>
                 <div className="rounded-2xl bg-primary-soft p-3 text-primary">
                   <TrendingUp className="size-5" />
                 </div>
               </div>
               <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${careerScore}%` }} />
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${careerScore}%` }}
+                />
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {skillClusterData.map((item) => (
-                  <div key={item.skill} className="rounded-2xl border border-border/70 bg-background/50 p-3">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{item.skill}</span>
-                      <span className="font-bold text-success">{item.delta}</span>
+                {skillClusterData.length > 0 ? (
+                  skillClusterData.map((item) => (
+                    <div
+                      key={item.skill_id}
+                      className="rounded-2xl border border-border/70 bg-background/50 p-3"
+                    >
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{item.skill_name}</span>
+                        <span className="font-bold text-success">{item.proficiency}%</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-accent"
+                          style={{ width: `${item.proficiency}%` }}
+                        />
+                      </div>
+                      <p className="mt-2 text-sm font-bold text-foreground">Verified proficiency</p>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${item.value}%` }} />
-                    </div>
-                    <p className="mt-2 text-sm font-bold text-foreground">{item.value}%</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Skill insights will appear after adding skills.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-bold text-foreground">Opportunity heat map</h2>
+                <h2 className="font-display text-lg font-bold text-foreground">
+                  Opportunity heat map
+                </h2>
                 <span className="text-[11px] font-bold text-primary">Live demand</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {opportunityHeatMap.map((item) => (
-                  <div
-                    key={item.region}
-                    className="rounded-2xl border border-border/70 p-3"
-                    style={{
-                      background: `linear-gradient(135deg, rgba(59,130,246,${Math.max(0.15, item.score / 100)}) 0%, rgba(99,102,241,${Math.max(0.08, item.score / 150)}) 100%)`,
-                    }}
-                  >
-                    <p className="text-sm font-bold text-foreground">{item.region}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{item.label}</p>
-                    <p className="mt-2 text-lg font-extrabold text-foreground">{item.score}%</p>
-                  </div>
-                ))}
-              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Live regional demand insights will appear when market data is available.
+              </p>
             </div>
           </div>
         </ScrollReveal>
@@ -543,20 +490,16 @@ function DashboardPage() {
         <ScrollReveal delay={140}>
           <div className="mt-6 rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-foreground">Recommendation widgets</h2>
-              <Link to="/jobs" className="text-xs font-bold text-primary hover:underline">View roles</Link>
+              <h2 className="font-display text-lg font-bold text-foreground">
+                Recommendation widgets
+              </h2>
+              <Link to="/jobs" className="text-xs font-bold text-primary hover:underline">
+                View roles
+              </Link>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {recommendationWidgets.map((widget) => (
-                <div key={widget.title} className="rounded-2xl border border-border/70 bg-background/50 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{widget.title}</p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">{widget.detail}</p>
-                  <span className="mt-3 inline-flex rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-bold text-primary">
-                    {widget.gain}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Recommendations will appear after your profile and skills are analyzed.
+            </p>
           </div>
         </ScrollReveal>
 
@@ -607,7 +550,9 @@ function DashboardPage() {
                         className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4 transition-all hover:shadow-soft"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-foreground">{app.job.title}</p>
+                          <p className="truncate text-sm font-bold text-foreground">
+                            {app.job.title}
+                          </p>
                           <p className="text-xs text-muted-foreground">{app.job.companyName}</p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -655,7 +600,9 @@ function DashboardPage() {
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-bold text-foreground">{job.title}</p>
-                          <p className="text-xs text-muted-foreground">{job.company.name} · {job.location}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {job.company.name} · {job.location}
+                          </p>
                         </div>
                         {job.match && (
                           <span className="shrink-0 ml-2 rounded-full bg-primary px-2.5 py-0.5 text-xs font-extrabold text-primary-foreground">
@@ -682,7 +629,8 @@ function DashboardPage() {
                     Verified Skill Portfolio
                   </h2>
                   <p className="text-xs text-muted-foreground mb-4">
-                    These skills are evaluated in real time by the SkillBridge deterministic matching engine.
+                    These skills are evaluated in real time by the SkillBridge deterministic
+                    matching engine.
                   </p>
 
                   {/* Resume Score Summary */}
@@ -690,14 +638,16 @@ function DashboardPage() {
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-bold text-foreground">Resume Quality Score</h3>
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-extrabold">
-                        {resumeScore}%
+                        {resumeAnalysis ? `${resumeAnalysis.ats_score}%` : "Not scored"}
                       </span>
                     </div>
                     <div className="space-y-2 mb-3">
                       <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">Strengths:</p>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">
+                          Strengths:
+                        </p>
                         <ul className="space-y-1">
-                          {resumeStrengths.map((str, i) => (
+                          {(resumeAnalysis?.key_strengths || []).map((str, i) => (
                             <li key={i} className="text-xs text-foreground flex items-start gap-2">
                               <CheckCircle2 className="size-3 mt-0.5 text-success shrink-0" />
                               {str}
@@ -707,9 +657,11 @@ function DashboardPage() {
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">Next Steps:</p>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">
+                        Next Steps:
+                      </p>
                       <ul className="space-y-1">
-                        {resumeImprovements.map((imp, i) => (
+                        {(resumeAnalysis?.improvement_tips || []).map((imp, i) => (
                           <li key={i} className="text-xs text-foreground flex items-start gap-2">
                             <AlertCircle className="size-3 mt-0.5 text-warning-foreground shrink-0" />
                             {imp}
@@ -720,19 +672,28 @@ function DashboardPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-6">
-                    {["React", "TypeScript", "JavaScript", "CSS", "Tailwind CSS", "HTML5", "PostgreSQL", "Node.js", "Git"].map((skill) => (
-                      <span
-                        key={skill}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-3.5 py-1.5 text-xs font-bold text-primary"
-                      >
-                        <Sparkles className="size-3" />
-                        {skill}
+                    {profile?.skills?.length ? (
+                      profile.skills.map((skill) => (
+                        <span
+                          key={skill.skill_id}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-3.5 py-1.5 text-xs font-bold text-primary"
+                        >
+                          <Sparkles className="size-3" />
+                          {skill.skill_name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Add skills to build your verified portfolio.
                       </span>
-                    ))}
+                    )}
                   </div>
 
                   {/* Add Skill Form */}
-                  <form onSubmit={handleAddSkill} className="rounded-2xl border border-border/70 bg-background/50 p-4">
+                  <form
+                    onSubmit={handleAddSkill}
+                    className="rounded-2xl border border-border/70 bg-background/50 p-4"
+                  >
                     <h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">
                       Add New Skill to Profile
                     </h3>
@@ -767,7 +728,8 @@ function DashboardPage() {
                     <h3 className="font-display text-lg font-bold">Secure Candidate Resume</h3>
                   </div>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Protected with role-based access control (RBAC). Only verified recruiters who you apply to can stream your resume.
+                    Protected with role-based access control (RBAC). Only verified recruiters who
+                    you apply to can stream your resume.
                   </p>
 
                   <div className="rounded-2xl border border-border/70 bg-background/50 p-4 flex flex-col gap-3">
@@ -777,26 +739,33 @@ function DashboardPage() {
                           <FileText className="size-5" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-foreground">{resumeFilename}</p>
+                          <p className="text-xs font-bold text-foreground">
+                            {resumeFilename || "No resume uploaded"}
+                          </p>
                           <p className="text-[11px] text-success font-semibold flex items-center gap-1">
                             <BadgeCheck className="size-3" /> SHA-256 Verified · Protected
                           </p>
                         </div>
                       </div>
-
-                      <a
-                        href="http://localhost:8000/api/student/resume/download/s1"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                      >
-                        <Download className="size-3.5" /> Download
-                      </a>
+                      {profile?.student.id && profile.student.hasResume && (
+                        <a
+                          href={ApiClient.getApiUrl(
+                            `/student/resume/download/${profile.student.id}`,
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                        >
+                          <Download className="size-3.5" /> Download
+                        </a>
+                      )}
                     </div>
 
                     {/* Replace / Upload Button */}
                     <div className="border-t border-border/60 pt-3 flex items-center justify-between">
-                      <span className="text-[11px] text-muted-foreground">Upload updated PDF (max 5MB)</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Upload updated PDF (max 5MB)
+                      </span>
                       <label className="cursor-pointer">
                         <input
                           type="file"
@@ -839,9 +808,13 @@ function DashboardPage() {
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div>
-                            <p className="font-display text-base font-bold text-foreground">{app.job.title}</p>
+                            <p className="font-display text-base font-bold text-foreground">
+                              {app.job.title}
+                            </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Company: <strong className="text-foreground">{app.job.companyName}</strong> · Application ID: {app.id}
+                              Company:{" "}
+                              <strong className="text-foreground">{app.job.companyName}</strong> ·
+                              Application ID: {app.id}
                             </p>
                           </div>
 
@@ -871,15 +844,35 @@ function DashboardPage() {
                             <CheckCircle2 className="size-4" />
                             <span>1. Applied</span>
                           </div>
-                          <div className={app.stage !== "applied" ? "text-success flex flex-col items-center gap-1" : "text-primary font-bold flex flex-col items-center gap-1"}>
+                          <div
+                            className={
+                              app.stage !== "applied"
+                                ? "text-success flex flex-col items-center gap-1"
+                                : "text-primary font-bold flex flex-col items-center gap-1"
+                            }
+                          >
                             <BadgeCheck className="size-4" />
                             <span>2. Shortlisted</span>
                           </div>
-                          <div className={app.stage === "interview" || app.stage === "offer" || app.stage === "hired" ? "text-warning-foreground font-bold flex flex-col items-center gap-1" : "text-muted-foreground flex flex-col items-center gap-1"}>
+                          <div
+                            className={
+                              app.stage === "interview" ||
+                              app.stage === "offer" ||
+                              app.stage === "hired"
+                                ? "text-warning-foreground font-bold flex flex-col items-center gap-1"
+                                : "text-muted-foreground flex flex-col items-center gap-1"
+                            }
+                          >
                             <Video className="size-4" />
                             <span>3. Interview</span>
                           </div>
-                          <div className={app.stage === "offer" || app.stage === "hired" ? "text-success font-bold flex flex-col items-center gap-1" : "text-muted-foreground flex flex-col items-center gap-1"}>
+                          <div
+                            className={
+                              app.stage === "offer" || app.stage === "hired"
+                                ? "text-success font-bold flex flex-col items-center gap-1"
+                                : "text-muted-foreground flex flex-col items-center gap-1"
+                            }
+                          >
                             <Award className="size-4" />
                             <span>4. Decision / Offer</span>
                           </div>
@@ -890,9 +883,12 @@ function DashboardPage() {
                 ) : (
                   <div className="flex flex-col items-center py-12 text-center">
                     <Briefcase className="size-10 text-muted-foreground" />
-                    <p className="mt-3 font-display font-bold text-foreground">No applications submitted yet</p>
+                    <p className="mt-3 font-display font-bold text-foreground">
+                      No applications submitted yet
+                    </p>
                     <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-                      Explore verified opportunities and apply in one tap with deterministic skill matching.
+                      Explore verified opportunities and apply in one tap with deterministic skill
+                      matching.
                     </p>
                     <Link to="/jobs" className="mt-4">
                       <Button className="font-bold text-xs">Explore Opportunities</Button>
@@ -919,12 +915,13 @@ function DashboardPage() {
                       </h2>
                     </div>
                     <span className="rounded-full bg-success-soft px-3 py-1 text-xs font-bold text-success">
-                      Trust Score: 98/100
+                      Trust Score: Available after verification
                     </span>
                   </div>
 
                   <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-                    Verified profiles receive 3.4x more interview invitations from verified company recruiters.
+                    Verified profiles receive 3.4x more interview invitations from verified company
+                    recruiters.
                   </p>
 
                   <div className="space-y-3">
@@ -935,8 +932,12 @@ function DashboardPage() {
                           <GraduationCap className="size-5" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-foreground">Academic Institution Verified</p>
-                          <p className="text-[11px] text-muted-foreground">PSG Tech · B.Tech Information Technology</p>
+                          <p className="text-xs font-bold text-foreground">
+                            Academic Institution Verified
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            PSG Tech · B.Tech Information Technology
+                          </p>
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-0.5 text-[10px] font-bold text-success-foreground">
@@ -951,8 +952,12 @@ function DashboardPage() {
                           <MailCheck className="size-5" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-foreground">Academic Email Confirmed</p>
-                          <p className="text-[11px] text-muted-foreground">student@skillbridge.dev</p>
+                          <p className="text-xs font-bold text-foreground">
+                            Academic Email Confirmed
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            student@skillbridge.dev
+                          </p>
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-0.5 text-[10px] font-bold text-success-foreground">
@@ -968,7 +973,9 @@ function DashboardPage() {
                             <PhoneCall className="size-5" />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-foreground">Phone Number Verification</p>
+                            <p className="text-xs font-bold text-foreground">
+                              Phone Number Verification
+                            </p>
                             <p className="text-[11px] text-muted-foreground">{phoneInput}</p>
                           </div>
                         </div>
@@ -991,7 +998,12 @@ function DashboardPage() {
                             onChange={(e) => setPhoneInput(e.target.value)}
                             className="rounded-xl text-xs"
                           />
-                          <Button size="sm" type="submit" disabled={isVerifyingPhone} className="rounded-xl font-bold">
+                          <Button
+                            size="sm"
+                            type="submit"
+                            disabled={isVerifyingPhone}
+                            className="rounded-xl font-bold"
+                          >
                             {isVerifyingPhone ? "Verifying..." : "Verify OTP"}
                           </Button>
                         </form>
@@ -1019,14 +1031,15 @@ function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <BadgeCheck className="size-4 text-primary" />
                           <span className="font-bold text-xs text-foreground">Northwind Labs</span>
-                          <span className="text-[10px] text-muted-foreground">• Tech Screening</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            • Tech Screening
+                          </span>
                         </div>
-                        <div className="flex text-warning-foreground">
-                          {"★".repeat(5)}
-                        </div>
+                        <div className="flex text-warning-foreground">{"★".repeat(5)}</div>
                       </div>
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground italic">
-                        "Demonstrated exceptional understanding of React performance patterns and TypeScript generics during the technical screening."
+                        "Demonstrated exceptional understanding of React performance patterns and
+                        TypeScript generics during the technical screening."
                       </p>
                       <p className="mt-2 text-[10px] font-semibold text-muted-foreground">
                         Senior Technical Lead · 2 days ago
@@ -1037,15 +1050,16 @@ function DashboardPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <BadgeCheck className="size-4 text-accent" />
-                          <span className="font-bold text-xs text-foreground">AcroTech AI Systems</span>
+                          <span className="font-bold text-xs text-foreground">
+                            AcroTech AI Systems
+                          </span>
                           <span className="text-[10px] text-muted-foreground">• Coding Round</span>
                         </div>
-                        <div className="flex text-warning-foreground">
-                          {"★".repeat(5)}
-                        </div>
+                        <div className="flex text-warning-foreground">{"★".repeat(5)}</div>
                       </div>
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground italic">
-                        "Strong problem-solving capability and clear architectural communication on distributed systems questions."
+                        "Strong problem-solving capability and clear architectural communication on
+                        distributed systems questions."
                       </p>
                       <p className="mt-2 text-[10px] font-semibold text-muted-foreground">
                         Talent Acquisition Director · 1 week ago
@@ -1070,7 +1084,8 @@ function DashboardPage() {
                   </h2>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Track all scheduled interviews, access meeting links, and view feedback from completed sessions.
+                  Track all scheduled interviews, access meeting links, and view feedback from
+                  completed sessions.
                 </p>
               </div>
             </ScrollReveal>
@@ -1078,7 +1093,11 @@ function DashboardPage() {
             {interviewsLoading ? (
               <LoadingState message="Loading your scheduled interviews..." />
             ) : interviewsError ? (
-              <ErrorState title="Failed to load interviews" message={interviewsError} onRetry={refetchInterviews} />
+              <ErrorState
+                title="Failed to load interviews"
+                message={interviewsError}
+                onRetry={refetchInterviews}
+              />
             ) : liveInterviews.length > 0 ? (
               <ScrollReveal delay={100}>
                 <InterviewTimeline
@@ -1156,7 +1175,9 @@ function DashboardPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Your verified resume and deterministic skill score were delivered.
                     </p>
-                    <span className="text-[10px] font-semibold text-muted-foreground">Completed</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      Completed
+                    </span>
                   </div>
                 </div>
 
@@ -1170,7 +1191,9 @@ function DashboardPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Technical recruiting team validated competencies in React & TypeScript.
                     </p>
-                    <span className="text-[10px] font-semibold text-muted-foreground">Completed</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      Completed
+                    </span>
                   </div>
                 </div>
 
@@ -1180,9 +1203,12 @@ function DashboardPage() {
                     <Video className="size-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-foreground">3. Live Technical Interview</h4>
+                    <h4 className="font-bold text-sm text-foreground">
+                      3. Live Technical Interview
+                    </h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      1-on-1 pairing session with lead engineer. Scheduled for tomorrow at 11:00 AM IST.
+                      1-on-1 pairing session with lead engineer. Scheduled for tomorrow at 11:00 AM
+                      IST.
                     </p>
                     <div className="mt-2.5 flex items-center gap-2">
                       <a
@@ -1204,17 +1230,24 @@ function DashboardPage() {
                     <Award className="size-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-muted-foreground">4. Formal Offer & Onboarding</h4>
+                    <h4 className="font-bold text-sm text-muted-foreground">
+                      4. Formal Offer & Onboarding
+                    </h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Compensation details and formal agreement.
                     </p>
-                    <span className="text-[10px] font-semibold text-muted-foreground">Upcoming</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      Upcoming
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-6 border-t pt-4 text-right">
-                <Button onClick={() => setSelectedTimelineApp(null)} className="rounded-xl text-xs font-bold">
+                <Button
+                  onClick={() => setSelectedTimelineApp(null)}
+                  className="rounded-xl text-xs font-bold"
+                >
                   Close Timeline
                 </Button>
               </div>

@@ -17,7 +17,11 @@ export function JourneyPath() {
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
-      ([entry]) => entry.isIntersecting && setVisible(true),
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setVisible(true);
+        }
+      },
       { threshold: 0.25 },
     );
     io.observe(el);

@@ -331,9 +331,11 @@ class ApplicationController {
         $db = Database::getConnection();
 
         $stmt = $db->prepare('
-            SELECT a.id, a.stage, a.created_at, a.updated_at,
+             SELECT a.id, a.stage, a.created_at, a.updated_at,
+                 s.user_id as student_user_id, c.user_id as company_user_id,
                    j.title as job_title, c.name as company_name, c.verified as company_verified
             FROM applications a
+             JOIN students s ON a.student_id = s.id
             JOIN jobs j ON a.job_id = j.id
             JOIN companies c ON j.company_id = c.id
             WHERE a.id = ?
@@ -343,6 +345,16 @@ class ApplicationController {
 
         if (!$app) {
             errorResponse('Application not found.', 404);
+        }
+
+        $isOwner = $currentUser['role'] === 'student'
+            && $app['student_user_id'] === $currentUser['user_id'];
+        $isCompanyRecruiter = $currentUser['role'] === 'recruiter'
+            && $app['company_user_id'] === $currentUser['user_id'];
+        $isAdmin = ($currentUser['role'] ?? '') === 'admin';
+
+        if (!$isOwner && !$isCompanyRecruiter && !$isAdmin) {
+            errorResponse('Access Denied: You do not have permission to view this application timeline.', 403);
         }
 
         $stages = ['applied', 'shortlisted', 'interview', 'offer', 'hired'];

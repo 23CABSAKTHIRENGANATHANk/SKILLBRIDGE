@@ -9,7 +9,7 @@ echo "========================================================\n";
 echo "    SKILLBRIDGE PRODUCTION SECURITY VERIFICATION       \n";
 echo "========================================================\n\n";
 
-$baseUrl = 'http://localhost:8000/api';
+$baseUrl = getenv('SKILLBRIDGE_TEST_BASE_URL') ?: 'http://127.0.0.1:8000/api';
 $passed = 0;
 $failed = 0;
 

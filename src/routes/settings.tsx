@@ -1,12 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  User,
-  Bell,
-  Lock,
-  Save,
-  LogOut,
-  ShieldCheck,
-} from "lucide-react";
+import { User, Bell, Lock, Save, LogOut, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -18,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
+import { ApiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -41,8 +35,8 @@ function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
-    name: user?.name || "Arjun Kumar",
-    email: user?.email || "arjun@skillbridge.dev",
+    name: user?.name || "",
+    email: user?.email || "",
     phone: "+91 98765 43210",
     location: "Bengaluru, Karnataka",
     bio: "Passionate about building scalable web applications with modern technologies.",
@@ -58,21 +52,8 @@ function SettingsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const res = await fetch("http://localhost:8000/api/student/profile", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (res.ok) {
-        toast.success("Profile settings saved successfully!");
-      } else {
-        toast.error("Failed to save settings.");
-      }
+      await ApiClient.updateStudentProfile(formData);
+      toast.success("Profile settings saved successfully!");
     } catch {
       toast.success("Settings saved to your account.");
     } finally {
@@ -132,9 +113,14 @@ function SettingsPage() {
           <div className="lg:col-span-2 space-y-6">
             {activeTab === "profile" && (
               <ScrollReveal>
-                <form onSubmit={handleSaveProfile} className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6">
+                <form
+                  onSubmit={handleSaveProfile}
+                  className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6"
+                >
                   <div>
-                    <h2 className="font-display text-xl font-bold text-foreground mb-4">Personal Information</h2>
+                    <h2 className="font-display text-xl font-bold text-foreground mb-4">
+                      Personal Information
+                    </h2>
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="name" className="text-sm font-semibold">
@@ -209,7 +195,11 @@ function SettingsPage() {
                   </div>
 
                   <div className="border-t border-border/60 pt-6">
-                    <Button type="submit" disabled={isSaving} className="rounded-xl font-bold flex items-center gap-2">
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="rounded-xl font-bold flex items-center gap-2"
+                    >
                       <Save className="size-4" />
                       {isSaving ? "Saving..." : "Save Changes"}
                     </Button>
@@ -222,7 +212,9 @@ function SettingsPage() {
               <ScrollReveal>
                 <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6">
                   <div>
-                    <h2 className="font-display text-xl font-bold text-foreground mb-4">Privacy & Visibility</h2>
+                    <h2 className="font-display text-xl font-bold text-foreground mb-4">
+                      Privacy & Visibility
+                    </h2>
                     <div className="space-y-4">
                       {[
                         {
@@ -241,7 +233,10 @@ function SettingsPage() {
                           description: "Display your expected salary range",
                         },
                       ].map((item) => (
-                        <label key={item.key} className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/50 p-4 cursor-pointer hover:bg-background/70">
+                        <label
+                          key={item.key}
+                          className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/50 p-4 cursor-pointer hover:bg-background/70"
+                        >
                           <input
                             type="checkbox"
                             checked={formData[item.key as keyof typeof formData] as boolean}
@@ -263,7 +258,10 @@ function SettingsPage() {
                   </div>
 
                   <div className="border-t border-border/60 pt-6">
-                    <Button onClick={handleSaveProfile} className="rounded-xl font-bold flex items-center gap-2">
+                    <Button
+                      onClick={handleSaveProfile}
+                      className="rounded-xl font-bold flex items-center gap-2"
+                    >
                       <Save className="size-4" />
                       Save Privacy Settings
                     </Button>
@@ -276,7 +274,9 @@ function SettingsPage() {
               <ScrollReveal>
                 <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6">
                   <div>
-                    <h2 className="font-display text-xl font-bold text-foreground mb-4">Notification Preferences</h2>
+                    <h2 className="font-display text-xl font-bold text-foreground mb-4">
+                      Notification Preferences
+                    </h2>
                     <div className="space-y-4">
                       {[
                         {
@@ -295,7 +295,10 @@ function SettingsPage() {
                           description: "Get alerted when companies invite you for interviews",
                         },
                       ].map((item) => (
-                        <label key={item.key} className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/50 p-4 cursor-pointer hover:bg-background/70">
+                        <label
+                          key={item.key}
+                          className="flex items-center gap-4 rounded-2xl border border-border/70 bg-background/50 p-4 cursor-pointer hover:bg-background/70"
+                        >
                           <input
                             type="checkbox"
                             checked={formData[item.key as keyof typeof formData] as boolean}
@@ -317,7 +320,10 @@ function SettingsPage() {
                   </div>
 
                   <div className="border-t border-border/60 pt-6">
-                    <Button onClick={handleSaveProfile} className="rounded-xl font-bold flex items-center gap-2">
+                    <Button
+                      onClick={handleSaveProfile}
+                      className="rounded-xl font-bold flex items-center gap-2"
+                    >
                       <Save className="size-4" />
                       Save Notification Settings
                     </Button>
@@ -330,19 +336,27 @@ function SettingsPage() {
               <ScrollReveal>
                 <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6">
                   <div>
-                    <h2 className="font-display text-xl font-bold text-foreground mb-4">Account Security</h2>
+                    <h2 className="font-display text-xl font-bold text-foreground mb-4">
+                      Account Security
+                    </h2>
                     <div className="space-y-4">
                       <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
                         <p className="text-sm font-semibold text-foreground mb-2">Password</p>
-                        <p className="text-xs text-muted-foreground mb-3">Last changed 45 days ago</p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Last changed 45 days ago
+                        </p>
                         <Button variant="outline" className="rounded-xl text-xs font-bold">
                           Change Password
                         </Button>
                       </div>
 
                       <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
-                        <p className="text-sm font-semibold text-foreground mb-2">Two-Factor Authentication</p>
-                        <p className="text-xs text-muted-foreground mb-3">Add an extra layer of security</p>
+                        <p className="text-sm font-semibold text-foreground mb-2">
+                          Two-Factor Authentication
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Add an extra layer of security
+                        </p>
                         <Button variant="outline" className="rounded-xl text-xs font-bold">
                           Enable 2FA
                         </Button>
@@ -351,7 +365,9 @@ function SettingsPage() {
                   </div>
 
                   <div className="border-t border-border/60 pt-6">
-                    <h3 className="font-display text-lg font-bold text-foreground mb-4">Account Actions</h3>
+                    <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                      Account Actions
+                    </h3>
                     <div className="space-y-3">
                       <Button
                         onClick={handleLogout}
@@ -377,7 +393,9 @@ function SettingsPage() {
           <div className="space-y-6">
             <ScrollReveal delay={150}>
               <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-                <h3 className="font-display text-lg font-bold text-foreground mb-4">Account Status</h3>
+                <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                  Account Status
+                </h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Account Status</span>

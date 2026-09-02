@@ -14,8 +14,19 @@ export interface ResumeScoreResult {
   improvements: string[];
 }
 
+export interface ResumeSections {
+  header: string;
+  contact: string;
+  summary: string;
+  experience: string;
+  education: string;
+  skills: string;
+  projects: string;
+  certifications: string;
+}
+
 export class ResumeScorer {
-  private static readonly SECTION_WEIGHTS = {
+  private static readonly SECTION_WEIGHTS: Record<keyof ResumeSections, number> = {
     header: 0.05,
     contact: 0.1,
     summary: 0.1,
@@ -28,7 +39,7 @@ export class ResumeScorer {
 
   static scoreResume(resumeContent: string): ResumeScoreResult {
     const sections = this.parseSections(resumeContent);
-    const sectionScores = this.scoreSections(sections, resumeContent);
+    const sectionScores = this.scoreSections(sections);
     const overallScore = this.calculateOverallScore(sectionScores);
 
     return {
@@ -39,7 +50,7 @@ export class ResumeScorer {
     };
   }
 
-  private static parseSections(content: string) {
+  private static parseSections(content: string): ResumeSections {
     return {
       header: this.extractHeader(content),
       contact: this.extractContact(content),
@@ -71,50 +82,45 @@ export class ResumeScorer {
 
   private static extractSummary(content: string): string {
     const summaryMatch = content.match(
-      /(?:summary|overview|about|profile)[:\s]+([\s\S]{10,300}?)(?=\n\n|\nexperience|\nskills|$)/i
+      /(?:summary|overview|about|profile)[:\s]+([\s\S]{10,300}?)(?=\n\n|\nexperience|\nskills|$)/i,
     );
-    return summaryMatch ? summaryMatch[1] : "";
+    return summaryMatch?.[1] || "";
   }
 
   private static extractExperience(content: string): string {
     const expMatch = content.match(
-      /(?:experience|work history)[:\s]+([\s\S]*?)(?=\neducation|\nskills|\ncertifications|$)/i
+      /(?:experience|work history)[:\s]+([\s\S]*?)(?=\neducation|\nskills|\ncertifications|$)/i,
     );
-    return expMatch ? expMatch[1] : "";
+    return expMatch?.[1] || "";
   }
 
   private static extractEducation(content: string): string {
     const eduMatch = content.match(
-      /(?:education)[:\s]+([\s\S]*?)(?=\nskills|\nexperience|\ncertifications|$)/i
+      /(?:education)[:\s]+([\s\S]*?)(?=\nskills|\nexperience|\ncertifications|$)/i,
     );
-    return eduMatch ? eduMatch[1] : "";
+    return eduMatch?.[1] || "";
   }
 
   private static extractSkills(content: string): string {
     const skillMatch = content.match(
-      /(?:skills)[:\s]+([\s\S]*?)(?=\nexperience|\neducation|\ncertifications|$)/i
+      /(?:skills)[:\s]+([\s\S]*?)(?=\nexperience|\neducation|\ncertifications|$)/i,
     );
-    return skillMatch ? skillMatch[1] : "";
+    return skillMatch?.[1] || "";
   }
 
   private static extractProjects(content: string): string {
     const projMatch = content.match(
-      /(?:projects|portfolio)[:\s]+([\s\S]*?)(?=\neducation|\nskills|\ncertifications|$)/i
+      /(?:projects|portfolio)[:\s]+([\s\S]*?)(?=\neducation|\nskills|\ncertifications|$)/i,
     );
-    return projMatch ? projMatch[1] : "";
+    return projMatch?.[1] || "";
   }
 
   private static extractCertifications(content: string): string {
-    const certMatch = content.match(
-      /(?:certifications|licenses)[:\s]+([\s\S]*?)(?=\n$)/i
-    );
-    return certMatch ? certMatch[1] : "";
+    const certMatch = content.match(/(?:certifications|licenses)[:\s]+([\s\S]*?)(?=\n$)/i);
+    return certMatch?.[1] || "";
   }
 
-  private static scoreSections(
-    sections: Record<string, string>,
-    content: string
-  ): Record<string, { score: number; feedback: string[] }> {
+  private static scoreSections(sections: ResumeSections): ResumeScoreResult["sections"] {
     return {
       header: this.scoreHeader(sections.header),
       contact: this.scoreContact(sections.contact),
@@ -151,21 +157,26 @@ export class ResumeScorer {
   private static scoreContact(content: string): { score: number; feedback: string[] } {
     let score = 30;
     const feedback: string[] = [];
-    const contactData = JSON.parse(content);
+    let contactData: { emails?: string[]; phones?: string[]; linkedin?: string[] } = {};
+    try {
+      contactData = JSON.parse(content);
+    } catch {
+      contactData = {};
+    }
 
-    if (contactData.emails?.length > 0) {
+    if ((contactData.emails?.length ?? 0) > 0) {
       score += 25;
       feedback.push("Email address found");
     } else {
       feedback.push("Add professional email");
     }
 
-    if (contactData.phones?.length > 0) {
+    if ((contactData.phones?.length ?? 0) > 0) {
       score += 20;
       feedback.push("Phone number included");
     }
 
-    if (contactData.linkedin?.length > 0) {
+    if ((contactData.linkedin?.length ?? 0) > 0) {
       score += 25;
       feedback.push("LinkedIn profile linked");
     } else {
@@ -195,7 +206,9 @@ export class ResumeScorer {
       feedback.push("Summary is too short");
     }
 
-    const keywordCount = (content.match(/\b(experienced|skilled|passionate|proficient|expert)\b/gi) || []).length;
+    const keywordCount = (
+      content.match(/\b(experienced|skilled|passionate|proficient|expert)\b/gi) || []
+    ).length;
     if (keywordCount > 0) {
       score += 20;
       feedback.push("Strong action words used");
@@ -215,7 +228,9 @@ export class ResumeScorer {
       return { score, feedback };
     }
 
-    const jobCount = (content.match(/\b(?:managed|led|developed|designed|created|improved)\b/gi) || []).length;
+    const jobCount = (
+      content.match(/\b(?:managed|led|developed|designed|created|improved)\b/gi) || []
+    ).length;
     if (jobCount >= 3) {
       score += 40;
       feedback.push("Multiple achievements listed");
@@ -246,7 +261,9 @@ export class ResumeScorer {
       return { score, feedback };
     }
 
-    const degreeMatch = content.match(/\b(bachelor|master|phd|b\.s\.|m\.s\.|b\.a\.|m\.a\.|btech|mtech)\b/gi);
+    const degreeMatch = content.match(
+      /\b(bachelor|master|phd|b\.s\.|m\.s\.|b\.a\.|m\.a\.|btech|mtech)\b/gi,
+    );
     if (degreeMatch) {
       score += 30;
       feedback.push("Degree type mentioned");
@@ -288,13 +305,12 @@ export class ResumeScorer {
       score += 20;
       feedback.push("Consider limiting to top 12 skills");
     } else {
-      score += 15;
       feedback.push(`Add more skills (have ${skillCount}, aim for 8-12)`);
     }
 
     const techSkills =
-      (content.match(/\b(python|javascript|java|react|node|aws|docker|sql|git|linux)\b/gi) || []).length >
-      0;
+      (content.match(/\b(python|javascript|java|react|node|aws|docker|sql|git|linux)\b/gi) || [])
+        .length > 0;
     if (techSkills) {
       score += 20;
       feedback.push("Technical skills included");
@@ -351,13 +367,11 @@ export class ResumeScorer {
     return { score: Math.min(score, 100), feedback };
   }
 
-  private static calculateOverallScore(
-    sectionScores: Record<string, { score: number; feedback: string[] }>
-  ): number {
+  private static calculateOverallScore(sectionScores: ResumeScoreResult["sections"]): number {
     let totalScore = 0;
 
     for (const [section, { score }] of Object.entries(sectionScores)) {
-      const weight = ResumeScorer.SECTION_WEIGHTS[section as keyof typeof ResumeScorer.SECTION_WEIGHTS];
+      const weight = ResumeScorer.SECTION_WEIGHTS[section as keyof ResumeSections] ?? 0.1;
       totalScore += (score * weight) / 100;
     }
 
@@ -365,8 +379,8 @@ export class ResumeScorer {
   }
 
   private static identifyStrengths(
-    sectionScores: Record<string, { score: number; feedback: string[] }>,
-    content: string
+    sectionScores: ResumeScoreResult["sections"],
+    content: string,
   ): string[] {
     const strengths: string[] = [];
 
@@ -392,13 +406,13 @@ export class ResumeScorer {
   }
 
   private static identifyImprovements(
-    sectionScores: Record<string, { score: number; feedback: string[] }>,
-    content: string
+    sectionScores: ResumeScoreResult["sections"],
+    content: string,
   ): string[] {
     const improvements: string[] = [];
 
-    for (const [section, { score, feedback }] of Object.entries(sectionScores)) {
-      if (score < 70 && feedback.length > 0) {
+    for (const [, { score, feedback }] of Object.entries(sectionScores)) {
+      if (score < 70 && feedback.length > 0 && feedback[0]) {
         improvements.push(feedback[0]);
       }
     }
@@ -414,7 +428,10 @@ export class ResumeScorer {
     return improvements.slice(0, 3);
   }
 
-  static calculateSkillGap(candidateSkills: string[], jobRequiredSkills: string[]): {
+  static calculateSkillGap(
+    candidateSkills: string[],
+    jobRequiredSkills: string[],
+  ): {
     matchedSkills: string[];
     missingSkills: string[];
     fitPercentage: number;
@@ -423,17 +440,15 @@ export class ResumeScorer {
     const jobSkillsLower = jobRequiredSkills.map((s) => s.toLowerCase());
 
     const matchedSkills = jobSkillsLower.filter((skill) =>
-      candidateSkillsLower.some((cSkill) =>
-        cSkill.includes(skill) || skill.includes(cSkill)
-      )
+      candidateSkillsLower.some((cSkill) => cSkill.includes(skill) || skill.includes(cSkill)),
     );
 
     const missingSkills = jobSkillsLower.filter((skill) => !matchedSkills.includes(skill));
 
-    const fitPercentage = Math.round((matchedSkills.length / jobSkillsLower.length) * 100);
+    const fitPercentage = Math.round(
+      (matchedSkills.length / Math.max(jobSkillsLower.length, 1)) * 100,
+    );
 
     return { matchedSkills, missingSkills, fitPercentage };
   }
 }
-
-export { ResumeScorer };

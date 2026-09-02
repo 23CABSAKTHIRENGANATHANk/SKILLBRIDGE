@@ -46,16 +46,22 @@ function RegisterPage() {
 
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    college?: string;
+    companyName?: string;
+  }>({});
 
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && user) {
-      navigate({ to: user.role === "recruiter" ? "/recruiter" : "/dashboard" as any });
+      navigate({ to: user.role === "recruiter" ? "/recruiter" : ("/dashboard" as any) });
     }
   }, [isAuthLoading, isAuthenticated, user, navigate]);
 
   const validateForm = () => {
-    const errors: Record<string, string> = {};
+    const errors: typeof fieldErrors = {};
     if (!name.trim()) errors.name = "Full name is required";
 
     if (!email.trim()) {
@@ -77,7 +83,9 @@ function RegisterPage() {
     }
 
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    return (
+      !errors.name && !errors.email && !errors.password && !errors.college && !errors.companyName
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +112,7 @@ function RegisterPage() {
       toast.success("Account created successfully! Welcome to SkillBridge.");
 
       setTimeout(() => {
-        navigate({ to: result.user.role === "recruiter" ? "/recruiter" : "/dashboard" as any });
+        navigate({ to: result.user.role === "recruiter" ? "/recruiter" : ("/dashboard" as any) });
       }, 500);
     } catch (err: any) {
       setStatus("error");
@@ -254,7 +262,9 @@ function RegisterPage() {
                     }`}
                   />
                   {fieldErrors.college && (
-                    <p className="text-[11px] font-medium text-destructive">{fieldErrors.college}</p>
+                    <p className="text-[11px] font-medium text-destructive">
+                      {fieldErrors.college}
+                    </p>
                   )}
                 </div>
 
@@ -292,7 +302,9 @@ function RegisterPage() {
                     }`}
                   />
                   {fieldErrors.companyName && (
-                    <p className="text-[11px] font-medium text-destructive">{fieldErrors.companyName}</p>
+                    <p className="text-[11px] font-medium text-destructive">
+                      {fieldErrors.companyName}
+                    </p>
                   )}
                 </div>
 
@@ -376,7 +388,7 @@ function RegisterPage() {
           {/* Login Link */}
           <div className="mt-6 text-center text-xs text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="font-bold text-primary hover:underline">
+            <Link to="/login" search={{}} className="font-bold text-primary hover:underline">
               Sign in
             </Link>
           </div>

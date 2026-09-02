@@ -1,15 +1,18 @@
 const http = require("http");
 
-const BASE = "http://localhost:8000/api";
+const BASE = process.env.SKILLBRIDGE_TEST_BASE_URL || "http://127.0.0.1:8000/api";
+let failures = 0;
 
 function req(path, method = "GET", data = null, token = null) {
   return new Promise((resolve, reject) => {
     const url = new URL(`${BASE}${path}`);
     const bodyStr = data ? JSON.stringify(data) : null;
     const headers = {
-      "Accept": "application/json",
-      ...(bodyStr ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(bodyStr) } : {}),
-      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      Accept: "application/json",
+      ...(bodyStr
+        ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(bodyStr) }
+        : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     const request = http.request(url, { method, headers }, (res) => {
@@ -39,11 +42,16 @@ async function run() {
 
   // 1. Health
   const h = await req("/health");
-  console.log("1. Health Endpoint:", h.status === 200 ? "✅ PASS" : "❌ FAIL", h.data);
+  const check = (name, passed, details = "") => {
+    if (!passed) failures++;
+    console.log(name, passed ? "✅ PASS" : "❌ FAIL", details);
+  };
+
+  check("1. Health Endpoint:", h.status === 200 && h.data?.status === "healthy");
 
   // 2. Ping
   const p = await req("/ping");
-  console.log("2. Ping Endpoint:", p.status === 200 ? "✅ PASS" : "❌ FAIL");
+  check("2. Ping Endpoint:", p.status === 200 && p.data?.status === "pong");
 
   // 3. Register Student
   const sReg = await req("/auth/register", "POST", {
@@ -52,18 +60,28 @@ async function run() {
     name: "Arjun Kumar",
     role: "student",
     college: "Anna University",
-    program: "B.Tech Computer Science"
+    program: "B.Tech Computer Science",
   });
-  console.log("3. Student Registration:", sReg.status === 201 ? "✅ PASS" : "❌ FAIL", sReg.status, sReg.data);
+  check("3. Student Registration:", sReg.status === 201 && Boolean(sReg.data?.token), sReg.status);
   const studentToken = sReg.data?.token;
 
   // 4. Student Login
   const sLog = await req("/auth/login", "POST", {
     email: `student_${rand}@skillbridge.dev`,
-    password: "Password123!"
+    password: "Password123!",
   });
-  console.log("4. Student Login:", sLog.status === 200 ? "✅ PASS" : "❌ FAIL");
+  check("4. Student Login:", sLog.status === 200 && Boolean(sLog.data?.token));
   const studentAuthToken = sLog.data?.token || studentToken;
+  const invalidLogin = await req("/auth/login", "POST", {
+    email: `student_${rand}@skillbridge.dev`,
+    password: "definitely-wrong-password",
+  });
+  check("4a. Invalid Login Rejected:", invalidLogin.status === 401, invalidLogin.status);
+  const missingToken = await req("/auth/me");
+  check("4b. Protected Route Requires Token:", missingToken.status === 401, missingToken.status);
+  const tamperedToken = `${studentAuthToken}tampered`;
+  const tampered = await req("/auth/me", "GET", null, tamperedToken);
+  check("4c. Tampered JWT Rejected:", tampered.status === 401, tampered.status);
 
   // 5. Register Recruiter
   const rReg = await req("/auth/register", "POST", {
@@ -72,116 +90,210 @@ async function run() {
     name: "Priya Sharma",
     role: "recruiter",
     company_name: `AcroTech AI ${rand}`,
-    industry: "Enterprise AI"
+    industry: "Enterprise AI",
   });
-  console.log("5. Recruiter Registration:", rReg.status === 201 ? "✅ PASS" : "❌ FAIL", rReg.status, rReg.data);
+  check(
+    "5. Recruiter Registration:",
+    rReg.status === 201 && Boolean(rReg.data?.token),
+    rReg.status,
+  );
   const recruiterToken = rReg.data?.token;
+  const studentAdmin = await req("/admin/stats", "GET", null, studentAuthToken);
+  check("5a. Student Cannot Access Admin:", studentAdmin.status === 403, studentAdmin.status);
+  const recruiterAdmin = await req("/admin/stats", "GET", null, recruiterToken);
+  check("5b. Recruiter Cannot Access Admin:", recruiterAdmin.status === 403, recruiterAdmin.status);
 
   // 6. Company Profile Update & Geocoding
-  const comp = await req("/companies/profile", "POST", {
-    name: `AcroTech AI ${rand}`,
-    address: "100 Feet Road, Indiranagar",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560038",
-    country: "India"
-  }, recruiterToken);
-  console.log("6. Company Profile & Geocoding:", comp.status === 200 ? "✅ PASS" : "❌ FAIL", comp.status, comp.data);
+  const comp = await req(
+    "/companies/profile",
+    "POST",
+    {
+      name: `AcroTech AI ${rand}`,
+      address: "100 Feet Road, Indiranagar",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560038",
+      country: "India",
+    },
+    recruiterToken,
+  );
+  check("6. Company Profile & Geocoding:", comp.status === 200, comp.status);
 
   // 7. Recruiter Post Job
-  const job = await req("/jobs", "POST", {
-    title: `Senior AI Full Stack Engineer ${rand}`,
-    summary: "Develop scalable LLM applications with React and Python.",
-    description: "Looking for an engineer proficient in React, TypeScript, and Python.",
-    location: "Bengaluru, India (Hybrid)",
-    type: "Full Time",
-    salary_range: "₹18 LPA - ₹26 LPA",
-    skills: ["React", "TypeScript", "Python", "PostgreSQL"]
-  }, recruiterToken);
-  console.log("7. Recruiter Job Creation:", job.status === 201 ? "✅ PASS" : "❌ FAIL", job.status, job.data);
+  const job = await req(
+    "/jobs",
+    "POST",
+    {
+      title: `Senior AI Full Stack Engineer ${rand}`,
+      summary: "Develop scalable LLM applications with React and Python.",
+      description: "Looking for an engineer proficient in React, TypeScript, and Python.",
+      location: "Bengaluru, India (Hybrid)",
+      type: "Full Time",
+      salary_range: "₹18 LPA - ₹26 LPA",
+      skills: ["React", "TypeScript", "Python", "PostgreSQL"],
+    },
+    recruiterToken,
+  );
+  check("7. Recruiter Job Creation:", job.status === 201, job.status);
   const jobId = job.data?.jobId;
 
   // 8. List Jobs with Matching
   const jobsList = await req("/jobs", "GET", null, studentAuthToken);
-  console.log("8. List Jobs (with Skill Match):", jobsList.status === 200 ? "✅ PASS" : "❌ FAIL", `Found ${jobsList.data?.jobs?.length || 0} jobs`);
+  check(
+    "8. List Jobs (with Skill Match):",
+    jobsList.status === 200,
+    `Found ${jobsList.data?.jobs?.length || 0} jobs`,
+  );
 
   // 9. Student Apply
   let appId = null;
   if (jobId) {
     const apply = await req("/applications/apply", "POST", { job_id: jobId }, studentAuthToken);
-    console.log("9. Student Application:", apply.status === 201 ? "✅ PASS" : "❌ FAIL", apply.data);
+    check("9. Student Application:", apply.status === 201);
     appId = apply.data?.applicationId;
 
     // 10. Duplicate application check
     const dup = await req("/applications/apply", "POST", { job_id: jobId }, studentAuthToken);
-    console.log("10. Duplicate Application Guard (409):", dup.status === 409 ? "✅ PASS" : "❌ FAIL", dup.status);
+    check("10. Duplicate Application Guard (409):", dup.status === 409, dup.status);
   }
 
   // 11. Recruiter Candidates Pipeline
   const cands = await req("/applications/candidates", "GET", null, recruiterToken);
-  console.log("11. Recruiter Candidates Pipeline:", cands.status === 200 ? "✅ PASS" : "❌ FAIL", `Found ${cands.data?.candidates?.length || 0} candidates`);
+  check(
+    "11. Recruiter Candidates Pipeline:",
+    cands.status === 200,
+    `Found ${cands.data?.candidates?.length || 0} candidates`,
+  );
 
   // 12. Recruiter Schedule Interview
   if (appId) {
-    const futureDate = new Date(Date.now() + 3 * 86400000).toISOString().replace("T", " ").substring(0, 19);
-    const intv = await req("/interviews/schedule", "POST", {
-      application_id: appId,
-      scheduled_at: futureDate,
-      meeting_link: "https://meet.google.com/sb-live-demo",
-      notes: "React pairing session and architecture review."
-    }, recruiterToken);
-    console.log("12. Recruiter Schedule Interview:", intv.status === 201 ? "✅ PASS" : "❌ FAIL", intv.data);
+    const futureDate = new Date(Date.now() + 3 * 86400000)
+      .toISOString()
+      .replace("T", " ")
+      .substring(0, 19);
+    const intv = await req(
+      "/interviews/schedule",
+      "POST",
+      {
+        application_id: appId,
+        scheduled_at: futureDate,
+        meeting_link: "https://meet.google.com/sb-live-demo",
+        notes: "React pairing session and architecture review.",
+      },
+      recruiterToken,
+    );
+    check("12. Recruiter Schedule Interview:", intv.status === 201);
   }
 
   // 13. Student View Scheduled Interviews
   const sIntv = await req("/interviews", "GET", null, studentAuthToken);
-  console.log("13. Student View Interviews:", sIntv.status === 200 ? "✅ PASS" : "❌ FAIL", `Count: ${sIntv.data?.count || 0}`);
+  check("13. Student View Interviews:", sIntv.status === 200, `Count: ${sIntv.data?.count || 0}`);
 
   // 14. Recruiter Update Stage to Offer
   if (appId) {
-    const st = await req("/applications/stage", "PUT", {
-      application_id: appId,
-      stage: "offer",
-      notes: "Outstanding performance during interview."
-    }, recruiterToken);
-    console.log("14. Recruiter Stage Transition (Offer):", st.status === 200 ? "✅ PASS" : "❌ FAIL", st.data);
+    const st = await req(
+      "/applications/stage",
+      "PUT",
+      {
+        application_id: appId,
+        stage: "offer",
+        notes: "Outstanding performance during interview.",
+      },
+      recruiterToken,
+    );
+    check("14. Recruiter Stage Transition (Offer):", st.status === 200);
   }
 
   // 15. Student Check Notifications
   const notifs = await req("/notifications", "GET", null, studentAuthToken);
-  console.log("15. Student Real Notifications:", notifs.status === 200 ? "✅ PASS" : "❌ FAIL", `Unread: ${notifs.data?.unreadCount || 0}, Total: ${notifs.data?.notifications?.length || 0}`);
+  check(
+    "15. Student Real Notifications:",
+    notifs.status === 200,
+    `Unread: ${notifs.data?.unreadCount || 0}, Total: ${notifs.data?.notifications?.length || 0}`,
+  );
 
   // 16. AI Resume Summary
   const aiSum = await req("/ai/resume-summary", "POST", {}, studentAuthToken);
-  console.log("16. AI Resume Summary & ATS Score:", aiSum.status === 200 ? "✅ PASS" : "❌ FAIL", `ATS: ${aiSum.data?.resume_analysis?.ats_score}/100`);
+  check(
+    "16. AI Resume Summary & ATS Score:",
+    aiSum.status === 200,
+    `ATS: ${aiSum.data?.resume_analysis?.ats_score ?? "unavailable"}/100`,
+  );
 
   // 17. AI Match Explanation
   if (jobId) {
     const aiMatch = await req("/ai/match-explain", "POST", { job_id: jobId }, studentAuthToken);
-    console.log("17. AI Match Explanation:", aiMatch.status === 200 ? "✅ PASS" : "❌ FAIL", `Verdict: ${aiMatch.data?.explanation?.verdict}`);
+    check(
+      "17. AI Match Explanation:",
+      aiMatch.status === 200,
+      `Verdict: ${aiMatch.data?.explanation?.verdict ?? "unavailable"}`,
+    );
   }
 
   // 18. AI Personalized Recommendations
   const aiRecs = await req("/ai/recommendations", "GET", null, studentAuthToken);
-  console.log("18. AI Job Recommendations:", aiRecs.status === 200 ? "✅ PASS" : "❌ FAIL", `Count: ${aiRecs.data?.recommendations?.length || 0}`);
+  check(
+    "18. AI Job Recommendations:",
+    aiRecs.status === 200,
+    `Count: ${aiRecs.data?.recommendations?.length || 0}`,
+  );
 
   // 19. AI Recruiter Insights
   const aiIns = await req("/ai/recruiter-insights", "GET", null, recruiterToken);
-  console.log("19. AI Recruiter Pipeline Insights:", aiIns.status === 200 ? "✅ PASS" : "❌ FAIL", `Health: ${aiIns.data?.insights?.pipeline_health}`);
+  check(
+    "19. AI Recruiter Pipeline Insights:",
+    aiIns.status === 200,
+    `Health: ${aiIns.data?.insights?.pipeline_health ?? "unavailable"}`,
+  );
 
   // 20. OpenAPI Spec
   const spec = await new Promise((resolve) => {
-    http.get("http://localhost:8000/openapi.yaml", (res) => {
+    http.get(BASE.replace(/\/api$/, "/openapi.yaml"), (res) => {
       let raw = "";
       res.on("data", (c) => (raw += c));
       res.on("end", () => resolve({ status: res.statusCode, length: raw.length }));
     });
   });
-  console.log("20. OpenAPI 3.1 Spec Endpoint:", spec.status === 200 && spec.length > 500 ? "✅ PASS" : "❌ FAIL", `Size: ${(spec.length / 1024).toFixed(1)} KB`);
+  check(
+    "20. OpenAPI 3.1 Spec Endpoint:",
+    spec.status === 200 && spec.length > 500,
+    `Size: ${(spec.length / 1024).toFixed(1)} KB`,
+  );
+
+  const refreshToken = sReg.data?.refreshToken;
+  const refreshed = refreshToken
+    ? await req("/auth/refresh", "POST", { refreshToken })
+    : { status: 0, data: null };
+  check(
+    "21. Refresh Token:",
+    refreshed.status === 200 && Boolean(refreshed.data?.token),
+    refreshed.status,
+  );
+  const logout = refreshToken
+    ? await req("/auth/logout", "POST", { refreshToken }, studentAuthToken)
+    : { status: 0, data: null };
+  check("22. Logout Revokes Refresh Token:", logout.status === 200, logout.status);
+  const revokedRefresh = refreshToken
+    ? await req("/auth/refresh", "POST", { refreshToken })
+    : { status: 0, data: null };
+  check(
+    "23. Revoked Refresh Token Rejected:",
+    revokedRefresh.status === 401,
+    revokedRefresh.status,
+  );
 
   console.log("\n=======================================================");
-  console.log("🎉 ALL 20 PRODUCTION SCENARIOS PASSED WITH REAL DATA!");
+  console.log(
+    failures === 0
+      ? "🎉 All production scenarios passed with real data."
+      : `Integration suite failed: ${failures} scenario(s).`,
+  );
   console.log("=======================================================\n");
 }
 
-run().catch((e) => console.error("FATAL:", e));
+run()
+  .then(() => (process.exitCode = failures === 0 ? 0 : 1))
+  .catch((e) => {
+    console.error("FATAL:", e.message);
+    process.exitCode = 1;
+  });

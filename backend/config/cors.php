@@ -21,11 +21,12 @@ function handleCors(): void {
 
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     $localhostOrigin = preg_match('/^http:\/\/(localhost|127\.0\.0\.1):(\d+)$/', $origin) === 1;
+    $configuredOrigin = getenv('FRONTEND_URL') ?: '';
 
-    if ($env === 'development' || in_array($origin, $allowedOrigins, true) || $localhostOrigin) {
-        header("Access-Control-Allow-Origin: " . ($origin ?: '*'));
-    } else if (!empty($allowedOrigins)) {
-        header("Access-Control-Allow-Origin: " . $allowedOrigins[0]);
+    if ($env === 'development' && $localhostOrigin) {
+        header("Access-Control-Allow-Origin: {$origin}");
+    } elseif ($origin !== '' && ($origin === $configuredOrigin || in_array($origin, $allowedOrigins, true))) {
+        header("Access-Control-Allow-Origin: {$origin}");
     }
 
     header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");

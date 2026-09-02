@@ -41,14 +41,14 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const sortedInterviews = [...interviews].sort(
-    (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
+    (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime(),
   );
 
   const upcomingInterviews = sortedInterviews.filter((i) =>
-    ["scheduled", "in-progress"].includes(i.status)
+    ["scheduled", "in-progress"].includes(i.status),
   );
   const pastInterviews = sortedInterviews.filter((i) =>
-    ["completed", "cancelled"].includes(i.status)
+    ["completed", "cancelled"].includes(i.status),
   );
 
   const handleCopyMeetingLink = (link: string) => {
@@ -74,25 +74,36 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
   };
 
   const getStatusBadge = (status: string) => {
-    const badges: Record<string, { bg: string; text: string; icon: any }> = {
-      scheduled: { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", icon: Calendar },
+    const defaultBadge = {
+      bg: "bg-blue-50 border-blue-200",
+      text: "text-blue-700",
+      icon: Calendar,
+    };
+    const badges: Record<
+      string,
+      { bg: string; text: string; icon: React.ComponentType<{ className?: string }> }
+    > = {
+      scheduled: defaultBadge,
       "in-progress": { bg: "bg-orange-50 border-orange-200", text: "text-orange-700", icon: Clock },
       completed: { bg: "bg-green-50 border-green-200", text: "text-green-700", icon: CheckCircle2 },
       cancelled: { bg: "bg-red-50 border-red-200", text: "text-red-700", icon: AlertCircle },
     };
-    const badge = badges[status];
+    const badge = badges[status] ?? defaultBadge;
     const Icon = badge.icon;
     return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${badge.bg} ${badge.text}`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${badge.bg} ${badge.text}`}
+      >
         <Icon className="size-3" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Scheduled"}
       </span>
     );
   };
 
   const InterviewCard = ({ interview }: { interview: Interview }) => {
     const isExpanded = expandedId === interview.id;
-    const TypeIcon = interview.type === "video" ? Video : interview.type === "phone" ? Phone : MapPin;
+    const TypeIcon =
+      interview.type === "video" ? Video : interview.type === "phone" ? Phone : MapPin;
 
     return (
       <div
@@ -155,12 +166,16 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
               <p className="text-xs font-semibold text-muted-foreground uppercase">Interviewer</p>
               <div className="mt-2 flex items-center gap-3">
                 <div className="flex size-10 items-center justify-center rounded-full bg-secondary text-sm font-bold">
-                  {interview.interviewer.name.split(" ")[0][0]}
-                  {interview.interviewer.name.split(" ")[1]?.[0] || ""}
+                  {(interview.interviewer?.name?.split(" ")?.[0]?.[0] || "I").toUpperCase()}
+                  {(interview.interviewer?.name?.split(" ")?.[1]?.[0] || "").toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground">{interview.interviewer.name}</p>
-                  <p className="text-xs text-muted-foreground">{interview.interviewer.role}</p>
+                  <p className="text-sm font-bold text-foreground">
+                    {interview.interviewer?.name || "Interviewer"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {interview.interviewer?.role || "Hiring Team"}
+                  </p>
                 </div>
               </div>
               <a
@@ -179,18 +194,24 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
                 <p className="text-xs font-bold text-foreground mt-1">
                   {formatDate(new Date(interview.scheduledAt))}
                 </p>
-                <p className="text-xs text-muted-foreground">{formatTime(new Date(interview.scheduledAt))}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatTime(new Date(interview.scheduledAt))}
+                </p>
               </div>
               <div className="rounded-lg border border-border/70 bg-background p-2">
                 <p className="text-[10px] font-semibold text-muted-foreground">Duration</p>
-                <p className="text-xs font-bold text-foreground mt-1">{interview.duration} minutes</p>
+                <p className="text-xs font-bold text-foreground mt-1">
+                  {interview.duration} minutes
+                </p>
               </div>
             </div>
 
             {/* Meeting Link (for video interviews) */}
             {interview.type === "video" && interview.meetingLink && (
               <div className="rounded-xl border border-border/70 bg-background p-3">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Video Meeting Link</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">
+                  Video Meeting Link
+                </p>
                 <div className="flex items-center gap-2 bg-secondary/30 rounded-lg p-2">
                   <code className="text-xs text-foreground font-mono flex-1 truncate">
                     {interview.meetingLink}
@@ -209,10 +230,7 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
                     rel="noreferrer"
                     className="mt-2 inline-block"
                   >
-                    <Button
-                      size="sm"
-                      className="rounded-lg text-xs font-bold w-full"
-                    >
+                    <Button size="sm" className="rounded-lg text-xs font-bold w-full">
                       <Video className="size-3 mr-1" />
                       Join Meeting
                     </Button>
@@ -263,10 +281,18 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
             <div className="flex gap-2">
               {interview.status === "scheduled" && (
                 <>
-                  <Button size="sm" variant="outline" className="rounded-lg text-xs font-bold flex-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg text-xs font-bold flex-1"
+                  >
                     Reschedule
                   </Button>
-                  <Button size="sm" variant="outline" className="rounded-lg text-xs font-bold flex-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg text-xs font-bold flex-1"
+                  >
                     Cancel
                   </Button>
                 </>
@@ -289,7 +315,9 @@ export function InterviewTimeline({ interviews: initialInterviews }: { interview
       {/* Upcoming Interviews */}
       {upcomingInterviews.length > 0 && (
         <div>
-          <h2 className="font-display text-xl font-bold text-foreground mb-4">Upcoming Interviews</h2>
+          <h2 className="font-display text-xl font-bold text-foreground mb-4">
+            Upcoming Interviews
+          </h2>
           <div className="space-y-3">
             {upcomingInterviews.map((interview) => (
               <InterviewCard key={interview.id} interview={interview} />

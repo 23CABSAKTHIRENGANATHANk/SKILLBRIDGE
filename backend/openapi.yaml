@@ -45,7 +45,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:8000/api
+  - url: https://api.skillbridge.dev/api
     description: Local Development (PHP Built-in Server)
   - url: https://api.skillbridge.dev/api
     description: Production (Neon PostgreSQL + Cloudflare CDN)
@@ -97,7 +97,7 @@ components:
           type: boolean
           example: true
         meta:
-          $ref: '#/components/schemas/Meta'
+          $ref: "#/components/schemas/Meta"
 
     ErrorResponse:
       type: object
@@ -111,14 +111,24 @@ components:
           example: "Validation failed. Please correct the highlighted fields."
         code:
           type: string
-          enum: [BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR]
+          enum:
+            [
+              BAD_REQUEST,
+              UNAUTHORIZED,
+              FORBIDDEN,
+              NOT_FOUND,
+              CONFLICT,
+              VALIDATION_ERROR,
+              RATE_LIMITED,
+              INTERNAL_ERROR,
+            ]
         errors:
           type: object
           additionalProperties:
             type: string
           description: Per-field validation errors (only present on 422)
         meta:
-          $ref: '#/components/schemas/Meta'
+          $ref: "#/components/schemas/Meta"
 
     Pagination:
       type: object
@@ -331,7 +341,7 @@ paths:
           description: Validation errors
           content:
             application/json:
-              $ref: '#/components/schemas/ErrorResponse'
+              $ref: "#/components/schemas/ErrorResponse"
 
   /auth/login:
     post:
@@ -876,4 +886,4 @@ paths:
                   audit_logs:
                     type: array
                     items:
-                      $ref: '#/components/schemas/AuditEntry'
+                      $ref: "#/components/schemas/AuditEntry"

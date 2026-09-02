@@ -30,7 +30,7 @@ class HealthService {
             $healthy = false;
             $checks['database'] = [
                 'status' => 'unhealthy',
-                'error' => 'Database connection failed: ' . $e->getMessage(),
+                'error' => 'Database connection unavailable.',
                 'connected' => false
             ];
         }

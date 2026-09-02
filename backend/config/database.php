@@ -26,6 +26,10 @@ class Database {
                         $key = trim($key);
                         $value = trim($value, " \t\n\r\0\x0B\"'");
                         if (!str_contains($value, 'USER:PASSWORD@HOST') && !str_starts_with($value, 'CHANGE_ME')) {
+                            $existingValue = getenv($key);
+                            if ($existingValue !== false && $existingValue !== '') {
+                                continue;
+                            }
                             putenv("{$key}={$value}");
                             $_ENV[$key] = $value;
                             $_SERVER[$key] = $value;
@@ -84,10 +88,11 @@ class Database {
             self::$pdo = new PDO($dsn, $user, $pass, $options);
             return self::$pdo;
         } catch (PDOException $e) {
+            error_log('Database connection failed: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode([
                 'success' => false,
-                'error' => 'Database connection failed: ' . $e->getMessage(),
+                'error' => 'Database connection failed.',
                 'hint' => 'Check your DATABASE_URL or PostgreSQL credentials in backend/.env'
             ]);
             exit;

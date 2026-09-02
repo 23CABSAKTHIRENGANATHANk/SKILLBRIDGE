@@ -70,65 +70,62 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
-  {
-    head: () => ({
-      meta: [
-        { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { title: "SkillBridge — Where Skills Meet Opportunity" },
-        {
-          name: "description",
-          content:
-            "SkillBridge connects students and early-career professionals with verified job opportunities through transparent skill matching.",
-        },
-        { name: "author", content: "SkillBridge" },
-        {
-          property: "og:title",
-          content: "SkillBridge — Where Skills Meet Opportunity",
-        },
-        {
-          property: "og:description",
-          content:
-            "Connect your skills to real career opportunities. Transparent matching, verified companies, one-tap apply.",
-        },
-        { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:site", content: "@SkillBridge" },
-        {
-          name: "twitter:title",
-          content: "SkillBridge — Where Skills Meet Opportunity",
-        },
-        {
-          name: "twitter:description",
-          content:
-            "Connect your skills to real career opportunities with transparent matching.",
-        },
-      ],
-      links: [
-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap",
-        },
-        {
-          rel: "stylesheet",
-          href: appCss,
-        },
-        { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      ],
-    }),
-    shellComponent: RootShell,
-    component: RootComponent,
-    notFoundComponent: NotFoundComponent,
-    errorComponent: ErrorComponent,
-  },
-);
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "SkillBridge — Where Skills Meet Opportunity" },
+      {
+        name: "description",
+        content:
+          "SkillBridge connects students and early-career professionals with verified job opportunities through transparent skill matching.",
+      },
+      { name: "author", content: "SkillBridge" },
+      {
+        property: "og:title",
+        content: "SkillBridge — Where Skills Meet Opportunity",
+      },
+      {
+        property: "og:description",
+        content:
+          "Connect your skills to real career opportunities. Transparent matching, verified companies, one-tap apply.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@SkillBridge" },
+      {
+        name: "twitter:title",
+        content: "SkillBridge — Where Skills Meet Opportunity",
+      },
+      {
+        name: "twitter:description",
+        content: "Connect your skills to real career opportunities with transparent matching.",
+      },
+    ],
+    links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap",
+      },
+      {
+        rel: "stylesheet",
+        href: appCss,
+      },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+    ],
+  }),
+  shellComponent: RootShell,
+  component: RootComponent,
+  notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
+});
 
 function RootShell({ children }: { children: ReactNode }) {
   return (

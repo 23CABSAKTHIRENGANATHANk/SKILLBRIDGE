@@ -15,7 +15,8 @@ import { useAIRecruiterInsights } from "@/hooks/use-ai";
 import { toast } from "sonner";
 
 export function AIRecruiterInsightsCard() {
-  const { insights, stats, topSkills, aiPowered, loading, error, refetch } = useAIRecruiterInsights();
+  const { insights, stats, topSkills, aiPowered, loading, error, refetch } =
+    useAIRecruiterInsights();
 
   return (
     <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-accent/5 p-6 sm:p-8 shadow-soft space-y-6">
@@ -77,16 +78,20 @@ export function AIRecruiterInsightsCard() {
               <span className="font-semibold text-primary uppercase text-[10px] tracking-wider flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" /> Pipeline Overview
               </span>
-              <p className="text-foreground leading-relaxed">
-                {insights.summary}
-              </p>
+              <p className="text-foreground leading-relaxed">{insights.summary}</p>
               {stats && (
                 <div className="flex items-center gap-3 pt-2 text-muted-foreground font-medium">
-                  <span>Total: <strong>{stats.total}</strong></span>
+                  <span>
+                    Total: <strong>{stats.total}</strong>
+                  </span>
                   <span>•</span>
-                  <span>Shortlisted: <strong>{stats.shortlisted}</strong></span>
+                  <span>
+                    Shortlisted: <strong>{stats.shortlisted}</strong>
+                  </span>
                   <span>•</span>
-                  <span>Interview: <strong>{stats.interview}</strong></span>
+                  <span>
+                    Interview: <strong>{stats.interview}</strong>
+                  </span>
                 </div>
               )}
             </div>
@@ -101,7 +106,8 @@ export function AIRecruiterInsightsCard() {
               </p>
               <div className="text-[11px] text-muted-foreground flex items-center gap-1 pt-1">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                Pool Quality: <strong className="text-foreground">{insights.talent_pool_quality}</strong>
+                Pool Quality:{" "}
+                <strong className="text-foreground">{insights.talent_pool_quality}</strong>
               </div>
             </div>
           </div>

@@ -16,8 +16,7 @@ export function useParallax<T extends HTMLElement = HTMLDivElement>() {
 
   const isTouch = typeof window !== "undefined" && "ontouchstart" in window;
   const reducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {

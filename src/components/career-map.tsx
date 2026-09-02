@@ -15,7 +15,10 @@ const roles = [
 export function CareerMap() {
   return (
     <div className="relative isolate rounded-4xl border bg-card/70 p-5 shadow-lift backdrop-blur-sm sm:p-7">
-      <div aria-hidden="true" className="grid-field pointer-events-none absolute inset-0 rounded-4xl" />
+      <div
+        aria-hidden="true"
+        className="grid-field pointer-events-none absolute inset-0 rounded-4xl"
+      />
 
       <div className="relative flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         <span>Your skills</span>

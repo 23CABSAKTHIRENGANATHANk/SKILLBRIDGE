@@ -83,7 +83,8 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                 Intelligent Job Fit & Skill Acceleration
               </h2>
               <p className="text-sm text-muted-foreground max-w-xl">
-                Powered by Google Gemini 1.5 Flash. Real-time resume insights, targeted match explanations, and personalized roadmaps to make you job-ready.
+                Powered by Google Gemini 1.5 Flash. Real-time resume insights, targeted match
+                explanations, and personalized roadmaps to make you job-ready.
               </p>
             </div>
 
@@ -99,7 +100,9 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                 disabled={resumeLoading || recsLoading}
                 className="gap-2 rounded-xl bg-card hover:bg-muted"
               >
-                <RefreshCw className={`h-4 w-4 ${resumeLoading || recsLoading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${resumeLoading || recsLoading ? "animate-spin" : ""}`}
+                />
                 Re-Analyze Profile
               </Button>
             </div>
@@ -142,13 +145,19 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                 <div className="space-y-4 text-xs">
                   {/* Headline */}
                   <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/15">
-                    <span className="font-medium text-primary block mb-1">Professional Headline</span>
-                    <p className="font-semibold text-foreground text-sm">"{resumeAnalysis.headline}"</p>
+                    <span className="font-medium text-primary block mb-1">
+                      Professional Headline
+                    </span>
+                    <p className="font-semibold text-foreground text-sm">
+                      "{resumeAnalysis.headline}"
+                    </p>
                   </div>
 
                   {/* Summary */}
                   <div>
-                    <span className="font-medium text-muted-foreground block mb-1">Profile Narrative</span>
+                    <span className="font-medium text-muted-foreground block mb-1">
+                      Profile Narrative
+                    </span>
                     <p className="text-foreground leading-relaxed bg-muted/30 p-3 rounded-2xl border border-border/50">
                       {resumeAnalysis.summary}
                     </p>
@@ -156,9 +165,15 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
 
                   {/* Key Strengths */}
                   <div>
-                    <span className="font-medium text-muted-foreground block mb-1.5">Identified Core Strengths</span>
+                    <span className="font-medium text-muted-foreground block mb-1.5">
+                      Identified Core Strengths
+                    </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {resumeAnalysis.key_strengths.map((str, idx) => (
+                      {(
+                        resumeAnalysis.key_strengths ||
+                        (resumeAnalysis as any).strengths ||
+                        []
+                      ).map((str: string, idx: number) => (
                         <span
                           key={idx}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-[11px] font-medium"
@@ -171,14 +186,22 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                   </div>
 
                   {/* Improvement Tips */}
-                  {resumeAnalysis.improvement_tips.length > 0 && (
+                  {(
+                    resumeAnalysis.improvement_tips ||
+                    (resumeAnalysis as any).recommendations ||
+                    []
+                  ).length > 0 && (
                     <div className="pt-2 border-t border-border/60">
                       <span className="font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-1.5">
                         <AlertCircle className="h-3.5 w-3.5" />
                         ATS Boost Recommendations
                       </span>
                       <ul className="space-y-1.5 text-muted-foreground pl-1">
-                        {resumeAnalysis.improvement_tips.map((tip, idx) => (
+                        {(
+                          resumeAnalysis.improvement_tips ||
+                          (resumeAnalysis as any).recommendations ||
+                          []
+                        ).map((tip: string, idx: number) => (
                           <li key={idx} className="flex items-start gap-1.5">
                             <span className="text-primary font-bold">•</span>
                             <span>{tip}</span>
@@ -207,8 +230,12 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                     <Target className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground text-sm">Personalized AI Matches</h3>
-                    <p className="text-xs text-muted-foreground">Ranked by career fit & skill synergy</p>
+                    <h3 className="font-semibold text-foreground text-sm">
+                      Personalized AI Matches
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Ranked by career fit & skill synergy
+                    </p>
                   </div>
                 </div>
 
@@ -327,7 +354,10 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                   AI Skill Gap & Recommended Learning Path
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Target Role: <span className="font-semibold text-foreground">{gapJobTitle || "Selected Job Opportunity"}</span>
+                  Target Role:{" "}
+                  <span className="font-semibold text-foreground">
+                    {gapJobTitle || "Selected Job Opportunity"}
+                  </span>
                 </p>
               </div>
             </div>
@@ -366,7 +396,7 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
 
               {/* Roadmap Steps */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {gapAnalysis.roadmap.map((step, idx) => (
+                {(gapAnalysis.roadmap || []).map((step, idx) => (
                   <div
                     key={idx}
                     className="relative rounded-2xl border border-border/80 bg-background/60 p-5 space-y-3.5 hover:border-primary/50 transition-all group"
@@ -407,8 +437,10 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                         <BookOpen className="h-3 w-3" /> Recommended Materials:
                       </span>
                       <ul className="text-xs text-muted-foreground space-y-0.5 pl-3 list-disc">
-                        {step.resources.map((res, rIdx) => (
-                          <li key={rIdx} className="text-[11px]">{res}</li>
+                        {(step.resources || []).map((res, rIdx) => (
+                          <li key={rIdx} className="text-[11px]">
+                            {res}
+                          </li>
                         ))}
                       </ul>
                     </div>

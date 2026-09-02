@@ -1,41 +1,66 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SkillBridge API — Swagger UI</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
-  <style>
-    body { margin: 0; background: #0f1117; }
-    .swagger-ui .topbar { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
-    .swagger-ui .topbar a { color: #fff !important; }
-    .swagger-ui .topbar .download-url-wrapper { display: none; }
-    .swagger-ui .info .title { color: #6366f1 !important; font-size: 2rem !important; }
-    .swagger-ui .info { background: #1e2030; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-    .swagger-ui { background: #0f1117; }
-    .swagger-ui .scheme-container { background: #1e2030; box-shadow: none; }
-    .swagger-ui section.models { background: #1e2030; border-radius: 12px; }
-  </style>
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
-  <script>
-    SwaggerUIBundle({
-      url: "/api/openapi.yaml",
-      dom_id: "#swagger-ui",
-      deepLinking: true,
-      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
-      layout: "BaseLayout",
-      tryItOutEnabled: true,
-      persistAuthorization: true,
-      defaultModelsExpandDepth: 1,
-      requestInterceptor(req) {
-        const token = localStorage.getItem('sb_auth_token');
-        if (token) req.headers['Authorization'] = 'Bearer ' + token;
-        return req;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkillBridge API — Swagger UI</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
+    <style>
+      body {
+        margin: 0;
+        background: #0f1117;
       }
-    });
-  </script>
-</body>
+      .swagger-ui .topbar {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      }
+      .swagger-ui .topbar a {
+        color: #fff !important;
+      }
+      .swagger-ui .topbar .download-url-wrapper {
+        display: none;
+      }
+      .swagger-ui .info .title {
+        color: #6366f1 !important;
+        font-size: 2rem !important;
+      }
+      .swagger-ui .info {
+        background: #1e2030;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+      .swagger-ui {
+        background: #0f1117;
+      }
+      .swagger-ui .scheme-container {
+        background: #1e2030;
+        box-shadow: none;
+      }
+      .swagger-ui section.models {
+        background: #1e2030;
+        border-radius: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script>
+      SwaggerUIBundle({
+        url: "/api/openapi.yaml",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+        layout: "BaseLayout",
+        tryItOutEnabled: true,
+        persistAuthorization: true,
+        defaultModelsExpandDepth: 1,
+        requestInterceptor(req) {
+          const token = localStorage.getItem("sb_auth_token");
+          if (token) req.headers["Authorization"] = "Bearer " + token;
+          return req;
+        },
+      });
+    </script>
+  </body>
 </html>

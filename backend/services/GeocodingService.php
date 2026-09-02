@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 class GeocodingService {
     private const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-    private const USER_AGENT = 'SkillBridge-CareerPlatform/2.0 (https://skillbridge.dev; team@skillbridge.dev)';
+    private const DEFAULT_USER_AGENT = 'SkillBridge-CareerPlatform/2.0 (https://skillbridge.dev; team@skillbridge.dev)';
 
     /**
      * Resolve address to Latitude / Longitude
@@ -63,7 +63,7 @@ class GeocodingService {
 
         $options = [
             'http' => [
-                'header' => "User-Agent: " . self::USER_AGENT . "\r\nAccept: application/json\r\n",
+                'header' => "User-Agent: " . (getenv('NOMINATIM_USER_AGENT') ?: self::DEFAULT_USER_AGENT) . "\r\nAccept: application/json\r\n",
                 'timeout' => 5
             ]
         ];

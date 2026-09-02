@@ -96,27 +96,52 @@ export function useStudentDashboardQuery() {
   return { ...data, loading };
 }
 
+export function useStudentProfileQuery() {
+  const [profile, setProfile] = useState<Awaited<
+    ReturnType<typeof ApiClient.getStudentProfile>
+  > | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setProfile(await ApiClient.getStudentProfile());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  return { profile, loading, error, refetch: fetchProfile };
+}
+
 export function useCandidatesQuery(filters?: { stage?: string; search?: string }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchCandidates = useCallback(() => {
     setLoading(true);
     ApiClient.getCandidates(filters)
       .then((res) => {
-        if (mounted) setCandidates(res);
+        setCandidates(res);
       })
       .finally(() => {
-        if (mounted) setLoading(false);
+        setLoading(false);
       });
-
-    return () => {
-      mounted = false;
-    };
   }, [filters?.stage, filters?.search]);
 
-  return { candidates, loading };
+  useEffect(() => {
+    fetchCandidates();
+  }, [fetchCandidates]);
+
+  return { candidates, loading, refetch: fetchCandidates };
 }
 
 export function usePlatformStatsQuery() {

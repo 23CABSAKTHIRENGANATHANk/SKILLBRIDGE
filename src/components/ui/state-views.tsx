@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  AlertCircle,
-  RefreshCw,
-  FolderOpen,
-  Loader2,
-  Sparkles,
-} from "lucide-react";
+import { AlertCircle, RefreshCw, FolderOpen, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -134,11 +128,7 @@ interface SkeletonLoaderProps {
   className?: string;
 }
 
-export function SkeletonLoader({
-  count = 3,
-  type = "card",
-  className = "",
-}: SkeletonLoaderProps) {
+export function SkeletonLoader({ count = 3, type = "card", className = "" }: SkeletonLoaderProps) {
   const items = Array.from({ length: count });
 
   if (type === "stat") {

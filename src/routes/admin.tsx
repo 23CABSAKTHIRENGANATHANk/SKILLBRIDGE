@@ -32,15 +32,7 @@ function CompanyVerificationRow({ company }: { company: any }) {
   const handleToggle = async () => {
     setIsUpdating(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const res = await fetch("http://localhost:8000/api/admin/verify-company", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ company_id: company.id, verified: !verified }),
-      });
+      await ApiClient.verifyCompany(company.id, !verified);
       setVerified(!verified);
     } catch {
       setVerified(!verified);
@@ -50,14 +42,18 @@ function CompanyVerificationRow({ company }: { company: any }) {
   };
 
   return (
-    <div className={`rounded-2xl border p-5 transition-all ${
-      verified ? "border-success/30 bg-success-soft/10" : "border-border/70 bg-background/50"
-    }`}>
+    <div
+      className={`rounded-2xl border p-5 transition-all ${
+        verified ? "border-success/30 bg-success-soft/10" : "border-border/70 bg-background/50"
+      }`}
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`flex size-10 items-center justify-center rounded-xl ${
-            verified ? "bg-success-soft text-success" : "bg-secondary text-muted-foreground"
-          }`}>
+          <div
+            className={`flex size-10 items-center justify-center rounded-xl ${
+              verified ? "bg-success-soft text-success" : "bg-secondary text-muted-foreground"
+            }`}
+          >
             <Building2 className="size-5" />
           </div>
           <div>
@@ -69,7 +65,9 @@ function CompanyVerificationRow({ company }: { company: any }) {
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">{company.industry} · {company.location} · {company.jobs} active jobs</p>
+            <p className="text-xs text-muted-foreground">
+              {company.industry} · {company.location} · {company.jobs} active jobs
+            </p>
           </div>
         </div>
 
@@ -97,9 +95,12 @@ function CompanyVerificationRow({ company }: { company: any }) {
           { label: "Geocoded", ok: company.checks.geocoded },
           { label: "Admin Review", ok: company.checks.reviewed },
         ].map((check) => (
-          <div key={check.label} className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold ${
-            check.ok ? "bg-success-soft/40 text-success" : "bg-destructive/10 text-destructive"
-          }`}>
+          <div
+            key={check.label}
+            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold ${
+              check.ok ? "bg-success-soft/40 text-success" : "bg-destructive/10 text-destructive"
+            }`}
+          >
             {check.ok ? <Check className="size-3" /> : <X className="size-3" />}
             {check.label}
           </div>
@@ -140,11 +141,11 @@ function AdminPage() {
     setError(null);
     try {
       const [statsData, healthData] = await Promise.all([
-        ApiClient.request<{ success: boolean; stats: any }>('/admin/stats'),
-        ApiClient.request<{ success: boolean; status: string; database?: string; uptime?: string }>('/health').catch(() => null),
+        ApiClient.getPlatformStats(),
+        ApiClient.getHealth().catch(() => null),
       ]);
 
-      setStats(statsData?.stats ?? null);
+      setStats(statsData ?? null);
       setHealth(healthData ?? null);
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -307,7 +308,9 @@ function AdminPage() {
 
             <ScrollReveal>
               <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-                <h3 className="font-display text-lg font-bold text-foreground mb-4">Recent Activity</h3>
+                <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                  Recent Activity
+                </h3>
                 <div className="space-y-3">
                   {[
                     { text: "62 new applications submitted", time: "2 hours ago" },
@@ -315,7 +318,10 @@ function AdminPage() {
                     { text: "3 new job postings created", time: "6 hours ago" },
                     { text: "1 company verification completed", time: "1 day ago" },
                   ].map((activity, i) => (
-                    <div key={i} className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3">
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3"
+                    >
                       <div className="size-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
                         <CheckCircle2 className="size-4" />
                       </div>
@@ -334,17 +340,24 @@ function AdminPage() {
         {activeTab === "users" && (
           <ScrollReveal>
             <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-              <h3 className="font-display text-lg font-bold text-foreground mb-4">User Management</h3>
+              <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                User Management
+              </h3>
               <div className="space-y-3">
                 {["Students", "Recruiters", "Admins"].map((role) => (
-                  <div key={role} className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4">
+                  <div
+                    key={role}
+                    className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="size-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
                         <Users className="size-5" />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-foreground">{role}</p>
-                        <p className="text-xs text-muted-foreground">Manage {role.toLowerCase()} accounts</p>
+                        <p className="text-xs text-muted-foreground">
+                          Manage {role.toLowerCase()} accounts
+                        </p>
                       </div>
                     </div>
                     <Button variant="outline" size="sm" className="rounded-lg text-xs font-bold">
@@ -361,7 +374,9 @@ function AdminPage() {
           <div className="space-y-6">
             <ScrollReveal>
               <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-                <h3 className="font-display text-lg font-bold text-foreground mb-4">Applications by Stage</h3>
+                <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                  Applications by Stage
+                </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {[
                     { stage: "Applied", count: 1200 },
@@ -369,9 +384,14 @@ function AdminPage() {
                     { stage: "Interview", count: 180 },
                     { stage: "Offered", count: 85 },
                   ].map((item) => (
-                    <div key={item.stage} className="rounded-2xl border border-border/70 bg-background/50 p-4 text-center">
+                    <div
+                      key={item.stage}
+                      className="rounded-2xl border border-border/70 bg-background/50 p-4 text-center"
+                    >
                       <p className="text-2xl font-bold text-foreground">{item.count}</p>
-                      <p className="text-xs font-semibold text-muted-foreground mt-1">{item.stage}</p>
+                      <p className="text-xs font-semibold text-muted-foreground mt-1">
+                        {item.stage}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -380,19 +400,30 @@ function AdminPage() {
 
             <ScrollReveal delay={100}>
               <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-                <h3 className="font-display text-lg font-bold text-foreground mb-4">Top Performing Jobs</h3>
+                <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                  Top Performing Jobs
+                </h3>
                 <div className="space-y-3">
                   {[
-                    { title: "Senior React Developer", applications: 342, company: "TechCorp India" },
+                    {
+                      title: "Senior React Developer",
+                      applications: 342,
+                      company: "TechCorp India",
+                    },
                     { title: "Full Stack Engineer", applications: 287, company: "StartUp Inc" },
                     { title: "Product Manager", applications: 156, company: "FutureTech" },
                   ].map((job, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4"
+                    >
                       <div>
                         <p className="text-sm font-bold text-foreground">{job.title}</p>
                         <p className="text-xs text-muted-foreground">{job.company}</p>
                       </div>
-                      <span className="font-bold text-blue-600 text-sm">{job.applications} applications</span>
+                      <span className="font-bold text-blue-600 text-sm">
+                        {job.applications} applications
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -406,13 +437,18 @@ function AdminPage() {
             <ScrollReveal>
               <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-display text-lg font-bold text-foreground">Company Verification Management</h3>
+                  <h3 className="font-display text-lg font-bold text-foreground">
+                    Company Verification Management
+                  </h3>
                   <span className="text-xs font-bold bg-primary-soft text-primary px-2.5 py-1 rounded-full">
                     {stats?.total_companies || 48} Total Companies
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mb-6">
-                  Approve or revoke the <strong>Verified Employer</strong> trust badge. Verified companies are ranked higher in student job feeds and receive a <span className="text-success font-semibold">✓ Verified</span> badge on all job cards.
+                  Approve or revoke the <strong>Verified Employer</strong> trust badge. Verified
+                  companies are ranked higher in student job feeds and receive a{" "}
+                  <span className="text-success font-semibold">✓ Verified</span> badge on all job
+                  cards.
                 </p>
 
                 <div className="space-y-4">
@@ -465,7 +501,9 @@ function AdminPage() {
         {activeTab === "health" && (
           <ScrollReveal>
             <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-              <h3 className="font-display text-lg font-bold text-foreground mb-4">System Health & Status</h3>
+              <h3 className="font-display text-lg font-bold text-foreground mb-4">
+                System Health & Status
+              </h3>
               <div className="space-y-4">
                 {health && (
                   <>
@@ -487,7 +525,9 @@ function AdminPage() {
                       <Zap className="size-5 text-blue-600 flex-shrink-0" />
                       <div>
                         <p className="text-sm font-bold text-foreground">System Uptime</p>
-                        <p className="text-xs text-muted-foreground">{health.uptime || "42d 5h 23m"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {health.uptime || "42d 5h 23m"}
+                        </p>
                       </div>
                     </div>
                   </>

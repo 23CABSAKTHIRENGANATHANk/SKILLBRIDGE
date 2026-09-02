@@ -41,6 +41,7 @@ import { BridgeLine } from "@/components/brand/logo";
 import { toast } from "sonner";
 import { CandidateDetailModal } from "@/components/candidate-detail-modal";
 import { AIRecruiterInsightsCard } from "@/components/ai/ai-recruiter-insights-card";
+import { ApiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/recruiter")({
   head: () => ({
@@ -61,12 +62,23 @@ export const Route = createFileRoute("/recruiter")({
 });
 
 const stageFilters = ["All", "Applied", "Shortlisted", "Interview", "Offer"] as const;
-const skillFilterOptions = ["All Skills", "React", "TypeScript", "Python", "Node.js", "PostgreSQL", "CSS", "Docker"];
+const skillFilterOptions = [
+  "All Skills",
+  "React",
+  "TypeScript",
+  "Python",
+  "Node.js",
+  "PostgreSQL",
+  "CSS",
+  "Docker",
+];
 const locationFilterOptions = ["All Locations", "Bengaluru", "Chennai", "Coimbatore"];
 const gradYearOptions = ["All Batches", "2024", "2025", "2026"];
 
 function RecruiterPage() {
-  const [activeView, setActiveView] = useState<"pipeline" | "post-job" | "company-settings">("pipeline");
+  const [activeView, setActiveView] = useState<"pipeline" | "post-job" | "company-settings">(
+    "pipeline",
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStage, setSelectedStage] = useState<string>("All");
   const [selectedSkill, setSelectedSkill] = useState<string>("All Skills");
@@ -79,7 +91,9 @@ function RecruiterPage() {
 
   // Job creation state
   const [jobTitle, setJobTitle] = useState("");
-  const [jobType, setJobType] = useState<"Full Time" | "Internship" | "Part Time" | "Contract">("Full Time");
+  const [jobType, setJobType] = useState<"Full Time" | "Internship" | "Part Time" | "Contract">(
+    "Full Time",
+  );
   const [jobLocation, setJobLocation] = useState("Bengaluru, India (Hybrid)");
   const [salaryRange, setSalaryRange] = useState("₹12 LPA - ₹18 LPA");
   const [jobSkills, setJobSkills] = useState("React, TypeScript, CSS, Node.js");
@@ -94,40 +108,37 @@ function RecruiterPage() {
   const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
 
   // Live API hook connected to PHP Backend
-  const { candidates: rawCandidates, loading, refetch } = useCandidatesQuery({
+  const {
+    candidates: rawCandidates,
+    loading,
+    refetch,
+  } = useCandidatesQuery({
     stage: selectedStage,
     search: searchQuery,
   });
 
   const { company } = useCompanyQuery("c1");
 
+  const countStage = (stage: string) =>
+    rawCandidates.filter((candidate) => candidate.stage === stage).length;
+  const appliedCount = rawCandidates.length;
+  const shortlistedCount = countStage("shortlisted");
+  const interviewCount = countStage("interview");
+  const offerCount = countStage("offer") + countStage("hired");
+  const percentage = (part: number, total: number) =>
+    total > 0 ? Math.round((part / total) * 100) : 0;
+
   const pipelineMetrics = [
-    { label: "Applied", value: 124, delta: "+14%" },
-    { label: "Shortlisted", value: 52, delta: "+9%" },
-    { label: "Interviews", value: 19, delta: "+4%" },
-    { label: "Offers", value: 7, delta: "+2%" },
+    { label: "Applied", value: appliedCount },
+    { label: "Shortlisted", value: shortlistedCount },
+    { label: "Interviews", value: interviewCount },
+    { label: "Offers", value: offerCount },
   ];
 
   const conversionMetrics = [
-    { label: "Applied → Shortlisted", value: 42, formatter: "42%" },
-    { label: "Shortlisted → Interview", value: 36, formatter: "36%" },
-    { label: "Interview → Offer", value: 37, formatter: "37%" },
-    { label: "Offer → Acceptance", value: 71, formatter: "71%" },
-  ];
-
-  const regionDemand = [
-    { region: "Bengaluru", score: 95 },
-    { region: "Chennai", score: 88 },
-    { region: "Hyderabad", score: 81 },
-    { region: "Remote", score: 91 },
-    { region: "Pune", score: 73 },
-    { region: "Coimbatore", score: 66 },
-  ];
-
-  const recruiterRecommendations = [
-    { title: "Top hiring gap", detail: "Frontend profiles are 18% above target for the current role mix.", value: "+18%" },
-    { title: "Best conversion channel", detail: "Referrals and portfolio-based assessments drive the strongest interview rates.", value: "3.2x" },
-    { title: "Priority action", detail: "Increase cloud and AI screening to match the demand in Pune and remote talent pools.", value: "Next" },
+    { label: "Applied → Shortlisted", value: percentage(shortlistedCount, appliedCount) },
+    { label: "Shortlisted → Interview", value: percentage(interviewCount, shortlistedCount) },
+    { label: "Interview → Offer", value: percentage(offerCount, interviewCount) },
   ];
 
   // Filter and Rank Candidates Client & Server side
@@ -137,15 +148,16 @@ function RecruiterPage() {
     // Filter by skill
     if (selectedSkill !== "All Skills") {
       list = list.filter((c) =>
-        c.skills.some((s) => s.toLowerCase() === selectedSkill.toLowerCase())
+        c.skills.some((s) => s.toLowerCase() === selectedSkill.toLowerCase()),
       );
     }
 
     // Filter by location
     if (selectedLocation !== "All Locations") {
-      list = list.filter((c) =>
-        (c.location || "").toLowerCase().includes(selectedLocation.toLowerCase()) ||
-        c.college.toLowerCase().includes(selectedLocation.toLowerCase())
+      list = list.filter(
+        (c) =>
+          (c.location || "").toLowerCase().includes(selectedLocation.toLowerCase()) ||
+          c.college.toLowerCase().includes(selectedLocation.toLowerCase()),
       );
     }
 
@@ -170,19 +182,9 @@ function RecruiterPage() {
 
   const handleStageUpdate = async (appId: string, nextStage: string, candidateName: string) => {
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const res = await fetch("http://localhost:8000/api/applications/stage", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ application_id: appId, stage: nextStage.toLowerCase() }),
-      });
-      if (res.ok) {
-        toast.success(`Updated ${candidateName} to ${nextStage.toUpperCase()} stage.`);
-        if (refetch) refetch();
-      }
+      await ApiClient.updateApplicationStage(appId, nextStage.toLowerCase());
+      toast.success(`Updated ${candidateName} to ${nextStage.toUpperCase()} stage.`);
+      if (refetch) refetch();
     } catch {
       toast.info(`Updated candidate stage.`);
     }
@@ -190,7 +192,9 @@ function RecruiterPage() {
 
   const handleToggleShortlist = (candidateId: string, nextValue: boolean) => {
     setShortlistedIds((prev) => ({ ...prev, [candidateId]: nextValue }));
-    toast.info(nextValue ? "Candidate marked as shortlisted." : "Candidate removed from shortlist.");
+    toast.info(
+      nextValue ? "Candidate marked as shortlisted." : "Candidate removed from shortlist.",
+    );
   };
 
   const handleNoteChange = (candidateId: string, nextNote: string) => {
@@ -206,34 +210,22 @@ function RecruiterPage() {
 
     setIsPostingJob(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const skillsArray = jobSkills.split(",").map((s) => s.trim()).filter(Boolean);
-
-      const res = await fetch("http://localhost:8000/api/jobs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: jobTitle.trim(),
-          type: jobType,
-          location: jobLocation.trim(),
-          salary_range: salaryRange.trim(),
-          skills: skillsArray,
-          description: jobDescription.trim() || `Join our team as a ${jobTitle}.`,
-        }),
+      const skillsArray = jobSkills
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await ApiClient.createJob({
+        title: jobTitle.trim(),
+        type: jobType,
+        location: jobLocation.trim(),
+        salary_range: salaryRange.trim(),
+        skills: skillsArray,
+        description: jobDescription.trim() || `Join our team as a ${jobTitle}.`,
       });
-
-      if (res.ok) {
-        toast.success("Job posting created and published live!");
-        setJobTitle("");
-        setJobDescription("");
-        setActiveView("pipeline");
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "Failed to create job posting.");
-      }
+      toast.success("Job posting created and published live!");
+      setJobTitle("");
+      setJobDescription("");
+      setActiveView("pipeline");
     } catch (err: any) {
       toast.error(err.message || "Network error while publishing job.");
     } finally {
@@ -245,33 +237,19 @@ function RecruiterPage() {
     e.preventDefault();
     setIsUpdatingCompany(true);
     try {
-      const token = localStorage.getItem("sb_auth_token") || "";
-      const res = await fetch("http://localhost:8000/api/companies/profile", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: company?.name || "Northwind Labs",
-          address: companyAddress,
-          city: companyCity,
-          state: companyState,
-          pincode: companyPincode,
-          country: "India",
-        }),
+      const data = await ApiClient.updateCompanyProfile({
+        name: company?.name || "Northwind Labs",
+        address: companyAddress,
+        city: companyCity,
+        state: companyState,
+        pincode: companyPincode,
+        country: "India",
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(
-          data.geocoding?.coordinates
-            ? `Company address geocoded (Lat: ${data.geocoding.coordinates.latitude.toFixed(4)}, Long: ${data.geocoding.coordinates.longitude.toFixed(4)})`
-            : "Company profile updated successfully!"
-        );
-      } else {
-        toast.error("Failed to update company address.");
-      }
+      toast.success(
+        data.geocoding?.coordinates
+          ? `Company address geocoded (Lat: ${data.geocoding.coordinates.latitude.toFixed(4)}, Long: ${data.geocoding.coordinates.longitude.toFixed(4)})`
+          : "Company profile updated successfully!",
+      );
     } catch {
       toast.info("Company profile saved.");
     } finally {
@@ -347,16 +325,27 @@ function RecruiterPage() {
           <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-bold text-foreground">Recruiter analytics dashboard</h2>
-                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">Q3 view</span>
+                <h2 className="font-display text-lg font-bold text-foreground">
+                  Recruiter analytics dashboard
+                </h2>
+                <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">
+                  Q3 view
+                </span>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {pipelineMetrics.map((metric) => (
-                  <div key={metric.label} className="rounded-2xl border border-border/70 bg-background/50 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{metric.label}</p>
+                  <div
+                    key={metric.label}
+                    className="rounded-2xl border border-border/70 bg-background/50 p-3"
+                  >
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                      {metric.label}
+                    </p>
                     <div className="mt-2 flex items-end justify-between">
-                      <span className="text-2xl font-extrabold text-foreground">{metric.value}</span>
-                      <span className="text-[11px] font-bold text-success">{metric.delta}</span>
+                      <span className="text-2xl font-extrabold text-foreground">
+                        {metric.value}
+                      </span>
+                      <span className="text-[11px] font-bold text-muted-foreground">Live</span>
                     </div>
                   </div>
                 ))}
@@ -364,16 +353,21 @@ function RecruiterPage() {
             </div>
 
             <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-              <h2 className="font-display text-lg font-bold text-foreground">Pipeline conversion</h2>
+              <h2 className="font-display text-lg font-bold text-foreground">
+                Pipeline conversion
+              </h2>
               <div className="mt-4 space-y-3">
                 {conversionMetrics.map((item) => (
                   <div key={item.label}>
                     <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
                       <span>{item.label}</span>
-                      <span className="font-bold text-foreground">{item.formatter}</span>
+                      <span className="font-bold text-foreground">{item.value}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-accent" style={{ width: `${item.value}%` }} />
+                      <div
+                        className="h-full rounded-full bg-accent"
+                        style={{ width: `${item.value}%` }}
+                      />
                     </div>
                   </div>
                 ))}
@@ -385,38 +379,21 @@ function RecruiterPage() {
         <ScrollReveal delay={110}>
           <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-              <h2 className="font-display text-lg font-bold text-foreground">Opportunity heat map</h2>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {regionDemand.map((item) => (
-                  <div
-                    key={item.region}
-                    className="rounded-2xl border border-border/70 p-3"
-                    style={{
-                      background: `linear-gradient(135deg, rgba(16,185,129,${Math.max(0.18, item.score / 110)}) 0%, rgba(59,130,246,${Math.max(0.12, item.score / 140)}) 100%)`,
-                    }}
-                  >
-                    <p className="text-sm font-bold text-foreground">{item.region}</p>
-                    <p className="mt-2 text-lg font-extrabold text-foreground">{item.score}%</p>
-                  </div>
-                ))}
-              </div>
+              <h2 className="font-display text-lg font-bold text-foreground">
+                Opportunity heat map
+              </h2>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Regional demand data is not available from the current backend.
+              </p>
             </div>
 
             <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-              <h2 className="font-display text-lg font-bold text-foreground">Recommendation widgets</h2>
-              <div className="mt-4 space-y-3">
-                {recruiterRecommendations.map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-border/70 bg-background/50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{item.title}</p>
-                        <p className="mt-2 text-sm font-semibold text-foreground">{item.detail}</p>
-                      </div>
-                      <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">{item.value}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h2 className="font-display text-lg font-bold text-foreground">
+                Recommendation widgets
+              </h2>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Recommendations will appear after analytics data is available.
+              </p>
             </div>
           </div>
         </ScrollReveal>
@@ -494,7 +471,9 @@ function RecruiterPage() {
                       className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground font-medium"
                     >
                       {skillFilterOptions.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -510,7 +489,9 @@ function RecruiterPage() {
                       className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground font-medium"
                     >
                       {locationFilterOptions.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -526,7 +507,9 @@ function RecruiterPage() {
                       className="w-full rounded-xl border border-border bg-background px-3 py-1.5 text-xs text-foreground font-medium"
                     >
                       {gradYearOptions.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -542,12 +525,22 @@ function RecruiterPage() {
                 </div>
               ) : filteredAndRankedCandidates.length > 0 ? (
                 filteredAndRankedCandidates.map((candidate, i) => (
-                  <ScrollReveal key={candidate.id} delay={i * 60} direction="up" onClick={() => setSelectedCandidateDetail(candidate)}>
+                  <ScrollReveal
+                    key={candidate.id}
+                    delay={i * 60}
+                    direction="up"
+                    onClick={() => setSelectedCandidateDetail(candidate)}
+                  >
                     <div className="cursor-pointer">
                       <CandidateCard
                         candidate={candidate}
                         onUpdateStage={handleStageUpdate}
-                        shortlisted={Boolean(shortlistedIds[candidate.id] ?? (candidate.stage === "shortlisted" || candidate.stage === "interview" || candidate.stage === "offer"))}
+                        shortlisted={Boolean(
+                          shortlistedIds[candidate.id] ??
+                          (candidate.stage === "shortlisted" ||
+                            candidate.stage === "interview" ||
+                            candidate.stage === "offer"),
+                        )}
                         note={candidateNotes[candidate.id] ?? ""}
                         onToggleShortlist={handleToggleShortlist}
                         onNoteChange={handleNoteChange}
@@ -558,7 +551,9 @@ function RecruiterPage() {
               ) : (
                 <div className="col-span-full rounded-3xl border border-dashed bg-card/60 py-16 text-center">
                   <Users className="mx-auto size-10 text-muted-foreground" />
-                  <p className="mt-3 font-display text-lg font-bold text-foreground">No applicants match criteria</p>
+                  <p className="mt-3 font-display text-lg font-bold text-foreground">
+                    No applicants match criteria
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Try broadening your skill, location, or graduation batch filters.
                   </p>
@@ -573,9 +568,12 @@ function RecruiterPage() {
           <ScrollReveal delay={100} className="mt-8 max-w-2xl mx-auto">
             <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl">
               <div className="mb-6 border-b pb-4">
-                <h2 className="font-display text-2xl font-bold text-foreground">Create Job Opportunity</h2>
+                <h2 className="font-display text-2xl font-bold text-foreground">
+                  Create Job Opportunity
+                </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Publish a new position to the SkillBridge career feed with deterministic matching formulas.
+                  Publish a new position to the SkillBridge career feed with deterministic matching
+                  formulas.
                 </p>
               </div>
 
@@ -694,8 +692,12 @@ function RecruiterPage() {
                     <ShieldCheck className="size-6" />
                   </div>
                   <div>
-                    <h2 className="font-display text-lg font-bold text-foreground">Company Trust Badge</h2>
-                    <p className="text-xs text-muted-foreground">Admin-verified employer status shown on all job listings</p>
+                    <h2 className="font-display text-lg font-bold text-foreground">
+                      Company Trust Badge
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Admin-verified employer status shown on all job listings
+                    </p>
                   </div>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-success px-3.5 py-1.5 text-xs font-bold text-success-foreground">
@@ -709,7 +711,9 @@ function RecruiterPage() {
                     <BadgeCheck className="size-5 text-success" />
                     <div>
                       <p className="text-xs font-bold text-foreground">GSTIN Verification</p>
-                      <p className="text-[11px] text-muted-foreground">Government-registered entity validated</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Government-registered entity validated
+                      </p>
                     </div>
                   </div>
                   <span className="text-[11px] font-bold text-success">Verified</span>
@@ -719,7 +723,9 @@ function RecruiterPage() {
                     <BadgeCheck className="size-5 text-success" />
                     <div>
                       <p className="text-xs font-bold text-foreground">Domain Email Ownership</p>
-                      <p className="text-[11px] text-muted-foreground">hr@northwindlabs.io DNS verified</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        hr@northwindlabs.io DNS verified
+                      </p>
                     </div>
                   </div>
                   <span className="text-[11px] font-bold text-success">Verified</span>
@@ -729,7 +735,9 @@ function RecruiterPage() {
                     <BadgeCheck className="size-5 text-success" />
                     <div>
                       <p className="text-xs font-bold text-foreground">Company Address Geocoded</p>
-                      <p className="text-[11px] text-muted-foreground">Physical location confirmed via OpenStreetMap</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Physical location confirmed via OpenStreetMap
+                      </p>
                     </div>
                   </div>
                   <span className="text-[11px] font-bold text-success">Verified</span>
@@ -737,8 +745,9 @@ function RecruiterPage() {
               </div>
 
               <p className="mt-4 text-xs text-muted-foreground">
-                This <strong>Verified Employer</strong> badge is displayed on every job card and candidate offer letter.
-                Students see verified companies first in recommendation feeds.
+                This <strong>Verified Employer</strong> badge is displayed on every job card and
+                candidate offer letter. Students see verified companies first in recommendation
+                feeds.
               </p>
             </div>
 
@@ -749,7 +758,8 @@ function RecruiterPage() {
                   Company Profile & Geocoding
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Enter your physical company address. Coordinates will be resolved automatically using OpenStreetMap Nominatim and rendered on the live map.
+                  Enter your physical company address. Coordinates will be resolved automatically
+                  using OpenStreetMap Nominatim and rendered on the live map.
                 </p>
               </div>
 
@@ -818,7 +828,9 @@ function RecruiterPage() {
                   className="w-full h-11 rounded-xl font-bold font-display"
                 >
                   <Navigation className="size-4 mr-2" />
-                  {isUpdatingCompany ? "Validating & Geocoding..." : "Save Address & Resolve Geocoding"}
+                  {isUpdatingCompany
+                    ? "Validating & Geocoding..."
+                    : "Save Address & Resolve Geocoding"}
                 </Button>
               </form>
             </div>

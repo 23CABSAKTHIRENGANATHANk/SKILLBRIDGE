@@ -88,7 +88,9 @@ function JobsPage() {
                 Job <span className="bridge-gradient-text">Opportunities</span>
               </h1>
               <p className="mt-2 text-muted-foreground">
-                {loading ? "Searching opportunities..." : `${filteredJobs.length} ${filteredJobs.length === 1 ? "opportunity" : "opportunities"} available`}
+                {loading
+                  ? "Searching opportunities..."
+                  : `${filteredJobs.length} ${filteredJobs.length === 1 ? "opportunity" : "opportunities"} available`}
               </p>
             </div>
           </div>
@@ -181,10 +183,7 @@ function JobsPage() {
         {/* Top match panel */}
         {topMatch?.match && (
           <ScrollReveal delay={200} className="mt-8">
-            <SkillMatchPanel
-              match={topMatch.match}
-              onImprove={() => setSelectedJob(topMatch)}
-            />
+            <SkillMatchPanel match={topMatch.match} onImprove={() => setSelectedJob(topMatch)} />
           </ScrollReveal>
         )}
 

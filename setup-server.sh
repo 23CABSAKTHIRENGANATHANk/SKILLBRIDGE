@@ -17,6 +17,7 @@ DB_NAME="skillbridge"
 DB_USER="skillbridge_app"
 DB_PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
 JWT_SECRET=$(openssl rand -base64 36 | tr -dc 'a-zA-Z0-9' | head -c 48)
+DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}?sslmode=require"
 
 # 1. System Updates & Prerequisites
 echo "\n[1/6] Installing Nginx, PHP 8.1 FPM, PostgreSQL 16+ and Tools..."
@@ -62,6 +63,7 @@ mkdir -p "/var/backups/skillbridge"
 
 # Write Production Backend .env
 cat <<EOF > "${APP_DIR}/backend/.env"
+DATABASE_URL=${DATABASE_URL}
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
@@ -97,6 +99,5 @@ echo "   SERVER BOOTSTRAP COMPLETE! (PostgreSQL 16+)          "
 echo "========================================================"
 echo "Database: ${DB_NAME}"
 echo "DB User:  ${DB_USER}"
-echo "DB Pass:  ${DB_PASS}"
 echo "Next Step: Run ./deploy.sh to pull code and launch!"
 echo "========================================================"
