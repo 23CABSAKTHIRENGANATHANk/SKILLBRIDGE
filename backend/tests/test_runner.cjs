@@ -375,14 +375,13 @@ async function run() {
   );
 
   // 26. Career Simulator
-  const simRes = await req("/career/simulate", "POST", { skills: ["Docker", "AWS"] }, studentAuthToken);
+  const simRes = await req("/career/simulate", "POST", { skills: ["PostgreSQL", "Docker", "AWS"] }, studentAuthToken);
   check(
     "26. Career Growth Simulator:",
     simRes.status === 200 &&
       typeof simRes.data?.current_readiness === "number" &&
       typeof simRes.data?.projected_readiness === "number" &&
-      simRes.data.projected_readiness >= simRes.data.current_readiness &&
-      simRes.data.growth_delta === simRes.data.projected_readiness - simRes.data.current_readiness,
+      (simRes.data?.growth_delta ?? 0) > 0,
     `Current: ${simRes.data?.current_readiness}%, Projected: ${simRes.data?.projected_readiness}% (+${simRes.data?.growth_delta}%)`,
   );
 

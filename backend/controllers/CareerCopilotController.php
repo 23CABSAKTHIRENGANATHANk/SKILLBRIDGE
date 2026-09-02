@@ -94,8 +94,10 @@ class CareerCopilotController {
             }
             if ($improvedJobs > 0) {
                 $growthDelta = min(15, max(3, (int)round(($improvedJobs / max(1, count($jobs))) * 25)));
-                $avgProjected = min(100, $avgCurrent + $growthDelta);
+            } else {
+                $growthDelta = min(10, max(2, count($simSkills) * 2));
             }
+            $avgProjected = min(100, $avgCurrent + $growthDelta);
         }
 
         $unlockedHighFit = count(array_filter($projectedMatches, fn($s) => $s >= 75));

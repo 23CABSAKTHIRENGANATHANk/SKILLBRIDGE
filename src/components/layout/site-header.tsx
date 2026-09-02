@@ -26,19 +26,46 @@ import { ApiClient } from "@/lib/api-client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const savedTheme = window.localStorage.getItem("sb_theme");
+    return savedTheme ? savedTheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
+    const root = document.documentElement;
+    root.classList.toggle("dark", dark);
+    root.style.colorScheme = dark ? "dark" : "light";
   }, [dark]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleSystemThemeChange = (event: MediaQueryListEvent) => {
+      if (!window.localStorage.getItem("sb_theme")) setDark(event.matches);
+    };
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  }, []);
+
+  const toggleTheme = () => {
+    setDark((current) => {
+      const next = !current;
+      window.localStorage.setItem("sb_theme", next ? "dark" : "light");
+      return next;
+    });
+  };
+
   return (
     <Button
       variant="ghost"
       size="icon"
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      onClick={() => setDark((d) => !d)}
+      aria-pressed={dark}
+      title={dark ? "Switch to light mode" : "Switch to dark mode"}
+      onClick={toggleTheme}
       className="transition-transform duration-200 hover:rotate-12"
     >
-      {dark ? <Moon className="size-4" /> : <Sun className="size-4" />}
+      {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </Button>
   );
 }

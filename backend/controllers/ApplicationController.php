@@ -288,7 +288,7 @@ class ApplicationController {
         }
 
         $allowedTransitions = [
-            'applied' => ['applied', 'shortlisted', 'rejected'],
+            'applied' => ['applied', 'shortlisted', 'interview', 'rejected'],
             'shortlisted' => ['shortlisted', 'interview', 'rejected'],
             'interview' => ['interview', 'offer', 'rejected'],
             'offer' => ['offer', 'hired', 'rejected'],

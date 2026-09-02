@@ -58,8 +58,8 @@ class InterviewController {
             errorResponse('Access Denied: You can only schedule interviews for your own job openings.', 403);
         }
 
-        if (!in_array($app['stage'], ['shortlisted', 'interview'], true)) {
-            errorResponse('The application must be shortlisted before an interview can be scheduled.', 409);
+        if (!in_array($app['stage'], ['applied', 'shortlisted', 'interview'], true)) {
+            errorResponse('An interview can only be scheduled for active applications.', 409);
         }
 
         $activeInterview = $db->prepare(
