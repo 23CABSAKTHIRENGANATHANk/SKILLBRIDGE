@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
@@ -55,7 +55,7 @@ export function SiteHeader() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const data = await ApiClient.getNotifications();
@@ -64,7 +64,7 @@ export function SiteHeader() {
     } catch {
       // Fallback
     }
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -76,7 +76,7 @@ export function SiteHeader() {
       fetchNotifs();
     }
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchNotifs]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);

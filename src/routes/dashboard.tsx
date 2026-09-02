@@ -163,9 +163,12 @@ function DashboardPage() {
   const greeting =
     now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
 
-  const studentName = user?.name || (user?.profile as any)?.name || "there";
-  const studentCollege = (user?.profile as any)?.college || "PSG Tech Coimbatore";
-  const studentProgram = (user?.profile as any)?.program || "B.Tech Information Technology";
+  const studentName =
+    profile?.student.name || user?.name || (user?.profile as any)?.name || "Student";
+  const studentCollege =
+    profile?.student.college || (user?.profile as any)?.college || "College not set";
+  const studentProgram =
+    profile?.student.program || (user?.profile as any)?.program || "Program not set";
 
   const handleAddSkill = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,7 +180,7 @@ function DashboardPage() {
       toast.success(`Added ${newSkillName} to your skill profile!`);
       setNewSkillName("");
     } catch {
-      toast.info("Skill saved to local profile.");
+      toast.error("Failed to save skill.");
     } finally {
       setIsAddingSkill(false);
     }
@@ -540,41 +543,47 @@ function DashboardPage() {
                       onClick={() => setActiveTab("applications")}
                       className="text-xs font-bold text-primary"
                     >
-                      View all ({applications.length || 3})
+                      View all ({applications.length})
                     </Button>
                   </div>
-                  <ul className="mt-4 space-y-3">
-                    {applications.slice(0, 3).map((app) => (
-                      <li
-                        key={app.id}
-                        className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4 transition-all hover:shadow-soft"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-foreground">
-                            {app.job.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{app.job.companyName}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-                              stageColors[app.stage] || "bg-secondary text-foreground"
-                            }`}
-                          >
-                            {app.stage}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs h-7 rounded-lg"
-                            onClick={() => setSelectedTimelineApp(app)}
-                          >
-                            Timeline
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  {applications.length > 0 ? (
+                    <ul className="mt-4 space-y-3">
+                      {applications.slice(0, 3).map((app) => (
+                        <li
+                          key={app.id}
+                          className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4 transition-all hover:shadow-soft"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-foreground">
+                              {app.job.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{app.job.companyName}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                                stageColors[app.stage] || "bg-secondary text-foreground"
+                              }`}
+                            >
+                              {app.stage}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7 rounded-lg"
+                              onClick={() => setSelectedTimelineApp(app)}
+                            >
+                              Timeline
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      No applications submitted yet. Explore jobs to get started.
+                    </p>
+                  )}
                 </section>
               </ScrollReveal>
             </div>
@@ -591,27 +600,31 @@ function DashboardPage() {
                       Explore All
                     </Link>
                   </div>
-                  <ul className="space-y-3">
-                    {recommendedJobs.map((job) => (
-                      <Link
-                        key={job.id}
-                        to="/jobs"
-                        className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-3.5 transition-all hover:border-primary/40 hover:bg-primary-soft/30 hover:shadow-soft"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-foreground">{job.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {job.company.name} · {job.location}
-                          </p>
-                        </div>
-                        {job.match && (
-                          <span className="shrink-0 ml-2 rounded-full bg-primary px-2.5 py-0.5 text-xs font-extrabold text-primary-foreground">
-                            {job.match.score}%
-                          </span>
-                        )}
-                      </Link>
-                    ))}
-                  </ul>
+                  {recommendedJobs.length > 0 ? (
+                    <ul className="space-y-3">
+                      {recommendedJobs.map((job) => (
+                        <Link
+                          key={job.id}
+                          to="/jobs"
+                          className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-3.5 transition-all hover:border-primary/40 hover:bg-primary-soft/30 hover:shadow-soft"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-foreground">{job.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {job.company.name} · {job.location}
+                            </p>
+                          </div>
+                          {job.match && (
+                            <span className="shrink-0 ml-2 rounded-full bg-primary px-2.5 py-0.5 text-xs font-extrabold text-primary-foreground">
+                              {job.match.score}%
+                            </span>
+                          )}
+                        </Link>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No matching jobs available yet.</p>
+                  )}
                 </section>
               </ScrollReveal>
             </div>
@@ -936,7 +949,7 @@ function DashboardPage() {
                             Academic Institution Verified
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            PSG Tech · B.Tech Information Technology
+                            {studentCollege} · {studentProgram}
                           </p>
                         </div>
                       </div>
@@ -956,7 +969,7 @@ function DashboardPage() {
                             Academic Email Confirmed
                           </p>
                           <p className="text-[11px] text-muted-foreground">
-                            student@skillbridge.dev
+                            {user?.email || "student@skillbridge.dev"}
                           </p>
                         </div>
                       </div>
@@ -976,7 +989,7 @@ function DashboardPage() {
                             <p className="text-xs font-bold text-foreground">
                               Phone Number Verification
                             </p>
-                            <p className="text-[11px] text-muted-foreground">{phoneInput}</p>
+                            <p className="text-[11px] text-muted-foreground">{phoneInput || "Not verified"}</p>
                           </div>
                         </div>
                         {phoneVerified ? (
@@ -994,6 +1007,7 @@ function DashboardPage() {
                         <form onSubmit={handleVerifyPhone} className="flex gap-2">
                           <Input
                             type="text"
+                            placeholder="Enter phone number"
                             value={phoneInput}
                             onChange={(e) => setPhoneInput(e.target.value)}
                             className="rounded-xl text-xs"
@@ -1001,7 +1015,7 @@ function DashboardPage() {
                           <Button
                             size="sm"
                             type="submit"
-                            disabled={isVerifyingPhone}
+                            disabled={isVerifyingPhone || !phoneInput.trim()}
                             className="rounded-xl font-bold"
                           >
                             {isVerifyingPhone ? "Verifying..." : "Verify OTP"}
@@ -1025,47 +1039,9 @@ function DashboardPage() {
                     </h3>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <BadgeCheck className="size-4 text-primary" />
-                          <span className="font-bold text-xs text-foreground">Northwind Labs</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            • Tech Screening
-                          </span>
-                        </div>
-                        <div className="flex text-warning-foreground">{"★".repeat(5)}</div>
-                      </div>
-                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground italic">
-                        "Demonstrated exceptional understanding of React performance patterns and
-                        TypeScript generics during the technical screening."
-                      </p>
-                      <p className="mt-2 text-[10px] font-semibold text-muted-foreground">
-                        Senior Technical Lead · 2 days ago
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <BadgeCheck className="size-4 text-accent" />
-                          <span className="font-bold text-xs text-foreground">
-                            AcroTech AI Systems
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">• Coding Round</span>
-                        </div>
-                        <div className="flex text-warning-foreground">{"★".repeat(5)}</div>
-                      </div>
-                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground italic">
-                        "Strong problem-solving capability and clear architectural communication on
-                        distributed systems questions."
-                      </p>
-                      <p className="mt-2 text-[10px] font-semibold text-muted-foreground">
-                        Talent Acquisition Director · 1 week ago
-                      </p>
-                    </div>
-                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Verified recruiter feedback and screening endorsements will appear here following completed interview evaluations.
+                  </p>
                 </div>
               </ScrollReveal>
             </div>
@@ -1175,7 +1151,7 @@ function DashboardPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Your verified resume and deterministic skill score were delivered.
                     </p>
-                    <span className="text-[10px] font-semibold text-muted-foreground">
+                    <span className="text-[10px] font-semibold text-success">
                       Completed
                     </span>
                   </div>
@@ -1183,23 +1159,41 @@ function DashboardPage() {
 
                 {/* Step 2 */}
                 <div className="relative flex items-start gap-4">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground z-10">
+                  <div
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full z-10 ${
+                      ["shortlisted", "interview", "offer", "hired"].includes(
+                        selectedTimelineApp.stage,
+                      )
+                        ? "bg-success text-success-foreground"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
                     <BadgeCheck className="size-4" />
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-foreground">2. Profile Shortlisted</h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Technical recruiting team validated competencies in React & TypeScript.
+                      Technical recruiting team validated competencies and candidate profile.
                     </p>
                     <span className="text-[10px] font-semibold text-muted-foreground">
-                      Completed
+                      {["shortlisted", "interview", "offer", "hired"].includes(
+                        selectedTimelineApp.stage,
+                      )
+                        ? "Completed"
+                        : "Pending"}
                     </span>
                   </div>
                 </div>
 
                 {/* Step 3 */}
                 <div className="relative flex items-start gap-4">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-warning text-warning-foreground z-10 animate-pulse">
+                  <div
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full z-10 ${
+                      ["interview", "offer", "hired"].includes(selectedTimelineApp.stage)
+                        ? "bg-warning text-warning-foreground animate-pulse"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
                     <Video className="size-4" />
                   </div>
                   <div>
@@ -1207,37 +1201,40 @@ function DashboardPage() {
                       3. Live Technical Interview
                     </h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      1-on-1 pairing session with lead engineer. Scheduled for tomorrow at 11:00 AM
-                      IST.
+                      {["interview", "offer", "hired"].includes(selectedTimelineApp.stage)
+                        ? "Interview scheduled with recruiting team."
+                        : "Interview stage unlocks upon profile shortlisting."}
                     </p>
-                    <div className="mt-2.5 flex items-center gap-2">
-                      <a
-                        href="https://meet.google.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90"
-                      >
-                        <Video className="size-3.5" />
-                        Join Google Meet Room
-                      </a>
-                    </div>
+                    <span className="text-[10px] font-semibold text-muted-foreground">
+                      {["interview", "offer", "hired"].includes(selectedTimelineApp.stage)
+                        ? "Active"
+                        : "Pending"}
+                    </span>
                   </div>
                 </div>
 
                 {/* Step 4 */}
                 <div className="relative flex items-start gap-4">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground z-10">
+                  <div
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full z-10 ${
+                      ["offer", "hired"].includes(selectedTimelineApp.stage)
+                        ? "bg-success text-success-foreground"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
                     <Award className="size-4" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-muted-foreground">
-                      4. Formal Offer & Onboarding
+                    <h4 className="font-bold text-sm text-foreground">
+                      4. Formal Offer & Decision
                     </h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Compensation details and formal agreement.
                     </p>
                     <span className="text-[10px] font-semibold text-muted-foreground">
-                      Upcoming
+                      {["offer", "hired"].includes(selectedTimelineApp.stage)
+                        ? "Offered"
+                        : "Pending"}
                     </span>
                   </div>
                 </div>

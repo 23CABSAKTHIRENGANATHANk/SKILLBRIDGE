@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCandidatesQuery, useCompanyQuery } from "@/hooks/use-api";
+import { useAuth } from "@/context/auth-context";
 import { BridgeLine } from "@/components/brand/logo";
 import { toast } from "sonner";
 import { CandidateDetailModal } from "@/components/candidate-detail-modal";
@@ -76,6 +77,7 @@ const locationFilterOptions = ["All Locations", "Bengaluru", "Chennai", "Coimbat
 const gradYearOptions = ["All Batches", "2024", "2025", "2026"];
 
 function RecruiterPage() {
+  const { user } = useAuth();
   const [activeView, setActiveView] = useState<"pipeline" | "post-job" | "company-settings">(
     "pipeline",
   );
@@ -117,7 +119,9 @@ function RecruiterPage() {
     search: searchQuery,
   });
 
-  const { company } = useCompanyQuery("c1");
+  const recruiterCompanyId =
+    (user?.profile as any)?.company_id || (user?.profile as any)?.companyId || "c1";
+  const { company } = useCompanyQuery(recruiterCompanyId);
 
   const countStage = (stage: string) =>
     rawCandidates.filter((candidate) => candidate.stage === stage).length;

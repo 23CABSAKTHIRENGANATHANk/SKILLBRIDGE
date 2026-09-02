@@ -17,21 +17,28 @@ export function useJobsQuery(filters?: {
   location?: string;
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const searchFilter = filters?.search;
+  const skillFilter = filters?.skill;
+  const typeFilter = filters?.type;
+  const locationFilter = filters?.location;
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await ApiClient.getJobs(filters);
+      const data = await ApiClient.getJobs({
+        search: searchFilter,
+        skill: skillFilter,
+        type: typeFilter,
+        location: locationFilter,
+      });
       setJobs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load jobs");
     } finally {
       setLoading(false);
     }
-  }, [filters?.search, filters?.skill, filters?.type, filters?.location]);
+  }, [searchFilter, skillFilter, typeFilter, locationFilter]);
 
   useEffect(() => {
     fetchJobs();
@@ -125,17 +132,19 @@ export function useStudentProfileQuery() {
 export function useCandidatesQuery(filters?: { stage?: string; search?: string }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const stageFilter = filters?.stage;
+  const searchFilter = filters?.search;
 
   const fetchCandidates = useCallback(() => {
     setLoading(true);
-    ApiClient.getCandidates(filters)
+    ApiClient.getCandidates({ stage: stageFilter, search: searchFilter })
       .then((res) => {
         setCandidates(res);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [filters?.stage, filters?.search]);
+  }, [stageFilter, searchFilter]);
 
   useEffect(() => {
     fetchCandidates();
