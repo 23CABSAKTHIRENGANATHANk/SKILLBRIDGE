@@ -83,7 +83,7 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                 Intelligent Job Fit & Skill Acceleration
               </h2>
               <p className="text-sm text-muted-foreground max-w-xl">
-                Powered by Google Gemini 1.5 Flash. Real-time resume insights, targeted match
+                Powered by Google Gemini. Real-time resume insights, targeted match
                 explanations, and personalized roadmaps to make you job-ready.
               </p>
             </div>

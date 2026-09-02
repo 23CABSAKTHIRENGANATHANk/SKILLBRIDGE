@@ -16,7 +16,7 @@ declare(strict_types=1);
  */
 class GeminiService {
     private const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
-    private const DEFAULT_MODEL = 'gemini-2.5-flash';
+    private const DEFAULT_MODEL = 'gemini-3.7-flash';
     private const TIMEOUT  = 12; // seconds
 
     // -----------------------------------------------------------------------
