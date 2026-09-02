@@ -31,6 +31,20 @@ statistics render exact API values, including zero.
 until the corrected commit is deployed and the live API/database-backed browser
 flows are verified.
 
+### Fresh Student Dashboard Protection
+
+- `GET /student/dashboard` derives the student record from the authenticated JWT,
+   returns zero pipeline counts including `offer`, and calculates progress only
+   from stored avatar, skills, resume, experience, and certificate state.
+- `GET /jobs` returns `match: null` for unauthenticated or skill-less students;
+   it no longer fabricates an 85% match. Global jobs remain browsable.
+- `GET /ai/recommendations` returns an empty list when the authenticated student
+   has no skills, before loading jobs or invoking Gemini.
+- The dashboard gates resume AI on a stored resume and personalized AI matches on
+   stored skills. It shows empty/error states instead of inferred or fake content.
+- Authentication changes clear React Query and notification state, and the
+   student data hooks refetch on the authenticated user ID.
+
 ---
 
 ## 1. Executive Summary & Verification Matrix

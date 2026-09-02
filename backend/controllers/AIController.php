@@ -157,6 +157,15 @@ class AIController {
         $skStmt->execute([$currentUser['user_id']]);
         $studentSkills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
 
+        if (count($studentSkills) === 0) {
+            jsonResponse([
+                'success' => true,
+                'ai_powered' => false,
+                'recommendations' => [],
+                'student_skills' => [],
+            ]);
+        }
+
         // Active jobs (limit 20 for prompt economy)
         $jobStmt = $db->prepare("
             SELECT j.id, j.title, j.type, j.location, c.name as company,

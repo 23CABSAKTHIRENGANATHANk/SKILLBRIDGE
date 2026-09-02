@@ -6,7 +6,7 @@ export function ApplicationPipeline({ counts }: { counts: PipelineCounts }) {
     { key: "applied", label: "Applied", value: counts.applied },
     { key: "shortlisted", label: "Shortlisted", value: counts.shortlisted },
     { key: "interview", label: "Interview", value: counts.interview },
-    { key: "hired", label: "Hired", value: counts.hired },
+    { key: "offer", label: "Offers", value: counts.offer },
   ];
 
   return (

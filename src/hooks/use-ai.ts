@@ -78,7 +78,7 @@ export function useAIMatchExplain(jobId: string | null) {
   return { data, meta, aiPowered, loading, error, explain };
 }
 
-export function useAIRecommendations() {
+export function useAIRecommendations(enabled = true) {
   const [recommendations, setRecommendations] = useState<AIRecommendedJob[]>([]);
   const [studentSkills, setStudentSkills] = useState<string[]>([]);
   const [aiPowered, setAiPowered] = useState(false);
@@ -86,6 +86,13 @@ export function useAIRecommendations() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecommendations = useCallback(async () => {
+    if (!enabled) {
+      setRecommendations([]);
+      setStudentSkills([]);
+      setAiPowered(false);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -98,10 +105,10 @@ export function useAIRecommendations() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    fetchRecommendations();
+    void fetchRecommendations();
   }, [fetchRecommendations]);
 
   return {

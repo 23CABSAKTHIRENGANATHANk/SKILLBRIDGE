@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ApiClient } from "@/lib/api-client";
+import { useAuth } from "@/context/auth-context";
 import type {
   Job,
   Company,
@@ -16,6 +17,7 @@ export function useJobsQuery(filters?: {
   type?: string;
   location?: string;
 }) {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function useJobsQuery(filters?: {
 
   useEffect(() => {
     fetchJobs();
-  }, [fetchJobs]);
+  }, [fetchJobs, user?.id]);
 
   return { jobs, loading, error, refetch: fetchJobs };
 }
@@ -80,6 +82,7 @@ export function useCompanyQuery(companyId: string = "c1") {
 }
 
 export function useStudentDashboardQuery() {
+  const { user } = useAuth();
   const [data, setData] = useState<{
     pipeline: PipelineCounts | null;
     progress: CareerProgress | null;
@@ -93,6 +96,8 @@ export function useStudentDashboardQuery() {
 
   useEffect(() => {
     let mounted = true;
+    setData({ pipeline: null, progress: null, applications: [] });
+    setLoading(true);
     ApiClient.getStudentDashboard()
       .then((res) => {
         if (mounted) setData(res);
@@ -104,12 +109,13 @@ export function useStudentDashboardQuery() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [user?.id]);
 
   return { ...data, loading };
 }
 
 export function useStudentProfileQuery() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Awaited<
     ReturnType<typeof ApiClient.getStudentProfile>
   > | null>(null);
@@ -129,8 +135,9 @@ export function useStudentProfileQuery() {
   }, []);
 
   useEffect(() => {
+    setProfile(null);
     fetchProfile();
-  }, [fetchProfile]);
+  }, [fetchProfile, user?.id]);
 
   return { profile, loading, error, refetch: fetchProfile };
 }
@@ -176,6 +183,7 @@ export function usePlatformStatsQuery() {
 }
 
 export function useInterviewsQuery() {
+  const { user } = useAuth();
   const [interviews, setInterviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,8 +202,9 @@ export function useInterviewsQuery() {
   }, []);
 
   useEffect(() => {
+    setInterviews([]);
     fetchInterviews();
-  }, [fetchInterviews]);
+  }, [fetchInterviews, user?.id]);
 
   return { interviews, loading, error, refetch: fetchInterviews };
 }

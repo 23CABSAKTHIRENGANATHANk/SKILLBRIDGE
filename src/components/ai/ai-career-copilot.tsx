@@ -27,9 +27,11 @@ import { toast } from "sonner";
 
 interface AICareerCopilotProps {
   onSelectJob?: (job: Job) => void;
+  hasResume: boolean;
+  hasSkills: boolean;
 }
 
-export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
+export function AICareerCopilot({ onSelectJob, hasResume, hasSkills }: AICareerCopilotProps) {
   const {
     data: resumeAnalysis,
     aiPowered: resumeAiPowered,
@@ -42,7 +44,7 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
     aiPowered: recsAiPowered,
     loading: recsLoading,
     refetch: refetchRecs,
-  } = useAIRecommendations();
+  } = useAIRecommendations(hasSkills);
 
   const [selectedJobIdForGap, setSelectedJobIdForGap] = useState<string | null>(null);
   const {
@@ -54,8 +56,8 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
 
   // Auto-generate resume summary on first load
   useEffect(() => {
-    generateResumeSummary();
-  }, [generateResumeSummary]);
+    if (hasResume) void generateResumeSummary();
+  }, [generateResumeSummary, hasResume]);
 
   // Set default target job for gap analysis
   useEffect(() => {
@@ -140,6 +142,10 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                   <div className="h-4 bg-muted rounded w-3/4" />
                   <div className="h-16 bg-muted rounded w-full" />
                   <div className="h-4 bg-muted rounded w-1/2" />
+                </div>
+              ) : !hasResume ? (
+                <div className="py-8 text-center text-muted-foreground text-xs">
+                  Upload your resume to get AI-powered career insights.
                 </div>
               ) : resumeAnalysis ? (
                 <div className="space-y-4 text-xs">
@@ -245,7 +251,11 @@ export function AICareerCopilot({ onSelectJob }: AICareerCopilotProps) {
                 </div>
               </div>
 
-              {recsLoading ? (
+              {!hasSkills ? (
+                <div className="py-8 text-center text-muted-foreground text-xs">
+                  Add skills to unlock personalized job matches.
+                </div>
+              ) : recsLoading ? (
                 <div className="space-y-3 py-4 animate-pulse">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="h-20 bg-muted rounded-2xl" />

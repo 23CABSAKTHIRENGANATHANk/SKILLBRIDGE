@@ -96,6 +96,7 @@ export interface PipelineCounts {
   applied: number;
   shortlisted: number;
   interview: number;
+  offer: number;
   hired: number;
 }
 

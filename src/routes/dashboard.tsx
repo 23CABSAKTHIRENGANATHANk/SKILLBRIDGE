@@ -125,6 +125,7 @@ function DashboardPage() {
     applied: 0,
     shortlisted: 0,
     interview: 0,
+    offer: 0,
     hired: 0,
     rejected: 0,
   };
@@ -510,6 +511,8 @@ function DashboardPage() {
         {activeTab === "ai" && (
           <div className="mt-8">
             <AICareerCopilot
+              hasResume={profile?.student.hasResume ?? false}
+              hasSkills={(profile?.skills.length ?? 0) > 0}
               onSelectJob={(job) => {
                 setSelectedOpportunityJob(job);
               }}

@@ -96,6 +96,7 @@ class StudentController {
             'applied' => 0,
             'shortlisted' => 0,
             'interview' => 0,
+            'offer' => 0,
             'hired' => 0
         ];
         foreach ($stageRows as $row) {
