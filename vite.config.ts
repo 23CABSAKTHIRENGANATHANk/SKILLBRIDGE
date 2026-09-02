@@ -14,7 +14,9 @@ export default defineConfig({
     tailwindcss(),
     tsconfigPaths(),
     nitro({
-      preset: process.env.NITRO_PRESET || (process.env.VERCEL ? "vercel" : "node-server"),
+      preset:
+        process.env["NITRO_PRESET"] ||
+        (process.env["VERCEL"] ? "vercel" : "node-server"),
     }),
   ],
 });

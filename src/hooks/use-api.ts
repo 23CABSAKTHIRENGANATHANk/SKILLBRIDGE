@@ -17,6 +17,8 @@ export function useJobsQuery(filters?: {
   location?: string;
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const searchFilter = filters?.search;
   const skillFilter = filters?.skill;
   const typeFilter = filters?.type;
@@ -26,12 +28,16 @@ export function useJobsQuery(filters?: {
     setLoading(true);
     setError(null);
     try {
-      const data = await ApiClient.getJobs({
-        search: searchFilter,
-        skill: skillFilter,
-        type: typeFilter,
-        location: locationFilter,
-      });
+      const data = await ApiClient.getJobs(
+        Object.fromEntries(
+          Object.entries({
+            search: searchFilter,
+            skill: skillFilter,
+            type: typeFilter,
+            location: locationFilter,
+          }).filter(([, value]) => value !== undefined),
+        ),
+      );
       setJobs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load jobs");
@@ -137,7 +143,13 @@ export function useCandidatesQuery(filters?: { stage?: string; search?: string }
 
   const fetchCandidates = useCallback(() => {
     setLoading(true);
-    ApiClient.getCandidates({ stage: stageFilter, search: searchFilter })
+    ApiClient.getCandidates(
+      Object.fromEntries(
+        Object.entries({ stage: stageFilter, search: searchFilter }).filter(
+          ([, value]) => value !== undefined,
+        ),
+      ),
+    )
       .then((res) => {
         setCandidates(res);
       })

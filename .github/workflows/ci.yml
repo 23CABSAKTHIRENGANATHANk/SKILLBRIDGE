@@ -57,8 +57,8 @@ jobs:
       - name: Scan for committed credential patterns
         shell: bash
         run: |
-          if grep -RInE 'npg_[A-Za-z0-9]+|StrongPostgresProdPassword|skillbridge_enterprise_jwt_super_key' \
-            --exclude='*.log' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.output .; then
+          if git grep -nE 'npg_[A-Za-z0-9]+|StrongPostgresProdPassword|skillbridge_enterprise_jwt_super_key' -- \
+            ':(exclude).github/workflows/ci.yml'; then
             echo 'Credential-shaped value found.'
             exit 1
           fi
