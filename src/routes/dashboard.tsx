@@ -136,7 +136,9 @@ function DashboardPage() {
 
   const currentPipeline = pipeline ?? defaultPipeline;
   const currentProgress = progress ?? defaultProgress;
-  const recommendedJobs = allJobs.slice(0, 4);
+  const recommendedJobs = allJobs
+    .filter((job) => job.match && job.match.score > 0)
+    .slice(0, 4);
 
   useEffect(() => {
     if (
@@ -621,7 +623,9 @@ function DashboardPage() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No matching jobs available yet.</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      No matched jobs yet. Add your verified skills in the Skills & Profile tab to unlock personalized job recommendations.
+                    </p>
                   )}
                 </section>
               </ScrollReveal>

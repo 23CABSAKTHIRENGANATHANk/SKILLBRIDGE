@@ -96,14 +96,8 @@ class JobController {
 
             // Deterministic skill matching calculation
             $match = null;
-            if (!empty($studentSkills)) {
+            if ($authUser && ($authUser['role'] ?? '') === 'student') {
                 $match = MatchingService::calculateMatch($studentSkills, $skills);
-            } else {
-                $match = [
-                    'score' => 85,
-                    'matched' => array_slice($skills, 0, 2),
-                    'missing' => array_slice($skills, 2)
-                ];
             }
 
             $diff = time() - strtotime($row['posted_at'] ?? 'now');
