@@ -50,8 +50,8 @@ function OnboardingPage() {
     graduationYear: "2025",
     skills: ["React", "TypeScript", "JavaScript"],
     workPreference: "Full Time",
-    workLocation: "Bengaluru, India (Hybrid)",
-    careerGoal: "Product Engineer at early-stage startup",
+    workLocation: "",
+    careerGoal: "",
     salaryExpectation: "₹12 LPA - ₹18 LPA",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);

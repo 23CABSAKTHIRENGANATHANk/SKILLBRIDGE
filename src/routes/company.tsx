@@ -13,7 +13,7 @@ import { useCompanyQuery } from "@/hooks/use-api";
 export const Route = createFileRoute("/company")({
   head: () => ({
     meta: [
-      { title: "Northwind Labs — SkillBridge" },
+      { title: "Company Profile — SkillBridge" },
       {
         name: "description",
         content:
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/company")({
 });
 
 function CompanyPage() {
-  const { company: apiCompany, companyJobs, loading } = useCompanyQuery("c1");
+  const { company: apiCompany, companyJobs, loading } = useCompanyQuery();
   const company = apiCompany;
 
   if (loading) {

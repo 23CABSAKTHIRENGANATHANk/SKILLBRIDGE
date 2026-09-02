@@ -11,6 +11,7 @@ import { OpportunityModal } from "@/components/opportunity-modal";
 import { Button } from "@/components/ui/button";
 import { useJobsQuery } from "@/hooks/use-api";
 import { BridgeLine } from "@/components/brand/logo";
+import { ErrorState } from "@/components/ui/state-views";
 import type { Job } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/jobs")({
@@ -48,8 +49,8 @@ function JobsPage() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  // Live API hook connected to PHP Backend (with graceful local fallback)
-  const { jobs: apiJobs, loading } = useJobsQuery({
+  // Live API hook connected to the PHP backend.
+  const { jobs: apiJobs, loading, error } = useJobsQuery({
     search: searchQuery,
     skill: selectedSkill,
     type: selectedType,
@@ -203,8 +204,12 @@ function JobsPage() {
           )}
         </div>
 
+        {error && !loading && (
+          <ErrorState className="mt-16" message={error} />
+        )}
+
         {/* Empty state */}
-        {!loading && filteredJobs.length === 0 && (
+        {!loading && !error && filteredJobs.length === 0 && (
           <ScrollReveal>
             <div className="mt-16 flex flex-col items-center text-center">
               <div className="flex size-16 items-center justify-center rounded-3xl bg-primary-soft text-primary">

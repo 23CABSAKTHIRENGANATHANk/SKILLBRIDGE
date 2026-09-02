@@ -70,6 +70,8 @@ export function SiteHeader() {
     const handleScroll = () => {
       setScrolled(window.scrollY > 24);
     };
+    setNotifications([]);
+    setUnreadCount(0);
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     if (isAuthenticated) {

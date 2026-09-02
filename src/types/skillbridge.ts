@@ -1,7 +1,6 @@
 /**
  * SkillBridge API contract types.
- * These mirror the shapes returned by the PHP API. UI components must be typed
- * against these — never against the demo fixtures in `src/data/demo.ts`.
+ * These mirror the real shapes returned by the PHP REST API & PostgreSQL.
  */
 
 export type JobType = "Full Time" | "Internship" | "Part Time" | "Contract";

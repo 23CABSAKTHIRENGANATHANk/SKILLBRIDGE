@@ -35,7 +35,7 @@ function CompanyVerificationRow({ company }: { company: any }) {
       await ApiClient.verifyCompany(company.id, !verified);
       setVerified(!verified);
     } catch {
-      setVerified(!verified);
+      // Keep the displayed state unchanged when the API rejects the update.
     } finally {
       setIsUpdating(false);
     }
@@ -264,41 +264,27 @@ function AdminPage() {
                 {stats && (
                   <>
                     <StatCard
-                      icon={Users}
-                      label="Total Users"
-                      value={stats.total_users || 1248}
-                      color="bg-blue-100 text-blue-600"
-                    />
-                    <StatCard
                       icon={Briefcase}
                       label="Students"
-                      value={stats.total_students || 892}
-                      trend={`+${stats.new_users_this_week || 87}`}
-                      color="bg-purple-100 text-purple-600"
-                    />
-                    <StatCard
-                      icon={Briefcase}
-                      label="Recruiters"
-                      value={stats.total_recruiters || 256}
-                      color="bg-orange-100 text-orange-600"
+                      value={stats.students ?? 0}
+                      color="bg-blue-100 text-blue-600"
                     />
                     <StatCard
                       icon={Building2}
                       label="Companies"
-                      value={stats.total_companies || 48}
+                      value={stats.companies ?? 0}
                       color="bg-green-100 text-green-600"
                     />
                     <StatCard
                       icon={FileCheck}
                       label="Job Openings"
-                      value={stats.total_jobs || 312}
+                      value={stats.opportunities ?? 0}
                       color="bg-red-100 text-red-600"
                     />
                     <StatCard
                       icon={CheckCircle2}
                       label="Applications"
-                      value={stats.total_applications || 3456}
-                      trend={`+${stats.applications_this_week || 523}`}
+                      value={stats.matches ?? 0}
                       color="bg-blue-100 text-blue-600"
                     />
                   </>
@@ -311,27 +297,7 @@ function AdminPage() {
                 <h3 className="font-display text-lg font-bold text-foreground mb-4">
                   Recent Activity
                 </h3>
-                <div className="space-y-3">
-                  {[
-                    { text: "62 new applications submitted", time: "2 hours ago" },
-                    { text: "12 new students registered", time: "4 hours ago" },
-                    { text: "3 new job postings created", time: "6 hours ago" },
-                    { text: "1 company verification completed", time: "1 day ago" },
-                  ].map((activity, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/50 p-3"
-                    >
-                      <div className="size-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                        <CheckCircle2 className="size-4" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-foreground">{activity.text}</p>
-                        <p className="text-xs text-muted-foreground">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground">Activity records are not available from the API.</p>
               </div>
             </ScrollReveal>
           </div>
@@ -377,24 +343,7 @@ function AdminPage() {
                 <h3 className="font-display text-lg font-bold text-foreground mb-4">
                   Applications by Stage
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[
-                    { stage: "Applied", count: 1200 },
-                    { stage: "Shortlisted", count: 450 },
-                    { stage: "Interview", count: 180 },
-                    { stage: "Offered", count: 85 },
-                  ].map((item) => (
-                    <div
-                      key={item.stage}
-                      className="rounded-2xl border border-border/70 bg-background/50 p-4 text-center"
-                    >
-                      <p className="text-2xl font-bold text-foreground">{item.count}</p>
-                      <p className="text-xs font-semibold text-muted-foreground mt-1">
-                        {item.stage}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground">Application stage breakdown is not available from the API.</p>
               </div>
             </ScrollReveal>
 
@@ -403,30 +352,7 @@ function AdminPage() {
                 <h3 className="font-display text-lg font-bold text-foreground mb-4">
                   Top Performing Jobs
                 </h3>
-                <div className="space-y-3">
-                  {[
-                    {
-                      title: "Senior React Developer",
-                      applications: 342,
-                      company: "TechCorp India",
-                    },
-                    { title: "Full Stack Engineer", applications: 287, company: "StartUp Inc" },
-                    { title: "Product Manager", applications: 156, company: "FutureTech" },
-                  ].map((job, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/50 p-4"
-                    >
-                      <div>
-                        <p className="text-sm font-bold text-foreground">{job.title}</p>
-                        <p className="text-xs text-muted-foreground">{job.company}</p>
-                      </div>
-                      <span className="font-bold text-blue-600 text-sm">
-                        {job.applications} applications
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground">Job performance records are not available from the API.</p>
               </div>
             </ScrollReveal>
           </div>
@@ -441,7 +367,7 @@ function AdminPage() {
                     Company Verification Management
                   </h3>
                   <span className="text-xs font-bold bg-primary-soft text-primary px-2.5 py-1 rounded-full">
-                    {stats?.total_companies || 48} Total Companies
+                    {stats?.companies ?? 0} Total Companies
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mb-6">
@@ -451,48 +377,7 @@ function AdminPage() {
                   cards.
                 </p>
 
-                <div className="space-y-4">
-                  {[
-                    {
-                      id: "c1",
-                      name: "Northwind Labs",
-                      location: "Bengaluru, KA",
-                      industry: "Software / SaaS",
-                      verified: true,
-                      jobs: 14,
-                      checks: { gstin: true, domain: true, geocoded: true, reviewed: true },
-                    },
-                    {
-                      id: "c2",
-                      name: "AcroTech AI Systems",
-                      location: "Chennai, TN",
-                      industry: "Artificial Intelligence",
-                      verified: true,
-                      jobs: 8,
-                      checks: { gstin: true, domain: true, geocoded: true, reviewed: true },
-                    },
-                    {
-                      id: "c3",
-                      name: "StartUp Inc",
-                      location: "Pune, MH",
-                      industry: "Fintech",
-                      verified: false,
-                      jobs: 3,
-                      checks: { gstin: true, domain: false, geocoded: false, reviewed: false },
-                    },
-                    {
-                      id: "c4",
-                      name: "FutureTech Solutions",
-                      location: "Hyderabad, TS",
-                      industry: "Cloud Infrastructure",
-                      verified: false,
-                      jobs: 5,
-                      checks: { gstin: true, domain: true, geocoded: true, reviewed: false },
-                    },
-                  ].map((company) => (
-                    <CompanyVerificationRow key={company.id} company={company} />
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground">Company records are not available from the API.</p>
               </div>
             </ScrollReveal>
           </div>
@@ -526,7 +411,7 @@ function AdminPage() {
                       <div>
                         <p className="text-sm font-bold text-foreground">System Uptime</p>
                         <p className="text-xs text-muted-foreground">
-                          {health.uptime || "42d 5h 23m"}
+                          {health.uptime || "Unavailable"}
                         </p>
                       </div>
                     </div>

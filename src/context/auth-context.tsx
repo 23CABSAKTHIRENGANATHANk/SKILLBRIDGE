@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiClient } from "@/lib/api-client";
 import type { AuthUser, UserRole } from "@/types/skillbridge";
 
@@ -28,6 +29,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -94,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await ApiClient.login(credentials);
+      queryClient.clear();
       setUser(res.user);
       return { success: true, user: res.user };
     } finally {
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await ApiClient.register(data);
+      queryClient.clear();
       setUser(res.user);
       return { success: true, user: res.user };
     } finally {
@@ -126,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await ApiClient.logout();
     } finally {
+      queryClient.clear();
       setUser(null);
       setIsLoading(false);
     }

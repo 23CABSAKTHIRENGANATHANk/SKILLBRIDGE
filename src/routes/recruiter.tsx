@@ -96,17 +96,17 @@ function RecruiterPage() {
   const [jobType, setJobType] = useState<"Full Time" | "Internship" | "Part Time" | "Contract">(
     "Full Time",
   );
-  const [jobLocation, setJobLocation] = useState("Bengaluru, India (Hybrid)");
-  const [salaryRange, setSalaryRange] = useState("₹12 LPA - ₹18 LPA");
-  const [jobSkills, setJobSkills] = useState("React, TypeScript, CSS, Node.js");
+  const [jobLocation, setJobLocation] = useState("");
+  const [salaryRange, setSalaryRange] = useState("");
+  const [jobSkills, setJobSkills] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [isPostingJob, setIsPostingJob] = useState(false);
 
   // Company Geocoding state
-  const [companyAddress, setCompanyAddress] = useState("100 Feet Road, Indiranagar");
-  const [companyCity, setCompanyCity] = useState("Bengaluru");
-  const [companyState, setCompanyState] = useState("Karnataka");
-  const [companyPincode, setCompanyPincode] = useState("560038");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyCity, setCompanyCity] = useState("");
+  const [companyState, setCompanyState] = useState("");
+  const [companyPincode, setCompanyPincode] = useState("");
   const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
 
   // Live API hook connected to PHP Backend
@@ -242,7 +242,7 @@ function RecruiterPage() {
     setIsUpdatingCompany(true);
     try {
       const data = await ApiClient.updateCompanyProfile({
-        name: company?.name || "Northwind Labs",
+        name: company?.name || "",
         address: companyAddress,
         city: companyCity,
         state: companyState,
@@ -255,7 +255,7 @@ function RecruiterPage() {
           : "Company profile updated successfully!",
       );
     } catch {
-      toast.info("Company profile saved.");
+      toast.error("Company profile update failed. Please try again.");
     } finally {
       setIsUpdatingCompany(false);
     }
@@ -728,11 +728,11 @@ function RecruiterPage() {
                     <div>
                       <p className="text-xs font-bold text-foreground">Domain Email Ownership</p>
                       <p className="text-[11px] text-muted-foreground">
-                        hr@northwindlabs.io DNS verified
+                        Verification status is unavailable from the API
                       </p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-bold text-success">Verified</span>
+                  <span className="text-[11px] font-bold text-muted-foreground">Unavailable</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-success/30 bg-success-soft/20 p-4">
                   <div className="flex items-center gap-3">

@@ -206,8 +206,7 @@ function DashboardPage() {
       setResumeFilename(file.name);
       toast.success("Resume securely uploaded, SHA-256 validated, and verified!");
     } catch {
-      setResumeFilename(file.name);
-      toast.info("Resume saved to secure local vault.");
+      toast.error("Resume upload failed. Please try again.");
     } finally {
       setIsUploadingResume(false);
     }
@@ -221,8 +220,7 @@ function DashboardPage() {
       setPhoneVerified(true);
       toast.success(`Phone number ${phoneInput} verified via secure SMS OTP.`);
     } catch {
-      setPhoneVerified(true);
-      toast.success("Phone number verified.");
+      toast.error("Phone verification failed. Please try again.");
     } finally {
       setIsVerifyingPhone(false);
     }

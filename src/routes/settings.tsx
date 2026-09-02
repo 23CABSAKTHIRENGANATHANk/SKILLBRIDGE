@@ -37,9 +37,9 @@ function SettingsPage() {
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    phone: "+91 98765 43210",
-    location: "Bengaluru, Karnataka",
-    bio: "Passionate about building scalable web applications with modern technologies.",
+    phone: "",
+    location: "",
+    bio: "",
     notifyJobs: true,
     notifyMessages: true,
     notifyInterviews: true,
@@ -55,7 +55,7 @@ function SettingsPage() {
       await ApiClient.updateStudentProfile(formData);
       toast.success("Profile settings saved successfully!");
     } catch {
-      toast.success("Settings saved to your account.");
+      toast.error("Settings could not be saved. Please try again.");
     } finally {
       setIsSaving(false);
     }

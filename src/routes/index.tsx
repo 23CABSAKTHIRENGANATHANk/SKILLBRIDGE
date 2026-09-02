@@ -162,10 +162,10 @@ function HeroSection() {
 function StatsSection() {
   const stats = usePlatformStatsQuery();
   const statItems = [
-    { icon: Users, label: "Students", value: stats?.students ?? 0, suffix: "+" },
-    { icon: Briefcase, label: "Opportunities", value: stats?.opportunities ?? 0, suffix: "+" },
-    { icon: Building2, label: "Companies", value: stats?.companies ?? 0, suffix: "+" },
-    { icon: Zap, label: "Matches Made", value: stats?.matches ?? 0, suffix: "+" },
+    { icon: Users, label: "Students", value: stats?.students ?? 0 },
+    { icon: Briefcase, label: "Opportunities", value: stats?.opportunities ?? 0 },
+    { icon: Building2, label: "Companies", value: stats?.companies ?? 0 },
+    { icon: Zap, label: "Matches Made", value: stats?.matches ?? 0 },
   ];
 
   return (
@@ -181,7 +181,7 @@ function StatsSection() {
                 <stat.icon className="size-5" aria-hidden="true" />
               </span>
               <p className="mt-3 font-display text-3xl font-extrabold leading-none">
-                <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                <AnimatedCounter value={stat.value} />
               </p>
               <p className="mt-1 text-sm font-medium text-muted-foreground">{stat.label}</p>
             </div>
