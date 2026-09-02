@@ -1,89 +1,150 @@
-# SkillBridge Production Deployment Guide
+# 🚀 SkillBridge Production Deployment Guide (Vercel + Render + Neon)
 
-SkillBridge consists of a React/Vite frontend, a PHP 8.x REST API, and PostgreSQL 16+ (including Neon). MySQL, MariaDB, and PDO MySQL are not supported.
+SkillBridge is built as a cloud-native platform consisting of:
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS deployed on **Vercel**
+- **Backend**: PHP 8.2 REST API Docker container deployed on **Render**
+- **Database**: PostgreSQL 16+ on **Neon Cloud**
+- **AI Engine**: Google Gemini 3.7 Flash (`gemini-3.7-flash`)
 
-## 1. Database
+---
 
-Create a PostgreSQL 16+ database, either in Neon or on a managed/private server. Require TLS for remote connections. Apply the schema from the repository:
+## 🏗️ Architecture Overview
 
+```
+                      ┌────────────────────────────┐
+                      │    Client (Web/Mobile)     │
+                      └──────────────┬─────────────┘
+                                     │
+                 HTTPS Requests      │   API Requests (JWT / CORS)
+              ┌──────────────────────┴──────────────────────┐
+              │                                             │
+              ▼                                             ▼
+┌───────────────────────────┐                 ┌───────────────────────────┐
+│     VERCEL (Frontend)     │                 │   RENDER (Backend API)    │
+│  - React 19 + Vite App    │                 │  - PHP 8.2 Docker Service │
+│  - Output: .output/public │                 │  - Health: /api/health    │
+│  - Base: skillbridge.dev  │                 │  - Base: api.render.com   │
+└───────────────────────────┘                 └─────────────┬─────────────┘
+                                                            │
+                                            ┌───────────────┴───────────────┐
+                                            │                               │
+                                            ▼                               ▼
+                             ┌────────────────────────────┐  ┌────────────────────────────┐
+                             │     NEON (PostgreSQL)      │  │      GOOGLE GEMINI AI      │
+                             │  - SSL Required + Pooler   │  │  - Model: gemini-3.7-flash │
+                             │  - Relational persistence  │  │  - ATS & Career Copilot    │
+                             └────────────────────────────┘  └────────────────────────────┘
+```
+
+---
+
+## 1. Database Setup (Neon PostgreSQL)
+
+1. Create a project at [Neon](https://neon.tech).
+2. Copy your pooled connection string from the Neon dashboard:
+   ```ini
+   postgresql://neondb_owner:[PASSWORD]@[HOST]-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+3. Run the schema migrations:
+   ```bash
+   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/schema.sql
+   ```
+4. Verify refresh token revocation support is applied:
+   ```sql
+   ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoked BOOLEAN NOT NULL DEFAULT FALSE;
+   ```
+
+---
+
+## 2. Backend Deployment (Render Web Service)
+
+### Option A: Via Render Blueprint (`render.yaml`)
+1. In the [Render Dashboard](https://dashboard.render.com), click **New +** $\rightarrow$ **Blueprint**.
+2. Connect your GitHub repository.
+3. Render will detect `render.yaml` and configure the `skillbridge-api` web service automatically.
+4. Fill in the prompted secret environment variables:
+   - `DATABASE_URL`: Your live Neon PostgreSQL connection string.
+   - `GEMINI_API_KEY`: Your Google AI Studio API key.
+   - `FRONTEND_URL`: Your Vercel frontend URL (e.g. `https://skillbridge.vercel.app`).
+   - `CORS_ALLOWED_ORIGINS`: `https://skillbridge.vercel.app,http://localhost:5173`
+
+### Option B: Manual Web Service Setup
+1. In Render, click **New +** $\rightarrow$ **Web Service**.
+2. Connect your GitHub repository.
+3. Select **Docker** environment:
+   - **Root Directory**: `backend`
+   - **Dockerfile Path**: `backend/Dockerfile`
+   - **Health Check Path**: `/api/health`
+4. Set Environment Variables (**Environment** tab):
+   ```ini
+   APP_ENV=production
+   DB_CONNECTION=pgsql
+   DATABASE_URL=postgresql://neondb_owner:[PASSWORD]@[HOST].neon.tech/neondb?sslmode=require
+   JWT_SECRET=[GENERATE_STRONG_64_CHAR_HEX_KEY]
+   GEMINI_MODEL=gemini-3.7-flash
+   GEMINI_API_KEY=[YOUR_GEMINI_API_KEY]
+   FRONTEND_URL=https://<your-vercel-app>.vercel.app
+   CORS_ALLOWED_ORIGINS=https://<your-vercel-app>.vercel.app
+   UPLOAD_MAX_SIZE=5242880
+   NOMINATIM_USER_AGENT=SkillBridge/1.0 admin@skillbridge.dev
+   ```
+5. Deploy the service and copy your assigned service URL (e.g., `https://skillbridge-api.onrender.com`).
+
+---
+
+## 3. Frontend Deployment (Vercel)
+
+1. In [Vercel Dashboard](https://vercel.com/new), import your GitHub repository.
+2. Configure Project Settings:
+   - **Framework Preset**: `Vite` (or `Other`)
+   - **Root Directory**: `./`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `.output/public`
+3. Add Environment Variable:
+   - `VITE_API_URL`: `https://<your-render-service>.onrender.com/api`
+4. Click **Deploy**. Vercel will build the frontend with `vercel.json` routing and security headers.
+
+---
+
+## 4. Post-Deployment Operational Verification
+
+Execute these verification checks against your live production endpoints:
+
+### 1. Backend Health Check
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/schema.sql
+curl -fsS https://<your-render-service>.onrender.com/api/health
+```
+*Expected Response*:
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "database": { "status": "healthy", "connected": true },
+    "storage": { "status": "healthy", "resumes_writable": true, "logs_writable": true, "uploads_writable": true }
+  }
+}
 ```
 
-For a staging environment only, load the deterministic seed data:
-
+### 2. CORS Preflight Handshake
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/seed.sql
+curl -I -X OPTIONS https://<your-render-service>.onrender.com/api/jobs \
+  -H "Origin: https://<your-vercel-app>.vercel.app" \
+  -H "Access-Control-Request-Method: GET"
 ```
+*Expected Response*: `Access-Control-Allow-Origin: https://<your-vercel-app>.vercel.app`.
 
-Use a dedicated least-privilege PostgreSQL role. [backend/database/production-setup.sql](backend/database/production-setup.sql) contains the role and grant statements; replace its password placeholder before execution and never commit the replacement.
+### 3. End-to-End User Journey Check
+1. Open `https://<your-vercel-app>.vercel.app`.
+2. Register a new student account.
+3. Explore jobs, apply to a position, and inspect your dashboard.
+4. Register a recruiter account, review the candidate pipeline, and schedule an interview.
+5. Trigger Gemini 3.7 Flash AI match analysis and skill gap roadmaps.
 
-For Neon, copy the pooled or direct connection string from the Neon dashboard and preserve `sslmode=require`. Do not place credentials in documentation, source code, or frontend variables.
+---
 
-## 2. Backend environment
+## 5. Security & Maintenance Best Practices
 
-Copy `backend/.env.example` to `backend/.env` and set real values outside version control:
-
-```ini
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
-DB_CONNECTION=pgsql
-JWT_SECRET=<at-least-32-random-characters>
-APP_ENV=production
-API_PORT=8000
-FRONTEND_URL=https://skillbridge.dev
-NOMINATIM_USER_AGENT=SkillBridge/1.0 contact@example.com
-UPLOAD_MAX_SIZE=5242880
-```
-
-`DATABASE_URL` and `JWT_SECRET` are mandatory. The API rejects placeholders. Keep the file mode restricted, for example `chmod 600 backend/.env`.
-
-## 3. Backend deployment
-
-Install PHP 8.x with `pdo_pgsql`, `curl`, `mbstring`, `xml`, `zip`, `gd`, and `intl`, plus Nginx and PHP-FPM. Serve `backend/index.php` through Nginx/FPM and keep `backend/storage` outside the public web root. The existing `setup-server.sh` provisions PostgreSQL, PHP-FPM, Nginx, Node.js, TLS tooling, storage permissions, and backups for a Linux VPS.
-
-After deployment, verify:
-
-```bash
-curl -fsS https://api.skillbridge.dev/api/ping
-curl -fsS https://api.skillbridge.dev/api/health
-```
-
-The health endpoint must report a healthy database and writable required storage before traffic is enabled.
-
-## 4. Frontend deployment
-
-Set the API URL at build time:
-
-```ini
-VITE_API_URL=https://api.skillbridge.dev/api
-```
-
-Build and publish the generated Vite assets:
-
-```bash
-npm ci
-npm run lint
-npm run build
-```
-
-Configure the web server to serve the SPA entry point for client-side routes. Do not expose backend `.env`, storage, logs, or uploaded files through the frontend host.
-
-## 5. CORS and HTTPS
-
-Set the backend frontend origin to the exact production origin. CORS must allow only configured frontend origins and the `Authorization` and `Content-Type` headers. Use HTTPS for both hosts and enable HSTS only after HTTPS is working. Never use wildcard origins with credentials.
-
-## 6. Backups and recovery
-
-Use `backend/database/backup.sh` with a protected `DATABASE_URL` or PostgreSQL environment variables. Store encrypted backups outside the application server, retain multiple recovery points, and periodically test restoration into an isolated database. Do not print connection strings in backup or CI logs.
-
-## 7. Rollback
-
-Keep the last known-good frontend artifact and application release. To roll back, deploy that artifact, restore the previous application version, and run only backwards-compatible database changes. Do not rerun the destructive development `schema.sql` against production. Restore a database backup only after confirming the target recovery point and recording the incident.
-
-## 8. Operational checks
-
-- Rotate database and JWT secrets if they were ever exposed.
-- Review application and audit logs without exposing them publicly.
-- Confirm uploads are stored privately and downloads require authorization.
-- Run the repository test suite against a real PostgreSQL environment before production release.
-- Keep the production seed process disabled unless explicitly required for a non-production environment.
+1. **Secret Isolation**: Never commit `.env` files or expose `GEMINI_API_KEY` / `DATABASE_URL` in frontend build artifacts.
+2. **CORS Whitelisting**: Keep `CORS_ALLOWED_ORIGINS` locked to your production Vercel domain.
+3. **Database Pooler**: Always use Neon's `-pooler` hostname with `sslmode=require` for serverless environments.
+4. **Token Invalidation**: User logout revokes the server-side refresh token in Neon PostgreSQL.
