@@ -106,7 +106,7 @@ function DashboardPage() {
   >("overview");
   const [selectedOpportunityJob, setSelectedOpportunityJob] = useState<Job | null>(null);
   const [newSkillName, setNewSkillName] = useState("");
-  const [newSkillProficiency, setNewSkillProficiency] = useState(85);
+    const [newSkillProficiency, setNewSkillProficiency] = useState(0);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
 
   // Trust & Verification state
@@ -624,7 +624,7 @@ function DashboardPage() {
                     </ul>
                   ) : (
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      No matched jobs yet. Add your verified skills in the Skills & Profile tab to unlock personalized job recommendations.
+                      Complete your profile to see personalized matches
                     </p>
                   )}
                 </section>
@@ -653,37 +653,45 @@ function DashboardPage() {
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-bold text-foreground">Resume Quality Score</h3>
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-extrabold">
-                        {resumeAnalysis ? `${resumeAnalysis.ats_score}%` : "Not scored"}
+                        {profile?.student.hasResume && resumeAnalysis ? `${resumeAnalysis.ats_score}%` : "Not scored"}
                       </span>
                     </div>
-                    <div className="space-y-2 mb-3">
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-1">
-                          Strengths:
-                        </p>
-                        <ul className="space-y-1">
-                          {(resumeAnalysis?.key_strengths || []).map((str, i) => (
-                            <li key={i} className="text-xs text-foreground flex items-start gap-2">
-                              <CheckCircle2 className="size-3 mt-0.5 text-success shrink-0" />
-                              {str}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">
-                        Next Steps:
+                    {profile?.student.hasResume && resumeAnalysis ? (
+                      <>
+                        <div className="space-y-2 mb-3">
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground mb-1">
+                              Strengths:
+                            </p>
+                            <ul className="space-y-1">
+                              {(resumeAnalysis?.key_strengths || []).map((str, i) => (
+                                <li key={i} className="text-xs text-foreground flex items-start gap-2">
+                                  <CheckCircle2 className="size-3 mt-0.5 text-success shrink-0" />
+                                  {str}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground mb-1">
+                            Next Steps:
+                          </p>
+                          <ul className="space-y-1">
+                            {(resumeAnalysis?.improvement_tips || []).map((imp, i) => (
+                              <li key={i} className="text-xs text-foreground flex items-start gap-2">
+                                <AlertCircle className="size-3 mt-0.5 text-warning-foreground shrink-0" />
+                                {imp}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Upload your resume to unlock analysis
                       </p>
-                      <ul className="space-y-1">
-                        {(resumeAnalysis?.improvement_tips || []).map((imp, i) => (
-                          <li key={i} className="text-xs text-foreground flex items-start gap-2">
-                            <AlertCircle className="size-3 mt-0.5 text-warning-foreground shrink-0" />
-                            {imp}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 mb-6">
@@ -699,7 +707,7 @@ function DashboardPage() {
                       ))
                     ) : (
                       <span className="text-xs text-muted-foreground">
-                        Add skills to build your verified portfolio.
+                        No skills added yet
                       </span>
                     )}
                   </div>
