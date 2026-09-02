@@ -145,6 +145,34 @@ async function run() {
     `Found ${jobsList.data?.jobs?.length || 0} jobs`,
   );
 
+  // 8a. Student Update Profile
+  const updateProf = await req(
+    "/student/profile",
+    "POST",
+    {
+      name: "Arjun Kumar",
+      college: "Anna University Campus",
+      program: "M.Tech Software Engineering",
+      experience: "Full Stack Engineer (3 Production Apps)",
+    },
+    studentAuthToken,
+  );
+  check("8a. Student Profile Update:", updateProf.status === 200, updateProf.status);
+
+  // 8b. Student Add Skills
+  const addSk1 = await req("/student/skills", "POST", { skill_name: "React", proficiency: 90 }, studentAuthToken);
+  const addSk2 = await req("/student/skills", "POST", { skill_name: "TypeScript", proficiency: 85 }, studentAuthToken);
+  const addSk3 = await req("/student/skills", "POST", { skill_name: "Python", proficiency: 80 }, studentAuthToken);
+  check("8b. Student Add Skills:", addSk1.status === 200 && addSk2.status === 200 && addSk3.status === 200, "Added 3 skills");
+
+  // 8c. Student Check Dashboard Recalculation
+  const sDash = await req("/student/dashboard", "GET", null, studentAuthToken);
+  check(
+    "8c. Student Dynamic Career Score & Progress:",
+    sDash.status === 200 && (sDash.data?.progress?.percent ?? 0) >= 40,
+    `Score: ${sDash.data?.progress?.percent}%`,
+  );
+
   // 9. Student Apply
   let appId = null;
   if (jobId) {
