@@ -55,8 +55,10 @@ RUN mkdir -p /var/www/html/storage/logs \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/uploads \
     && chmod -R 775 /var/www/html/storage /var/www/html/uploads
 
-# Configure container port (Render default is 10000 or custom via PORT env)
-ENV PORT 80
+# Bind Apache to dynamic PORT environment variable (Render sets PORT=10000 or custom)
+RUN sed -i 's/80/${PORT}/g' /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
+
+ENV PORT=80
 EXPOSE 80
 
 # Start Apache in foreground

@@ -20,12 +20,20 @@ function handleCors(): void {
     ];
 
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    $localhostOrigin = preg_match('/^http:\/\/(localhost|127\.0\.0\.1):(\d+)$/', $origin) === 1;
+    $localhostOrigin = preg_match('/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin) === 1;
+    $isVercelOrigin = preg_match('/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/', $origin) === 1;
     $configuredOrigin = getenv('FRONTEND_URL') ?: '';
+    $configuredCors = getenv('CORS_ALLOWED_ORIGINS') ?: '';
 
-    if ($env === 'development' && $localhostOrigin) {
-        header("Access-Control-Allow-Origin: {$origin}");
-    } elseif ($origin !== '' && ($origin === $configuredOrigin || in_array($origin, $allowedOrigins, true))) {
+    if (!empty($configuredCors)) {
+        $extra = array_map('trim', explode(',', $configuredCors));
+        $allowedOrigins = array_merge($allowedOrigins, $extra);
+    }
+    if (!empty($configuredOrigin)) {
+        $allowedOrigins[] = rtrim($configuredOrigin, '/');
+    }
+
+    if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isVercelOrigin || $localhostOrigin)) {
         header("Access-Control-Allow-Origin: {$origin}");
     }
 
