@@ -1,839 +1,254 @@
-# Skill Bridge Connect
+# SkillBridge
 
-SKILLBRIDGE — UNIQUE CREATIVE UI/UX DIRECTION
+SkillBridge is a career platform that connects student skills with real job opportunities through evidence-backed skill profiles, deterministic matching, recruiter workflows, and optional Gemini-assisted guidance.
 
-Redesign the SkillBridge frontend as a highly distinctive, premium, creative career-tech platform.
+The application is an existing production-oriented codebase. It is not a demo application and does not use frontend mock business data.
 
-IMPORTANT:
-Do NOT make SkillBridge look like LinkedIn, Naukri, Indeed, Internshala, or a generic admin dashboard.
+## Stack
 
-The product should have its own recognizable visual identity.
+- Frontend: React 19, TypeScript, Vite, TanStack Router, TanStack Query, Tailwind CSS
+- Backend: PHP 8.2+, REST API, PDO
+- Database: PostgreSQL 16+ or Neon PostgreSQL
+- Authentication: JWT access tokens with rotating, HttpOnly refresh-token cookies
+- AI: Backend-only Google Gemini integration, configured with `GEMINI_MODEL`
+- Storage: Private resume storage outside the public document root
 
-==================================================
-CORE DESIGN CONCEPT
+## Architecture
 
-Theme:
+```text
+React UI
+  -> ApiClient
+  -> PHP REST API
+  -> JWT/RBAC and ownership checks
+  -> PostgreSQL / private storage / optional Gemini
+  -> JSON response
+  -> UI state refresh
+```
 
-"Career Navigation + Human Potential + Digital Connection"
+All user-specific data must be resolved from the authenticated JWT on the server. Frontend-supplied student or recruiter IDs are not authorization boundaries.
 
-Visual metaphor:
+## Local Setup
 
-Student skills → bridge → opportunities → career
+### Prerequisites
 
-The entire UI should subtly communicate the idea of a "bridge" connecting talent with industry.
+- Node.js 20 or newer
+- PHP 8.2 or newer with `pdo_pgsql`, `curl`, `mbstring`, `fileinfo`, and `openssl`
+- PostgreSQL 16+ or a Neon database
 
-The design should feel:
+### Install frontend dependencies
 
-Premium
+```bash
+npm ci
+```
 
-Futuristic but professional
+### Configure the backend
 
-Creative
+```bash
+copy backend/.env.example backend/.env
+```
 
-Human
+Set real local values in `backend/.env`:
 
-Trustworthy
+```ini
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
+JWT_SECRET=replace-with-a-long-random-secret
+APP_ENV=development
+FRONTEND_URL=http://localhost:5173
+GEMINI_MODEL=gemini-3.7-flash
+GEMINI_API_KEY=
+```
 
-Technology-driven
+Never commit `.env` files or place secrets in frontend variables. The frontend may only use `VITE_API_URL`.
 
-Young
+### Apply the database
 
-Energetic
+For a new database, apply the base schema and every incremental migration in filename order:
 
-Clean
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/schema.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/migrate_v2.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/migrate_v3.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/migrate_v4.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/migrate_v5.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/database/migrate_v6.sql
+```
 
-Highly memorable
+Or use the migration runner:
 
-Target audience:
+```bash
+php backend/database/migrate.php
+```
 
-Students, fresh graduates, recruiters, startups, companies and placement teams.
+`--reset` is development-only and is blocked when `APP_ENV=production`. It drops data and must never be used against a real production database.
 
-==================================================
-VISUAL IDENTITY
+Development seed data is optional and must not be used as production data:
 
-Create a unique SkillBridge design language.
+```bash
+php backend/database/migrate.php --seed
+```
 
-Primary visual concept:
+### Start the application
 
-"Digital Bridge"
+Start the API:
 
-Use subtle bridge-inspired visual elements:
+```bash
+php -S 127.0.0.1:8000 backend/index.php
+```
 
-Curved connection lines
+Configure the frontend in `.env`:
 
-Skill nodes
+```ini
+VITE_API_URL=http://127.0.0.1:8000/api
+```
 
-Opportunity cards
+Start Vite in a second terminal:
 
-Connected dots
-
-Path/progress visuals
-
-Network patterns
-
-Career journey indicators
-
-Do NOT overuse literal bridge illustrations.
-
-Keep the concept sophisticated.
-
-==================================================
-COLOR DIRECTION
-
-Use a modern light-first interface.
-
-Base:
-
-Warm/off-white or very light neutral background.
-
-Primary:
-
-Deep indigo / electric blue family.
-
-Secondary:
-
-Teal / cyan accents.
-
-Success:
-
-Fresh green.
-
-Warning:
-
-Amber.
-
-Error:
-
-Coral/red.
-
-Use gradients sparingly.
-
-Preferred gradient style:
-
-Indigo → Blue → Cyan
-
-Do NOT make the entire website dark.
-
-Use dark sections only where they improve visual hierarchy.
-
-Maintain excellent WCAG contrast.
-
-==================================================
-TYPOGRAPHY
-
-Use a modern premium sans-serif font.
-
-Recommended:
-
-Inter
-Manrope
-Plus Jakarta Sans
-
-Use:
-
-Large expressive headings
-Medium-weight section titles
-Highly readable body text
-Compact dashboard typography
-
-Create strong typography hierarchy.
-
-Hero heading should feel editorial and premium.
-
-==================================================
-LANDING PAGE
-
-Make the landing page visually impressive.
-
-Hero structure:
-
-LEFT:
-
-Small badge:
-
-"Your Skills. Your Opportunity."
-
-Large headline:
-
-"Where Skills Meet Opportunity."
-
-Supporting text:
-
-"SkillBridge connects students with verified companies through skill-based job matching."
-
-CTA:
-
-"Explore Opportunities"
-
-Secondary CTA:
-
-"For Recruiters"
-
-RIGHT:
-
-Create an interactive "Career Opportunity Map".
-
-Visual concept:
-
-Student skill nodes
-↓
-Skill matching
-↓
-Company nodes
-↓
-Job opportunities
-
-Use animated connection lines and floating opportunity cards.
-
-The animation must be subtle and performant.
-
-Do not create distracting animations.
-
-==================================================
-HERO VISUAL
-
-Create a custom abstract SkillBridge visual.
-
-It can contain:
-
-Floating skill badges
-
-React
-
-TypeScript
-
-Python
-
-Java
-
-PHP
-
-MySQL
-
-AI
-
-Cloud
-
-Connected to:
-
-Internship
-
-Full Stack Developer
-
-Software Engineer
-
-Data Analyst
-
-Represent the connection using elegant curved lines.
-
-This visual becomes the signature SkillBridge element.
-
-==================================================
-FLOATING STATISTICS
-
-Instead of boring statistic cards, use floating data chips:
-
-"12K+ Students"
-
-"850+ Opportunities"
-
-"320+ Companies"
-
-"2.4K+ Successful Matches"
-
-These should feel integrated into the hero composition.
-
-IMPORTANT:
-
-For production mode, these values must eventually come from API.
-
-Do not present fake numbers as real platform statistics.
-
-For development, use clearly marked demo placeholders.
-
-==================================================
-HOW IT WORKS
-
-Create a horizontal career journey.
-
-01 Discover
-02 Build Profile
-03 Match
-04 Apply
-05 Interview
-06 Get Hired
-
-Use a connected path rather than six normal cards.
-
-Example:
-
-Discover
-╲
-Build Profile
-╲
-Match
-╲
-Apply
-╲
-Interview
-╲
-Hired
-
-Animate the progress path subtly when scrolling.
-
-==================================================
-SKILL MATCH VISUAL
-
-Create a unique Skill Match component.
-
-Instead of only showing:
-
-"85% Match"
-
-Create a visual circular/ring score.
-
-Example:
-
-    85%
-
-GREAT MATCH
-
-Then:
-
-✓ React
-✓ TypeScript
-✓ PHP
-✓ MySQL
-
-Missing:
-
-○ AWS
-
-Add a small "Improve Match" action.
-
-This should visually communicate skill compatibility.
-
-==================================================
-JOB CARD DESIGN
-
-Do NOT use generic rectangular job cards.
-
-Create modern opportunity cards.
-
-Card structure:
-
-Company logo
-Verified badge
-
-Job title
-
-Short description
-
-Location
-
-Job type
-
-Salary
-
-Skill match
-
-Required skills
-
-Posted time
-
-CTA
-
-Example:
-
-┌──────────────────────────────┐
-│ ○ Company ✓ Verified │
-│ │
-│ Full Stack Developer │
-│ │
-│ Chennai · Full Time │
-│ │
-│ React TypeScript PHP │
-│ │
-│ 92% MATCH │
-│ │
-│ View Opportunity → │
-└──────────────────────────────┘
-
-Use hover interactions:
-
-Slight elevation
-
-Border highlight
-
-Skill chips animation
-
-CTA movement
-
-Keep animation subtle.
-
-==================================================
-STUDENT DASHBOARD
-
-Do NOT make it look like a typical admin panel.
-
-Dashboard should feel like:
-
-"Personal Career Command Center"
-
-Top section:
-
-"Good morning, [Name] 👋"
-
-"Your career journey is 78% complete."
-
-Then create:
-
-Career Progress
-
-Profile completeness
-
-Skill Strength
-
-Job Matches
-
-Applications
-
-Interview Pipeline
-
-Recommended Opportunities
-
-Career Activity
-
-Use visual storytelling instead of just tables.
-
-==================================================
-CAREER PROGRESS
-
-Create a large visual progress component.
-
-Example:
-
-Profile
-████████████████░░░░ 78%
-
-Then show:
-
-Profile ✓
-Skills ✓
-Resume ✓
-Projects ✓
-Certificates ○
-
-CTA:
-
-"Complete Profile →"
-
-==================================================
-APPLICATION PIPELINE
-
-Instead of a boring table:
-
-Applied → Shortlisted → Interview → Hired
-
-Create a visual pipeline.
-
-Example:
-
-● Applied
-│
-● Shortlisted
-│
-● Interview
-│
-★ Hired
-
-Each stage should display count.
-
-==================================================
-RECRUITER DASHBOARD
-
-Create:
-
-"Talent Discovery Workspace"
-
-Instead of generic admin cards.
-
-Hero area:
-
-"Find the right talent faster."
-
-Show:
-
-Active Jobs
-Applicants
-Shortlisted
-Interviews
-Hires
-
-Create a visual candidate matching area.
-
-Example:
-
-Candidate
-
-A. Kumar
-
-React
-TypeScript
-Node.js
-
-94% Match
-
-[View Candidate]
-
-==================================================
-APPLICANT LIST
-
-Make applicants feel like talent profiles rather than table rows.
-
-Each candidate card:
-
-Avatar
-Name
-College
-Skills
-Experience
-Match %
-Application status
-
-Example:
-
-┌────────────────────────────────┐
-│ 👤 A. Kumar │
-│ MCA · Computer Science │
-│ │
-│ React TypeScript PHP MySQL │
-│ │
-│ 94% MATCH │
-│ │
-│ Applied 2 hours ago │
-│ │
-│ [View Profile] [Shortlist] │
-└────────────────────────────────┘
-
-==================================================
-COMPANY PROFILE
-
-Company page should feel like a premium company identity page.
-
-Header:
-
-Company logo
-Company name
-Verified badge
-Industry
-Website
-
-Then:
-
-About
-Open Positions
-Company Location
-Company Address
-Map
-
-Create a visually interesting location section.
-
-Use:
-
-"Where we're building"
-
-instead of simply:
-
-"Address"
-
-==================================================
-MAP EXPERIENCE
-
-Company location should have a premium map card.
-
-Show:
-
-Company location pin
-Company name
-City
-
-CTA:
-
-"Open in Maps"
-
-The frontend should consume latitude/longitude from the PHP API.
-
-Never hardcode company locations.
-
-==================================================
-EMPTY STATES
-
-Do NOT show:
-
-"No data found."
-
-Create useful creative empty states.
-
-Example:
-
-No saved jobs:
-
-"Your opportunity shelf is empty."
-
-"Save interesting roles and they'll appear here."
-
-[Explore Jobs]
-
-==================================================
-LOADING STATES
-
-Use skeleton animations matching the actual component layout.
-
-Avoid generic:
-
-"Loading..."
-
-==================================================
-MICRO INTERACTIONS
-
-Add subtle interactions:
-
-Buttons:
-
-Hover
-
-Press
-
-Loading
-
-Cards:
-
-Elevation
-
-Border transition
-
-Skill chips:
-
-Hover
-
-Selected state
-
-Progress:
-
-Smooth animation
-
-Notifications:
-
-Subtle pulse for unread
-
-Page transitions:
-
-Very subtle fade/slide
-
-Do NOT overanimate.
-
-==================================================
-NAVIGATION
-
-Desktop:
-
-Logo
-Explore Jobs
-For Students
-For Recruiters
-
-Right:
-
-Notifications
-Profile
-
-Dashboard navigation should use a compact modern sidebar.
-
-Mobile:
-
-Use:
-
-Top header
-Bottom navigation
-
-Bottom navigation:
-
-Home
-Jobs
-Applications
-Notifications
-Profile
-
-==================================================
-DARK MODE
-
-Support dark mode.
-
-But light mode is the default.
-
-Dark mode should retain the same SkillBridge identity.
-
-Do NOT simply invert colors.
-
-==================================================
-RESPONSIVE DESIGN
-
-Design mobile-first.
-
-Test mentally for:
-
-320px
-375px
-430px
-768px
-1024px
-1440px
-
-No horizontal scrolling.
-
-Tables should transform into cards on mobile.
-
-==================================================
-ACCESSIBILITY
-
-Use:
-
-Semantic HTML
-Keyboard navigation
-Visible focus states
-ARIA labels
-Accessible forms
-Good contrast
-Reduced motion support
-
-==================================================
-ANIMATION RULE
-
-Use animation only when it improves understanding.
-
-Preferred:
-
-Framer Motion or CSS transitions.
-
-Avoid:
-
-Heavy 3D
-Constant background animation
-Excessive particle effects
-Long loading animations
-Scroll hijacking
-
-Performance is more important than visual effects.
-
-==================================================
-BRAND ELEMENT
-
-Create a reusable SkillBridge "Bridge Line".
-
-This can be a subtle curved line connecting:
-
-Skills → Opportunities → Career
-
-Use this visual motif throughout:
-
-Landing page
-Dashboard
-Job matching
-Application timeline
-Recruiter candidate matching
-
-This becomes a recognizable SkillBridge brand element.
-
-==================================================
-ICONOGRAPHY
-
-Use Lucide icons or another consistent icon system.
-
-Do NOT mix random icon styles.
-
-==================================================
-IMPORTANT UX RULE
-
-Every page must answer:
-
-"What can the user do here?"
-
-Avoid decorative UI without purpose.
-
-Every major section needs a clear action.
-
-==================================================
-DATA RULE
-
-The UI must be API-driven.
-
-No permanent hardcoded:
-
-Users
-Jobs
-Companies
-Applications
-Match percentages
-Notifications
-Statistics
-
-Use TypeScript types for all API responses.
-
-Use mock/demo data only during initial UI development and isolate it clearly so it can be removed without restructuring the application.
-
-==================================================
-FINAL DESIGN GOAL
-
-When someone opens SkillBridge, they should immediately think:
-
-"This isn't another job portal."
-
-It should feel like:
-
-A modern career operating system +
-A skill intelligence platform +
-A talent marketplace
-
-The interface should be visually unique, highly usable, premium, and production-ready.
-
-Prioritize:
-
-UX
-
-Visual identity
-
-Accessibility
-
-Performance
-
-Responsiveness
-
-API readiness
-
-Do not sacrifice usability for visual effects.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/0e527874-7c17-400d-bcc2-1a89e15adcc4).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
 npm run dev
 ```
 
-#   S K I L L B R I D G E 
- 
- 
+Useful endpoints:
+
+- API health: `http://127.0.0.1:8000/api/health`
+- API ping: `http://127.0.0.1:8000/api/ping`
+- API documentation UI: `http://127.0.0.1:8000/api/docs`
+- OpenAPI file: `http://127.0.0.1:8000/api/openapi.yaml`
+
+## Product Workflows
+
+### Student
+
+1. Register and complete the profile.
+2. Add skills, projects, certificates, and an optional private resume.
+3. Complete a skill assessment.
+4. Review evidence and confidence in Proof of Skill.
+5. Browse database-backed jobs and inspect explainable matches.
+6. Review target-job skill gaps and learning paths.
+7. Optionally connect GitHub public repositories.
+8. Generate a zero-PII Skill Passport.
+9. Apply to a job and follow the application, interview, offer, and hired stages.
+
+### Recruiter
+
+1. Register and configure a company profile.
+2. Create job openings with required skills.
+3. Review applications for the recruiter-owned company.
+4. Inspect deterministic match explanations and evidence signals.
+5. Shortlist candidates, schedule interviews, and progress applications.
+6. Make final offer and hiring decisions. AI output is advisory only.
+
+## Proof of Skill
+
+Skill confidence is calculated on the server using configurable weights:
+
+- Self-declared: 10%
+- Resume evidence: 20%
+- Project evidence: 20%
+- Assessment: 35%
+- GitHub evidence: 15%
+
+A listed skill is not automatically considered verified. Assessment, project, resume, and GitHub evidence are stored separately in PostgreSQL and combined deterministically.
+
+## Matching and Skill Gaps
+
+Job matching remains deterministic and explainable. Responses can include:
+
+- Overall match
+- Skill fit
+- Experience fit
+- Education fit when data exists
+- Location fit when data exists
+- Verified skill confidence
+- Matched skills
+- Missing skills
+- Learning recommendations
+
+AI can explain or enrich the result, but it does not replace the deterministic match calculation or make employment decisions.
+
+## AI and GitHub Safety
+
+- Gemini requests are made only by the PHP backend.
+- `GEMINI_API_KEY`, database credentials, JWT secrets, and private storage keys are never frontend data.
+- Gemini responses are parsed and bounded before use.
+- Deterministic fallbacks are used where they can be derived from real input; unavailable states are shown where they cannot.
+- GitHub analysis reads public repositories only and stores limited metadata.
+- GitHub failures do not create synthetic repositories, skills, or activity.
+
+## Authentication and Security
+
+- Access JWTs are short-lived and stored by the frontend for API authorization.
+- Refresh tokens are stored server-side by hash and transported in an HttpOnly cookie.
+- Refresh tokens rotate on use and reuse is rejected.
+- JWT algorithm, required claims, role, expiry, and signature are validated.
+- Student, recruiter, company, application, interview, notification, resume, and passport access is ownership-checked server-side.
+- Resume uploads use MIME detection, size limits, extension blocking, private storage, and protected streaming.
+- Production CORS uses explicit configured origins.
+- Production errors return generic messages while technical details are logged server-side.
+
+## Branding
+
+The supplied SkillBridge logo is available at:
+
+- `public/skillbridge-logo.jpeg`
+- `public/site.webmanifest`
+
+The logo is used by the shared brand component, browser metadata, favicon, Apple touch icon, social previews, and web manifest.
+
+## Validation
+
+Frontend checks:
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm run build
+npm audit --audit-level=high
+```
+
+Backend syntax checks on Windows PowerShell:
+
+```powershell
+Get-ChildItem backend -Recurse -Filter *.php | ForEach-Object { php -l $_.FullName }
+```
+
+Backend integration and security suites require a configured PostgreSQL database and running API:
+
+```bash
+node backend/tests/test_runner.cjs
+node backend/tests/audit_runner.cjs
+```
+
+CI runs frontend type, lint, audit, and build checks; PHP syntax checks; PostgreSQL schema and migration setup; the backend integration suite; and the authorization audit suite.
+
+## Current Limitations
+
+The project is not declared fully production-ready until these are verified or completed:
+
+- Resume text extraction and automatic resume-to-skill evidence require a production PDF/DOCX parsing service.
+- Full OpenAPI parity with every active endpoint still needs completion.
+- Some recruiter metadata and settings fields require real persisted columns/endpoints rather than inferred or unavailable values.
+- Complete project/certificate update operations and recruiter shortlist/note persistence need final API coverage.
+- Live Neon, deployed frontend/API, browser responsive, and multi-user IDOR verification require deployment credentials and environments.
+
+Do not describe the system as production-ready until those checks pass in the target deployment.
+
+## Deployment
+
+The documented deployment topology is:
+
+- Frontend: Vercel or another static frontend host
+- Backend: PHP 8.2 Docker service, such as Render
+- Database: Neon PostgreSQL with TLS
+
+Before deployment:
+
+1. Set `APP_ENV=production`.
+2. Configure a strong `JWT_SECRET`.
+3. Configure `DATABASE_URL` with TLS enabled.
+4. Set `FRONTEND_URL` and explicit `CORS_ALLOWED_ORIGINS`.
+5. Set `GEMINI_MODEL=gemini-3.7-flash` and the backend-only Gemini key if AI is enabled.
+6. Apply incremental migrations without reset mode.
+7. Verify `/api/health` and the CORS preflight.
+8. Run the integration, security, and multi-user checks against the deployed API.
+
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for provider-specific deployment steps.
