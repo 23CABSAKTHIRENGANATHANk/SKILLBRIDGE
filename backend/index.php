@@ -141,6 +141,11 @@ switch (true) {
         StudentController::getProfile($user);
         break;
 
+    case $path === '/student/profile' && in_array($method, ['PUT', 'POST'], true):
+        $user = AuthMiddleware::authenticate();
+        StudentController::updateProfile($user);
+        break;
+
     case $path === '/student/dashboard' && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         StudentController::getDashboard($user);
@@ -149,6 +154,11 @@ switch (true) {
     case $path === '/student/skills' && $method === 'POST':
         $user = AuthMiddleware::authenticate();
         StudentController::addSkill($user);
+        break;
+
+    case $path === '/student/skills' && $method === 'DELETE':
+        $user = AuthMiddleware::authenticate();
+        StudentController::deleteSkill($user);
         break;
 
     case ($path === '/student/resume' || $path === '/student/resume/upload') && $method === 'POST':

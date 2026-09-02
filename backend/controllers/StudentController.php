@@ -297,7 +297,83 @@ class StudentController {
     }
 
     /**
-     * Get Trust & Credibility profile for student
+     * Update student profile details (name, college, program, experience, avatar_url)
+     */
+    public static function updateProfile(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $sStmt = $db->prepare('SELECT id, user_id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $name = trim($input['name'] ?? '');
+        $college = trim($input['college'] ?? '');
+        $program = trim($input['program'] ?? '');
+        $experience = trim($input['experience'] ?? '');
+        $avatarUrl = trim($input['avatar_url'] ?? '');
+
+        if (empty($name)) {
+            errorResponse('Full name is required.');
+        }
+
+        $upStmt = $db->prepare('
+            UPDATE students 
+            SET name = ?, college = ?, program = ?, experience = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ');
+        $upStmt->execute([$name, $college, $program, $experience, $avatarUrl ?: null, $student['id']]);
+
+        // Also update users name if changed
+        $uStmt = $db->prepare('UPDATE users SET name = ? WHERE id = ?');
+        $uStmt->execute([$name, $currentUser['user_id']]);
+
+        AuditLogger::audit('student.profile_update', $currentUser['user_id'], 'student', [
+            'name' => $name,
+            'college' => $college,
+            'program' => $program
+        ]);
+
+        self::getProfile($currentUser);
+    }
+
+    /**
+     * Delete a skill from student profile
+     */
+    public static function deleteSkill(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $skillId = trim($input['skill_id'] ?? ($_GET['skill_id'] ?? ''));
+
+        if (empty($skillId)) {
+            errorResponse('Skill ID is required.');
+        }
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $delStmt = $db->prepare('DELETE FROM student_skills WHERE student_id = ? AND skill_id = ?');
+        $delStmt->execute([$student['id'], $skillId]);
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Skill removed from profile.'
+        ]);
+    }
+
+    /**
+     * Get Trust & Credibility profile for student with real endorsements from database
      */
     public static function getTrustProfile(array $currentUser): void {
         AuthMiddleware::requireRole($currentUser, 'student', 'admin');
@@ -311,27 +387,36 @@ class StudentController {
             errorResponse('Student not found.', 404);
         }
 
-        // Feedback / Endorsements list
-        $endorsements = [
-            [
-                'id' => 'fb_1',
-                'company_name' => 'Northwind Labs',
-                'recruiter_title' => 'Senior Technical Lead',
-                'rating' => 5,
-                'feedback' => 'Demonstrated exceptional understanding of React performance patterns and TypeScript generics during the technical screening.',
-                'date' => '2 days ago',
+        // Real endorsements from PostgreSQL
+        $endStmt = $db->prepare('
+            SELECT re.id, re.rating, re.review_text as feedback, re.created_at,
+                   c.name as company_name
+            FROM recruiter_endorsements re
+            JOIN users u ON re.recruiter_id = u.id
+            LEFT JOIN companies c ON c.user_id = u.id
+            WHERE re.student_id = ? AND re.is_published = TRUE
+            ORDER BY re.created_at DESC
+        ');
+        $endStmt->execute([$student['id']]);
+        $rawEndorsements = $endStmt->fetchAll();
+
+        $endorsements = [];
+        foreach ($rawEndorsements as $end) {
+            $diff = time() - strtotime($end['created_at']);
+            $dateStr = $diff < 86400 ? 'Today' : (int)floor($diff / 86400) . 'd ago';
+            $endorsements[] = [
+                'id' => $end['id'],
+                'company_name' => $end['company_name'] ?? 'Verified Employer',
+                'recruiter_title' => 'Technical Hiring Manager',
+                'rating' => (int)$end['rating'],
+                'feedback' => $end['feedback'],
+                'date' => $dateStr,
                 'verified_interview' => true
-            ],
-            [
-                'id' => 'fb_2',
-                'company_name' => 'AcroTech AI Systems',
-                'recruiter_title' => 'Talent Acquisition Director',
-                'rating' => 5,
-                'feedback' => 'Strong problem-solving capability and clear architectural communication on distributed systems questions.',
-                'date' => '1 week ago',
-                'verified_interview' => true
-            ]
-        ];
+            ];
+        }
+
+        $hasResume = !empty($student['resume_storage_key']);
+        $trustScore = 70 + ($hasResume ? 15 : 0) + (count($endorsements) > 0 ? 15 : 0);
 
         jsonResponse([
             'success' => true,
@@ -340,10 +425,10 @@ class StudentController {
                 'college_email_verified' => true,
                 'phone_verified' => true,
                 'identity_verified' => true,
-                'resume_verified' => !empty($student['resume_storage_key']),
+                'resume_verified' => $hasResume,
                 'institution' => $student['college'],
                 'program' => $student['program'],
-                'trust_score' => 96,
+                'trust_score' => $trustScore,
                 'endorsements' => $endorsements
             ]
         ]);

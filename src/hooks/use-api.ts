@@ -94,24 +94,24 @@ export function useStudentDashboardQuery() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    setData({ pipeline: null, progress: null, applications: [] });
+  const fetchDashboard = useCallback(async () => {
     setLoading(true);
-    ApiClient.getStudentDashboard()
-      .then((res) => {
-        if (mounted) setData(res);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+    try {
+      const res = await ApiClient.getStudentDashboard();
+      setData(res);
+    } catch {
+      // Keep existing state or empty
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id]);
+  useEffect(() => {
+    setData({ pipeline: null, progress: null, applications: [] });
+    fetchDashboard();
+  }, [fetchDashboard, user?.id]);
 
-  return { ...data, loading };
+  return { ...data, loading, refetch: fetchDashboard };
 }
 
 export function useStudentProfileQuery() {

@@ -2,7 +2,13 @@ import { ArrowRight, Check, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CareerProgress } from "@/types/skillbridge";
 
-export function CareerProgressCard({ progress }: { progress: CareerProgress }) {
+export function CareerProgressCard({
+  progress,
+  onComplete,
+}: {
+  progress: CareerProgress;
+  onComplete?: () => void;
+}) {
   return (
     <section
       aria-labelledby="career-progress-title"
@@ -46,8 +52,12 @@ export function CareerProgressCard({ progress }: { progress: CareerProgress }) {
         ))}
       </ul>
 
-      <Button className="mt-6 w-full sm:w-auto">
-        Complete profile <ArrowRight className="size-4" aria-hidden="true" />
+      <Button
+        onClick={onComplete}
+        type="button"
+        className="mt-6 w-full sm:w-auto font-bold transition-all hover:shadow-soft"
+      >
+        Complete profile <ArrowRight className="size-4 ml-1" aria-hidden="true" />
       </Button>
     </section>
   );

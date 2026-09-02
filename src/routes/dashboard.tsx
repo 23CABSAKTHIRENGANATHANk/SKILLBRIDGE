@@ -86,14 +86,20 @@ const stageColors: Record<string, string> = {
 
 function DashboardPage() {
   const { user } = useAuth();
-  const { pipeline, progress, applications, loading } = useStudentDashboardQuery();
-  const { profile } = useStudentProfileQuery();
+  const {
+    pipeline,
+    progress,
+    applications,
+    loading,
+    refetch: refetchDashboard,
+  } = useStudentDashboardQuery();
+  const { profile, refetch: refetchProfile } = useStudentProfileQuery();
   const {
     data: resumeAnalysis,
     loading: resumeAnalysisLoading,
     generate: generateResumeAnalysis,
   } = useAIResumeSummary();
-  const { jobs: allJobs } = useJobsQuery();
+  const { jobs: allJobs, refetch: refetchJobs } = useJobsQuery();
   const {
     interviews: liveInterviews,
     loading: interviewsLoading,
@@ -106,8 +112,25 @@ function DashboardPage() {
   >("overview");
   const [selectedOpportunityJob, setSelectedOpportunityJob] = useState<Job | null>(null);
   const [newSkillName, setNewSkillName] = useState("");
-    const [newSkillProficiency, setNewSkillProficiency] = useState(0);
+  const [newSkillProficiency, setNewSkillProficiency] = useState(0);
   const [isAddingSkill, setIsAddingSkill] = useState(false);
+
+  // Profile Form Edit State
+  const [editName, setEditName] = useState("");
+  const [editCollege, setEditCollege] = useState("");
+  const [editProgram, setEditProgram] = useState("");
+  const [editExperience, setEditExperience] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Sync profile data to form
+  useEffect(() => {
+    if (profile?.student) {
+      setEditName(profile.student.name || "");
+      setEditCollege(profile.student.college || "");
+      setEditProgram(profile.student.program || "");
+      setEditExperience(profile.student.experience || "");
+    }
+  }, [profile]);
 
   // Trust & Verification state
   const [phoneVerified, setPhoneVerified] = useState(false);
@@ -173,6 +196,29 @@ function DashboardPage() {
   const studentProgram =
     profile?.student.program || (user?.profile as any)?.program || "Program not set";
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) {
+      toast.error("Full name is required.");
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      await ApiClient.updateStudentProfile({
+        name: editName.trim(),
+        college: editCollege.trim(),
+        program: editProgram.trim(),
+        experience: editExperience.trim(),
+      });
+      toast.success("Profile updated successfully!");
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const handleAddSkill = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSkillName.trim()) return;
@@ -182,10 +228,21 @@ function DashboardPage() {
       await ApiClient.addStudentSkill(newSkillName.trim(), newSkillProficiency);
       toast.success(`Added ${newSkillName} to your skill profile!`);
       setNewSkillName("");
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
     } catch {
       toast.error("Failed to save skill.");
     } finally {
       setIsAddingSkill(false);
+    }
+  };
+
+  const handleDeleteSkill = async (skillId: string, skillName: string) => {
+    try {
+      await ApiClient.deleteStudentSkill(skillId);
+      toast.success(`Removed ${skillName} from your profile.`);
+      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+    } catch {
+      toast.error("Failed to remove skill.");
     }
   };
 
@@ -208,6 +265,8 @@ function DashboardPage() {
       await ApiClient.uploadResume(file);
       setResumeFilename(file.name);
       toast.success("Resume securely uploaded, SHA-256 validated, and verified!");
+      await Promise.all([refetchProfile(), refetchDashboard()]);
+      void generateResumeAnalysis();
     } catch {
       toast.error("Resume upload failed. Please try again.");
     } finally {
@@ -526,7 +585,13 @@ function DashboardPage() {
             {/* Left Column */}
             <div className="space-y-6">
               <ScrollReveal delay={150}>
-                <CareerProgressCard progress={currentProgress} />
+                <CareerProgressCard
+                  progress={currentProgress}
+                  onComplete={() => {
+                    setActiveTab("profile");
+                    window.scrollTo({ top: 300, behavior: "smooth" });
+                  }}
+                />
               </ScrollReveal>
 
               <ScrollReveal delay={200}>
@@ -599,7 +664,10 @@ function DashboardPage() {
                     <h2 className="font-display text-lg font-bold text-foreground">
                       Matched For You
                     </h2>
-                    <Link to="/jobs" className="text-xs font-bold text-primary hover:underline">
+                    <Link
+                      to="/jobs"
+                      className="text-xs font-bold text-primary transition-colors hover:underline"
+                    >
                       Explore All
                     </Link>
                   </div>
@@ -641,7 +709,84 @@ function DashboardPage() {
           <div className="mt-8 grid gap-6 lg:grid-cols-12">
             {/* Skills Panel & Add Skill */}
             <div className="lg:col-span-7 space-y-6">
+              {/* Profile Details Editor */}
               <ScrollReveal>
+                <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="font-display text-lg font-bold text-foreground">
+                        Personal & Academic Profile
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Update your academic details and experience to calculate real-time role matching.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-bold text-primary">
+                      PostgreSQL Real-Time
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleSaveProfile} className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="text-xs font-bold text-foreground mb-1 block">Full Name</label>
+                        <Input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="e.g. Sakthi Renganathan"
+                          className="rounded-xl border-border bg-background"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-foreground mb-1 block">College / University</label>
+                        <Input
+                          type="text"
+                          value={editCollege}
+                          onChange={(e) => setEditCollege(e.target.value)}
+                          placeholder="e.g. VHNSN College"
+                          className="rounded-xl border-border bg-background"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-foreground mb-1 block">Program / Degree</label>
+                        <Input
+                          type="text"
+                          value={editProgram}
+                          onChange={(e) => setEditProgram(e.target.value)}
+                          placeholder="e.g. MCA / B.Tech Computer Science"
+                          className="rounded-xl border-border bg-background"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-foreground mb-1 block">Experience / Projects</label>
+                        <Input
+                          type="text"
+                          value={editExperience}
+                          onChange={(e) => setEditExperience(e.target.value)}
+                          placeholder="e.g. Full-Stack Developer (2 Projects)"
+                          className="rounded-xl border-border bg-background"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        type="submit"
+                        disabled={isSavingProfile || !editName.trim()}
+                        className="rounded-xl font-bold"
+                      >
+                        {isSavingProfile ? "Saving..." : "Save Profile Details"}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal delay={100}>
                 <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
                   <h2 className="font-display text-lg font-bold text-foreground mb-1">
                     Verified Skill Portfolio
@@ -702,10 +847,18 @@ function DashboardPage() {
                       profile.skills.map((skill) => (
                         <span
                           key={skill.skill_id}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-3.5 py-1.5 text-xs font-bold text-primary"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-3.5 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/20"
                         >
                           <Sparkles className="size-3" />
                           {skill.skill_name}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSkill(skill.skill_id, skill.skill_name)}
+                            className="ml-1 rounded-full p-0.5 text-primary/70 hover:bg-destructive/20 hover:text-destructive"
+                            title="Remove skill"
+                          >
+                            <X className="size-3" />
+                          </button>
                         </span>
                       ))
                     ) : (

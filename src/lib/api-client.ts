@@ -230,14 +230,6 @@ export class ApiClient {
     });
   }
 
-  public static async updateStudentProfile(
-    data: Record<string, unknown>,
-  ): Promise<{ success: boolean }> {
-    return this.request("/student/profile", {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
 
   public static async submitFeedback(data: {
     application_id: string;
@@ -463,6 +455,26 @@ export class ApiClient {
     skills: Array<{ skill_id: string; skill_name: string; proficiency: number }>;
   }> {
     return this.request("/student/profile");
+  }
+
+  public static async updateStudentProfile(data: {
+    name: string;
+    college?: string;
+    program?: string;
+    experience?: string;
+    avatar_url?: string;
+  }): Promise<{ success: boolean; student: any; skills: any[]; progress: any }> {
+    return this.request("/student/profile", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async deleteStudentSkill(skillId: string): Promise<{ success: boolean }> {
+    return this.request("/student/skills", {
+      method: "DELETE",
+      body: JSON.stringify({ skill_id: skillId }),
+    });
   }
 
   // --- Recruiter Candidates ---
