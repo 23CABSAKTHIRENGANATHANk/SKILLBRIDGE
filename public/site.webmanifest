@@ -1,0 +1,17 @@
+{
+  "name": "SkillBridge",
+  "short_name": "SkillBridge",
+  "description": "Where skills meet opportunity.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#14213d",
+  "icons": [
+    {
+      "src": "/skillbridge-logo.jpeg",
+      "sizes": "1536x1024",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

@@ -37,9 +37,9 @@ export function CandidateDetailModal({
   onUpdateStage?: (appId: string, stage: string, name: string) => void;
 }) {
   const roleFitScore =
-    candidate.roleFitScore || candidate.match?.role_fit_score || candidate.match?.score || 88;
+    candidate.roleFitScore ?? candidate.match?.role_fit_score ?? candidate.match?.score ?? null;
   const fitLevel =
-    candidate.match?.fit_level || (roleFitScore >= 85 ? "Strong Fit" : "Moderate Fit");
+    candidate.match?.fit_level || (roleFitScore === null ? "Not assessed" : roleFitScore >= 85 ? "Strong Fit" : "Moderate Fit");
 
   // Recruiter Endorsement State
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -160,7 +160,7 @@ export function CandidateDetailModal({
                 {fitLevel}
               </span>
               <span className="text-xs font-bold bg-primary-soft text-primary px-2.5 py-0.5 rounded-full">
-                Role Fit: {roleFitScore}%
+                Role Fit: {roleFitScore === null ? "Not assessed" : `${roleFitScore}%`}
               </span>
               <span
                 className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
@@ -225,7 +225,7 @@ export function CandidateDetailModal({
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Location</p>
               <p className="text-xs font-bold text-foreground truncate">
-                {candidate.location || "Coimbatore"}
+                {candidate.location || "Not provided"}
               </p>
             </div>
           </a>
@@ -295,18 +295,18 @@ export function CandidateDetailModal({
               <p className="text-sm font-bold text-foreground">AI Proof-of-Skill Breakdown</p>
             </div>
             <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-primary text-primary-foreground">
-              {candidate.match?.verified_confidence || 88}% Confidence
+              {candidate.match?.verified_confidence === undefined ? "Not assessed" : `${candidate.match.verified_confidence}% Confidence`}
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="p-2.5 rounded-xl bg-card border border-border/60">
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Skill Fit</p>
-              <p className="text-base font-extrabold text-foreground">{candidate.match?.skill_fit || roleFitScore}%</p>
+              <p className="text-base font-extrabold text-foreground">{candidate.match?.skill_fit === undefined ? "Not assessed" : `${candidate.match.skill_fit}%`}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-card border border-border/60">
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Exp Fit</p>
-              <p className="text-base font-extrabold text-foreground">{candidate.match?.experience_fit || 85}%</p>
+              <p className="text-base font-extrabold text-foreground">{candidate.match?.experience_fit === undefined ? "Not assessed" : `${candidate.match.experience_fit}%`}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-card border border-border/60">
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Edu Fit</p>
@@ -314,7 +314,7 @@ export function CandidateDetailModal({
             </div>
             <div className="p-2.5 rounded-xl bg-card border border-border/60">
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Location</p>
-              <p className="text-base font-extrabold text-foreground">{candidate.match?.location_fit || 100}%</p>
+              <p className="text-base font-extrabold text-foreground">{candidate.match?.location_fit === undefined ? "Not assessed" : `${candidate.match.location_fit}%`}</p>
             </div>
           </div>
 

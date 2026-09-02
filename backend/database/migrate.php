@@ -41,7 +41,20 @@ echo str_repeat('─', 55) . "\n";
 // RESET mode: full wipe and recreate
 // ---------------------------------------------------------------------------
 if ($doReset) {
+    if ((getenv('APP_ENV') ?: 'production') === 'production') {
+        die("❌ Reset mode is disabled in production. Apply incremental migrations instead.\n");
+    }
     echo "⚠️  RESET MODE: Dropping all tables and recreating from schema.sql ...\n";
+    $dropSql = <<<'SQL'
+DO $$
+DECLARE table_name text;
+BEGIN
+    FOR table_name IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'migrations_log' LOOP
+        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(table_name) || ' CASCADE';
+    END LOOP;
+END $$;
+SQL;
+    $db->exec($dropSql);
     $schemaSql = file_get_contents(__DIR__ . '/schema.sql');
     if (!$schemaSql) {
         die("❌ schema.sql not found!\n");

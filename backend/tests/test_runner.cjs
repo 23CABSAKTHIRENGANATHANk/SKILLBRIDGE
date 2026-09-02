@@ -2,6 +2,7 @@ const http = require("http");
 
 const BASE = process.env.SKILLBRIDGE_TEST_BASE_URL || "http://127.0.0.1:8000/api";
 let failures = 0;
+let refreshCookie = "";
 
 function req(path, method = "GET", data = null, token = null) {
   return new Promise((resolve, reject) => {
@@ -13,12 +14,15 @@ function req(path, method = "GET", data = null, token = null) {
         ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(bodyStr) }
         : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(refreshCookie ? { Cookie: refreshCookie } : {}),
     };
 
     const request = http.request(url, { method, headers }, (res) => {
       let raw = "";
       res.on("data", (chunk) => (raw += chunk));
       res.on("end", () => {
+        const setCookie = res.headers["set-cookie"]?.find((value) => value.startsWith("sb_refresh_token="));
+        if (setCookie && !setCookie.startsWith("sb_refresh_token=;")) refreshCookie = setCookie.split(";")[0];
         let json = null;
         try {
           json = JSON.parse(raw);
@@ -230,6 +234,21 @@ async function run() {
     `Found ${cands.data?.candidates?.length || 0} candidates`,
   );
 
+  // 11b. Recruiter Shortlist Candidate (required before interview scheduling)
+  if (appId) {
+    const sl = await req(
+      "/applications/stage",
+      "PUT",
+      {
+        application_id: appId,
+        stage: "shortlisted",
+        notes: "Profile verified with real skills. Moving to shortlist.",
+      },
+      recruiterToken,
+    );
+    check("11b. Recruiter Stage Transition (Shortlist):", sl.status === 200, sl.status);
+  }
+
   // 12. Recruiter Schedule Interview
   if (appId) {
     const futureDate = new Date(Date.now() + 3 * 86400000)
@@ -405,22 +424,15 @@ async function run() {
     `Questions: ${intvSess.data?.questions?.length}`,
   );
 
-  const refreshToken = sReg.data?.refreshToken;
-  const refreshed = refreshToken
-    ? await req("/auth/refresh", "POST", { refreshToken })
-    : { status: 0, data: null };
+  const refreshed = await req("/auth/refresh", "POST");
   check(
     "31. Refresh Token:",
     refreshed.status === 200 && Boolean(refreshed.data?.token),
     refreshed.status,
   );
-  const logout = refreshToken
-    ? await req("/auth/logout", "POST", { refreshToken }, studentAuthToken)
-    : { status: 0, data: null };
+  const logout = await req("/auth/logout", "POST", null, studentAuthToken);
   check("32. Logout Revokes Refresh Token:", logout.status === 200, logout.status);
-  const revokedRefresh = refreshToken
-    ? await req("/auth/refresh", "POST", { refreshToken })
-    : { status: 0, data: null };
+  const revokedRefresh = await req("/auth/refresh", "POST");
   check(
     "33. Revoked Refresh Token Rejected:",
     revokedRefresh.status === 401,

@@ -238,13 +238,23 @@ PROMPT;
             }
         }
 
-        // Fallback: return first 5 jobs with generic labels
-        return array_map(fn($job, $i) => [
-            'job_id'        => $job['id'],
-            'reason'        => "This {$job['type']} role at {$job['company']} aligns with your {$program} background.",
-            'fit_label'     => $i === 0 ? 'Great Match' : 'Good Match',
-            'missing_count' => 0,
-        ], array_slice($jobs, 0, 5), range(0, 4));
+        $studentSkillMap = array_fill_keys(array_map('strtolower', $studentSkills), true);
+        $fallback = [];
+        foreach ($jobs as $job) {
+            $jobSkills = $job['skills'] ?? [];
+            $matched = array_values(array_filter($jobSkills, fn($skill) => isset($studentSkillMap[strtolower($skill)])));
+            $missingCount = count($jobSkills) - count($matched);
+            $fallback[] = [
+                'job_id' => $job['id'],
+                'reason' => empty($matched)
+                    ? 'No matching required skills are recorded in your profile yet.'
+                    : 'Matches your recorded skills: ' . implode(', ', $matched) . '.',
+                'fit_label' => empty($jobSkills) ? 'Needs Review' : ($missingCount === 0 ? 'Great Match' : 'Worth Trying'),
+                'missing_count' => $missingCount,
+            ];
+        }
+        usort($fallback, fn($a, $b) => ($a['missing_count'] <=> $b['missing_count']));
+        return array_slice($fallback, 0, 5);
     }
 
     // -----------------------------------------------------------------------
@@ -391,7 +401,7 @@ PROMPT;
             'summary'         => "I am a motivated {$program} student with hands-on experience in {$topSkills}. I thrive in collaborative environments and enjoy solving complex technical challenges. I am actively seeking opportunities to apply my skills in a professional setting.",
             'key_strengths'   => array_slice($skills, 0, 3),
             'improvement_tips'=> ["Add quantifiable achievements (e.g. 'Reduced load time by 40%')", "Include a LinkedIn profile URL"],
-            'ats_score'       => 72,
+            'ats_score'       => null,
             'experience_level'=> 'Fresher',
         ];
     }

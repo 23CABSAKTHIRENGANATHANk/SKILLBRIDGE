@@ -112,6 +112,7 @@ class ApplicationController {
         $sql = '
             SELECT a.id as app_id, a.stage, a.created_at as applied_at,
                    s.id as student_id, s.name, s.avatar_url, s.college, s.program, s.experience,
+                   s.location, s.graduation_year,
                    j.id as job_id, j.title as job_title, j.location as job_location
             FROM applications a
             JOIN students s ON a.student_id = s.id
@@ -196,23 +197,17 @@ class ApplicationController {
                 }
             }
 
-            // Derived smart attributes
-            $gradYear = 2025; // default batch
-            if (str_contains(strtolower($row['program']), '2026') || str_contains(strtolower($row['experience']), '2026')) {
-                $gradYear = 2026;
-            } elseif (str_contains(strtolower($row['program']), '2024')) {
-                $gradYear = 2024;
-            }
+            // Use real data from students table
+            $gradYear = (int)($row['graduation_year'] ?? 2025);
+            if ($gradYear === 0) $gradYear = 2025;
 
             if (!empty($gradYearFilter) && (int)$gradYearFilter !== $gradYear) {
                 continue;
             }
 
-            $candidateLocation = 'Bengaluru, India';
-            if (str_contains(strtolower($row['college']), 'chennai') || str_contains(strtolower($row['college']), 'anna')) {
-                $candidateLocation = 'Chennai, India';
-            } elseif (str_contains(strtolower($row['college']), 'coimbatore') || str_contains(strtolower($row['college']), 'psg')) {
-                $candidateLocation = 'Coimbatore, India';
+            $candidateLocation = $row['location'] ?? '';
+            if (empty($candidateLocation)) {
+                $candidateLocation = 'India'; // minimal fallback — never fabricate city
             }
 
             if (!empty($locationFilter) && !str_contains(strtolower($candidateLocation), strtolower($locationFilter))) {

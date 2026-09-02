@@ -155,7 +155,7 @@ export function AICareerCopilot({ onSelectJob, hasResume, hasSkills }: AICareerC
                 {resumeAnalysis && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
                     <Award className="h-3.5 w-3.5" />
-                    ATS: {resumeAnalysis.ats_score}/100
+                    ATS: {resumeAnalysis.ats_score === null ? "Not scored" : `${resumeAnalysis.ats_score}/100`}
                   </div>
                 )}
               </div>

@@ -45,14 +45,22 @@ function OnboardingPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    program: "B.Tech Information Technology",
-    graduationYear: "2025",
-    skills: ["React", "TypeScript", "JavaScript"],
-    workPreference: "Full Time",
+  const [formData, setFormData] = useState<{
+    program: string;
+    graduationYear: string;
+    skills: string[];
+    workPreference: string;
+    workLocation: string;
+    careerGoal: string;
+    salaryExpectation: string;
+  }>({
+    program: "",
+    graduationYear: "",
+    skills: [],
+    workPreference: "",
     workLocation: "",
     careerGoal: "",
-    salaryExpectation: "₹12 LPA - ₹18 LPA",
+    salaryExpectation: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 

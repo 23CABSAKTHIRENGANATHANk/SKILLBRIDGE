@@ -38,16 +38,7 @@ class Database {
 
     public static function getConnection(): PDO {
         if (self::$pdo !== null) {
-            try {
-                if (self::$pdo->inTransaction()) {
-                    self::$pdo->rollBack();
-                }
-            } catch (\Throwable) {
-                self::$pdo = null;
-            }
-            if (self::$pdo !== null) {
-                return self::$pdo;
-            }
+            return self::$pdo;
         }
 
         self::loadEnv();
@@ -96,8 +87,6 @@ class Database {
             echo json_encode([
                 'success' => false,
                 'error' => 'Database connection failed.',
-                'details' => $e->getMessage(),
-                'hint' => 'Check your DATABASE_URL or PostgreSQL credentials in backend/.env'
             ]);
             exit;
         }

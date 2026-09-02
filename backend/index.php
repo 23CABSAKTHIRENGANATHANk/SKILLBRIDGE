@@ -152,6 +152,11 @@ switch (true) {
         StudentController::updateProfile($user);
         break;
 
+    case $path === '/student/onboarding' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        StudentController::saveOnboarding($user);
+        break;
+
     case $path === '/student/dashboard' && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         StudentController::getDashboard($user);

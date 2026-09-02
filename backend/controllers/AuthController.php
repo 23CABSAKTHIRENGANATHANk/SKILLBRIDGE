@@ -8,6 +8,26 @@ require_once __DIR__ . '/../services/Validator.php';
 require_once __DIR__ . '/../services/AuditLogger.php';
 
 class AuthController {
+    private static function setRefreshCookie(string $token): void {
+        setcookie('sb_refresh_token', $token, [
+            'expires' => time() + (30 * 86400),
+            'path' => '/api/auth',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
+    private static function clearRefreshCookie(): void {
+        setcookie('sb_refresh_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/api/auth',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+
     public static function register(): void {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -94,6 +114,7 @@ class AuthController {
             }
 
             $db->commit();
+            self::setRefreshCookie($rawRefreshToken);
 
             AuditLogger::auth('user.register', $userId, $role, [
                 'email'   => $email,
@@ -124,7 +145,8 @@ class AuthController {
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
-            errorResponse('Registration failed: ' . $e->getMessage(), 500);
+            error_log('Registration failed: ' . $e->getMessage());
+            errorResponse('Registration failed. Please try again.', 500);
         }
     }
 
@@ -175,13 +197,13 @@ class AuthController {
 
         $rtStmt = $db->prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)');
         $rtStmt->execute([$refreshTokenId, $user['id'], $refreshTokenHash, $expiresAt]);
+        self::setRefreshCookie($rawRefreshToken);
 
         jsonResponse([
             'success'       => true,
             'message'       => 'Login successful.',
             'token'         => $accessToken,
             'refreshToken'  => $rawRefreshToken,
-            'refresh_token' => $rawRefreshToken,
             'user'          => [
                 'id'      => $user['id'],
                 'email'   => $user['email'],
@@ -195,6 +217,7 @@ class AuthController {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $rawRefreshToken = trim($input['refreshToken'] ?? ($input['refresh_token'] ?? ''));
+        $rawRefreshToken = $rawRefreshToken ?: ($_COOKIE['sb_refresh_token'] ?? '');
 
         if (empty($rawRefreshToken)) {
             errorResponse('Refresh token is required.', 400);
@@ -214,17 +237,36 @@ class AuthController {
             errorResponse('Refresh token is expired or revoked. Please sign in again.', 401);
         }
 
-        // Issue new Access Token
-        $newAccessToken = JWT::encode([
-            'user_id' => $row['user_id'],
-            'email'   => $row['email'],
-            'role'    => $row['role']
-        ], 7200);
+        $db->beginTransaction();
+        try {
+            $revoke = $db->prepare('UPDATE refresh_tokens SET revoked = TRUE WHERE id = ? AND revoked = FALSE');
+            $revoke->execute([$row['id']]);
+            if ($revoke->rowCount() !== 1) {
+                $db->rollBack();
+                errorResponse('Refresh token has already been used. Please sign in again.', 401);
+            }
+
+            $newRefreshToken = JWT::createRefreshToken($row['user_id']);
+            self::setRefreshCookie($newRefreshToken);
+            $newAccessToken = JWT::encode([
+                'user_id' => $row['user_id'],
+                'email'   => $row['email'],
+                'role'    => $row['role']
+            ], 7200);
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            error_log('Refresh token rotation failed: ' . $e->getMessage());
+            errorResponse('Unable to refresh session. Please sign in again.', 401);
+        }
 
         jsonResponse([
-            'success' => true,
-            'token'   => $newAccessToken,
-            'user'    => [
+            'success'      => true,
+            'token'        => $newAccessToken,
+            'refreshToken' => $newRefreshToken,
+            'user'         => [
                 'id'    => $row['user_id'],
                 'email' => $row['email'],
                 'role'  => $row['role']
@@ -236,6 +278,7 @@ class AuthController {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $rawRefreshToken = trim($input['refreshToken'] ?? ($input['refresh_token'] ?? ''));
+        $rawRefreshToken = $rawRefreshToken ?: ($_COOKIE['sb_refresh_token'] ?? '');
 
         // If refresh token provided, revoke it
         if (!empty($rawRefreshToken)) {
@@ -243,6 +286,7 @@ class AuthController {
             $stmt = $db->prepare('UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = ?');
             $stmt->execute([$tokenHash]);
         }
+        self::clearRefreshCookie();
 
         // If authorization header exists, also revoke tokens for user
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');

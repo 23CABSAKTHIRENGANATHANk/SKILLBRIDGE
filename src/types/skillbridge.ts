@@ -151,7 +151,7 @@ export interface AIResumeAnalysis {
   summary: string;
   key_strengths: string[];
   improvement_tips: string[];
-  ats_score: number;
+  ats_score: number | null;
   experience_level: "Fresher" | "Junior" | "Mid" | string;
 }
 

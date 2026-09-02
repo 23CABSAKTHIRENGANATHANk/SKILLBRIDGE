@@ -79,6 +79,7 @@ class GitHubController {
         $pId = 'gh_' . bin2hex(random_bytes(8));
         $insStmt = $db->prepare('
             INSERT INTO student_github_profiles (id, student_id, github_username, public_repos_count, languages, detected_skills, top_repositories, analyzed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT (student_id) DO UPDATE SET
                 github_username = EXCLUDED.github_username,
                 public_repos_count = EXCLUDED.public_repos_count,

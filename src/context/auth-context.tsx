@@ -35,9 +35,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initAuth = useCallback(async () => {
     const token = ApiClient.getToken();
-    const refreshToken = ApiClient.getRefreshToken();
-
-    if (!token && !refreshToken) {
+    if (!token) {
+      try {
+        const refreshRes = await ApiClient.refreshAccessToken();
+        if (refreshRes?.token) {
+          ApiClient.setToken(refreshRes.token);
+          setUser(refreshRes.user);
+          setIsLoading(false);
+          return;
+        }
+      } catch {
+        ApiClient.clearTokens();
+      }
       setUser(null);
       setIsLoading(false);
       return;
@@ -57,20 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // Token may be expired; attempt refresh token
-      if (refreshToken) {
-        try {
-          const refreshRes = await ApiClient.refreshAccessToken(refreshToken);
-          if (refreshRes && refreshRes.token) {
-            ApiClient.setToken(refreshRes.token);
-            setUser(refreshRes.user);
-            setIsLoading(false);
-            return;
-          }
-        } catch {
-          ApiClient.clearTokens();
-          setUser(null);
+      try {
+        const refreshRes = await ApiClient.refreshAccessToken();
+        if (refreshRes && refreshRes.token) {
+          ApiClient.setToken(refreshRes.token);
+          setUser(refreshRes.user);
+          setIsLoading(false);
+          return;
         }
-      } else {
+      } catch {
         ApiClient.clearTokens();
         setUser(null);
       }
@@ -137,10 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshSession = async (): Promise<boolean> => {
-    const refreshToken = ApiClient.getRefreshToken();
-    if (!refreshToken) return false;
     try {
-      const res = await ApiClient.refreshAccessToken(refreshToken);
+      const res = await ApiClient.refreshAccessToken();
       if (res && res.token) {
         ApiClient.setToken(res.token);
         setUser(res.user);

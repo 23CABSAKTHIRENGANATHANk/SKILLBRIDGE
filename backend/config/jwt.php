@@ -48,6 +48,11 @@ class JWT {
 
         [$header64, $payload64, $signature64] = $tokenParts;
 
+        $header = json_decode(self::base64UrlDecode($header64), true);
+        if (!is_array($header) || ($header['alg'] ?? '') !== 'HS256' || ($header['typ'] ?? '') !== 'JWT') {
+            return null;
+        }
+
         $signature = self::base64UrlDecode($signature64);
         $expectedSignature = hash_hmac('sha256', $header64 . "." . $payload64, self::getSecret(), true);
 
@@ -60,7 +65,13 @@ class JWT {
             return null;
         }
 
-        if (isset($payload['exp']) && $payload['exp'] < time()) {
+        if (!isset($payload['user_id'], $payload['role'], $payload['iat'], $payload['exp'])
+            || !is_string($payload['user_id'])
+            || !in_array($payload['role'], ['student', 'recruiter', 'admin'], true)
+            || !is_int($payload['iat'])
+            || !is_int($payload['exp'])
+            || $payload['exp'] <= $payload['iat']
+            || $payload['exp'] < time()) {
             return null;
         }
 

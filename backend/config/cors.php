@@ -10,18 +10,11 @@ function handleCors(): void {
     $allowedOrigins = [
         'https://skillbridge.dev',
         'https://www.skillbridge.dev',
-        'https://app.skillbridge.dev',
-        'http://localhost:5173',
-        'http://localhost:8080',
-        'http://localhost:3000',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:8080',
-        'http://127.0.0.1:3000'
+        'https://app.skillbridge.dev'
     ];
 
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     $localhostOrigin = preg_match('/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin) === 1;
-    $isVercelOrigin = preg_match('/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/', $origin) === 1;
     $configuredOrigin = getenv('FRONTEND_URL') ?: '';
     $configuredCors = getenv('CORS_ALLOWED_ORIGINS') ?: '';
 
@@ -32,8 +25,15 @@ function handleCors(): void {
     if (!empty($configuredOrigin)) {
         $allowedOrigins[] = rtrim($configuredOrigin, '/');
     }
+    if ($env !== 'production') {
+        $allowedOrigins = array_merge($allowedOrigins, [
+            'http://localhost:5173', 'http://localhost:8080', 'http://localhost:3000',
+            'http://127.0.0.1:5173', 'http://127.0.0.1:8080', 'http://127.0.0.1:3000'
+        ]);
+    }
 
-    if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $isVercelOrigin || $localhostOrigin)) {
+    $allowLocalhost = $env !== 'production' && $localhostOrigin;
+    if ($origin !== '' && (in_array($origin, $allowedOrigins, true) || $allowLocalhost)) {
         header("Access-Control-Allow-Origin: {$origin}");
     }
 

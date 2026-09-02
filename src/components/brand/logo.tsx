@@ -2,33 +2,19 @@ import { cn } from "@/lib/utils";
 
 export function BridgeMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className={cn("size-8", className)}>
-      <defs>
-        <linearGradient id="sb-mark" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0%" stopColor="oklch(0.42 0.2 275)" />
-          <stop offset="60%" stopColor="oklch(0.52 0.19 258)" />
-          <stop offset="100%" stopColor="oklch(0.7 0.13 200)" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M3 23C9 23 11 7 16 7s7 16 13 16"
-        fill="none"
-        stroke="url(#sb-mark)"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <circle cx="4" cy="23" r="3" fill="url(#sb-mark)" />
-      <circle cx="28" cy="23" r="3" fill="url(#sb-mark)" />
-      <circle cx="16" cy="7" r="2.5" fill="url(#sb-mark)" />
-    </svg>
+    <img
+      src="/skillbridge-logo.jpeg"
+      alt=""
+      className={cn("h-9 w-14 rounded-md object-cover object-[center_28%]", className)}
+    />
   );
 }
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn("flex items-center gap-2", className)}>
+    <span className={cn("flex items-center gap-2", className)} aria-label="SkillBridge">
       <BridgeMark />
-      <span className="font-display text-lg font-extrabold tracking-tight">
+      <span className="font-display text-lg font-extrabold tracking-tight" aria-hidden="true">
         Skill<span className="bridge-gradient-text">Bridge</span>
       </span>
     </span>

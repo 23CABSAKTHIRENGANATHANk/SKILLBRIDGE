@@ -44,20 +44,16 @@ export class ApiClient {
   }
 
   public static getRefreshToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("sb_refresh_token");
+    return null;
   }
 
   public static setRefreshToken(refreshToken: string): void {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("sb_refresh_token", refreshToken);
-    }
+    void refreshToken;
   }
 
   public static clearTokens(): void {
     if (typeof window !== "undefined") {
       localStorage.removeItem("sb_auth_token");
-      localStorage.removeItem("sb_refresh_token");
       localStorage.removeItem("sb_user_cache");
     }
   }
@@ -100,6 +96,7 @@ export class ApiClient {
     try {
       const response = await fetch(url, {
         ...options,
+        credentials: "include",
         headers,
         signal: options.signal ?? controller.signal,
       });
@@ -112,11 +109,11 @@ export class ApiClient {
         !endpoint.includes("/auth/refresh")
       ) {
         const refreshToken = this.getRefreshToken();
-        if (refreshToken) {
+        if (refreshToken || endpoint.includes("/auth/")) {
           if (!this.isRefreshing) {
             this.isRefreshing = true;
             try {
-              const refreshRes = await this.refreshAccessToken(refreshToken);
+              const refreshRes = await this.refreshAccessToken(refreshToken ?? undefined);
               if (refreshRes && refreshRes.token) {
                 this.setToken(refreshRes.token);
                 this.isRefreshing = false;
@@ -357,7 +354,7 @@ export class ApiClient {
     return await this.request<{ success: boolean; user: AuthUser; profile?: any }>("/auth/me");
   }
 
-  public static async refreshAccessToken(refreshToken: string): Promise<{
+  public static async refreshAccessToken(refreshToken?: string): Promise<{
     success: boolean;
     token: string;
     user: AuthUser;
@@ -368,7 +365,7 @@ export class ApiClient {
       user: AuthUser;
     }>("/auth/refresh", {
       method: "POST",
-      body: JSON.stringify({ refreshToken }),
+        ...(refreshToken ? { body: JSON.stringify({ refreshToken }) } : {}),
     });
   }
 
@@ -687,7 +684,7 @@ export class ApiClient {
     total_questions: number;
     questions: Array<{ id: string; category: string; question: string; options: Record<string, string> }>;
   }> {
-    return this.request(`/assessment?skill=${encodeURIComponent(skillName)}`);
+    return this.request(`/student/assessments/${encodeURIComponent(skillName)}`);
   }
 
   public static async submitSkillAssessment(data: {
@@ -708,7 +705,7 @@ export class ApiClient {
     };
     updated_skills: any[];
   }> {
-    return this.request("/assessment/submit", {
+    return this.request("/student/assessments", {
       method: "POST",
       body: JSON.stringify(data),
     });

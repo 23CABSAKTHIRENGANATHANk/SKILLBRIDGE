@@ -70,6 +70,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client
           psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge -v ON_ERROR_STOP=1 -f backend/database/schema.sql
+          for migration in backend/database/migrate_*.sql; do
+            psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge -v ON_ERROR_STOP=1 -f "$migration"
+          done
       - name: Configure backend test environment
         run: |
           cat > backend/.env <<'EOF'
@@ -92,3 +95,4 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8000/api/ping >/dev/null
           node backend/tests/test_runner.cjs
+          node backend/tests/audit_runner.cjs

@@ -403,11 +403,11 @@ function SettingsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Profile Completeness</span>
-                    <span className="font-bold text-primary">92%</span>
+                    <span className="font-bold text-primary">Not available</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Member Since</span>
-                    <span className="font-bold">Jan 2024</span>
+                    <span className="font-bold">Not available</span>
                   </div>
                 </div>
               </div>

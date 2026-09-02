@@ -84,17 +84,17 @@ Evaluate objectively and return JSON matching this exact structure:
             $scorecard = json_decode($m[0], true);
         }
 
-        if (!$scorecard || !isset($scorecard['overall_score'])) {
-            $scorecard = [
-                'technical_score' => 82,
-                'problem_solving_score' => 80,
-                'communication_score' => 85,
-                'role_fit_score' => 84,
-                'overall_score' => 83,
-                'strengths' => ['Strong grasp of software architecture', 'Clear and structured communication style'],
-                'improvements' => ['Include more quantifiable metrics when discussing previous projects'],
-                'evaluator_notes' => 'Solid technical candidate with balanced problem solving ability.'
-            ];
+        $scoreKeys = ['technical_score', 'problem_solving_score', 'communication_score', 'role_fit_score', 'overall_score'];
+        $validScorecard = is_array($scorecard) && count(array_filter($scoreKeys, fn($key) => isset($scorecard[$key]) && is_numeric($scorecard[$key]))) === count($scoreKeys);
+        if ($validScorecard) {
+            foreach ($scoreKeys as $key) {
+                $scorecard[$key] = max(0, min(100, (int)$scorecard[$key]));
+            }
+            $scorecard['strengths'] = is_array($scorecard['strengths'] ?? null) ? $scorecard['strengths'] : [];
+            $scorecard['improvements'] = is_array($scorecard['improvements'] ?? null) ? $scorecard['improvements'] : [];
+            $scorecard['evaluator_notes'] = (string)($scorecard['evaluator_notes'] ?? 'AI-assisted evaluation.');
+        } else {
+            $scorecard = self::deterministicScorecard($answers);
         }
 
         $sessionId = 'aisess_' . bin2hex(random_bytes(8));
@@ -124,5 +124,25 @@ Evaluate objectively and return JSON matching this exact structure:
             'scorecard' => $scorecard,
             'disclaimer' => 'AI-assisted assessment — recruiter review required. Does not determine automatic hiring decisions.'
         ]);
+    }
+
+    private static function deterministicScorecard(array $answers): array {
+        $scores = [];
+        foreach ($answers as $answer) {
+            $length = strlen(trim((string)$answer));
+            $scores[] = $length === 0 ? 0 : ($length < 80 ? 25 : ($length < 180 ? 50 : ($length < 320 ? 75 : 100)));
+        }
+        $overall = !empty($scores) ? (int)round(array_sum($scores) / count($scores)) : 0;
+        $answered = count(array_filter($scores, fn($score) => $score > 0));
+        return [
+            'technical_score' => $overall,
+            'problem_solving_score' => $overall,
+            'communication_score' => $overall,
+            'role_fit_score' => $overall,
+            'overall_score' => $overall,
+            'strengths' => $answered === count($scores) && $overall >= 50 ? ['All interview questions received a response.'] : [],
+            'improvements' => $answered < count($scores) ? ['Answer every question with a specific example and outcome.'] : ($overall < 50 ? ['Provide more detailed examples, trade-offs, and outcomes.'] : []),
+            'evaluator_notes' => 'Deterministic fallback based on response completeness and length; recruiter review required.'
+        ];
     }
 }

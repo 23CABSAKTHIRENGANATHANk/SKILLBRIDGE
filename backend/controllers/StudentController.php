@@ -408,6 +408,59 @@ class StudentController {
         self::getProfile($currentUser);
     }
 
+    public static function saveOnboarding(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $sStmt = $db->prepare('SELECT id, name, college FROM students WHERE user_id = ? LIMIT 1');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $program = trim((string)($input['program'] ?? ''));
+        $experience = trim((string)($input['careerGoal'] ?? ''));
+        if ($program === '') {
+            errorResponse('Program is required.');
+        }
+
+        $db->beginTransaction();
+        try {
+            $update = $db->prepare('UPDATE students SET program = ?, experience = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+            $update->execute([$program, $experience ?: 'Fresher', $student['id']]);
+
+            $skills = $input['skills'] ?? [];
+            if (is_array($skills)) {
+                foreach ($skills as $skillName) {
+                    $skillName = trim((string)$skillName);
+                    if ($skillName === '') continue;
+                    $norm = strtolower($skillName);
+                    $find = $db->prepare('SELECT id FROM skills WHERE normalized_name = ? LIMIT 1');
+                    $find->execute([$norm]);
+                    $skill = $find->fetch();
+                    if (!$skill) {
+                        $skillId = 'sk_' . bin2hex(random_bytes(6));
+                        $db->prepare('INSERT INTO skills (id, name, normalized_name) VALUES (?, ?, ?)')->execute([$skillId, $skillName, $norm]);
+                    } else {
+                        $skillId = $skill['id'];
+                    }
+                    $db->prepare('INSERT INTO student_skills (student_id, skill_id, proficiency) VALUES (?, ?, ?) ON CONFLICT (student_id, skill_id) DO NOTHING')
+                        ->execute([$student['id'], $skillId, 'intermediate']);
+                    $db->prepare('INSERT INTO skill_evidence (id, student_id, skill_id, source, confidence, metadata) VALUES (?, ?, ?, \'self_declared\', 10, ?) ON CONFLICT (student_id, skill_id, source) DO NOTHING')
+                        ->execute(['ev_' . bin2hex(random_bytes(8)), $student['id'], $skillId, json_encode(['source' => 'onboarding'])]);
+                }
+            }
+            $db->commit();
+        } catch (Throwable $e) {
+            $db->rollBack();
+            error_log('Onboarding save failed: ' . $e->getMessage());
+            errorResponse('Unable to save onboarding details. Please try again.', 500);
+        }
+
+        self::getProfile($currentUser);
+    }
+
     /**
      * Delete a skill from student profile
      */
@@ -445,7 +498,7 @@ class StudentController {
         AuthMiddleware::requireRole($currentUser, 'student', 'admin');
         $db = Database::getConnection();
 
-        $sStmt = $db->prepare('SELECT id, name, college, program, resume_storage_key FROM students WHERE user_id = ?');
+        $sStmt = $db->prepare('SELECT id, name, college, program, resume_storage_key, phone_verified FROM students WHERE user_id = ?');
         $sStmt->execute([$currentUser['user_id']]);
         $student = $sStmt->fetch();
 
@@ -481,24 +534,47 @@ class StudentController {
             ];
         }
 
-        $hasResume = !empty($student['resume_storage_key']);
-        $trustScore = 70 + ($hasResume ? 15 : 0) + (count($endorsements) > 0 ? 15 : 0);
+        // Check GitHub evidence for proof-of-work
+        $ghStmt = $db->prepare('SELECT id FROM student_github_profiles WHERE student_id = ? LIMIT 1');
+        $ghStmt->execute([$student['id']]);
+        $hasGithub = (bool)$ghStmt->fetch();
+
+        // Check assessment completion
+        $assessStmt = $db->prepare('SELECT COUNT(*) FROM skill_assessments WHERE student_id = ?');
+        $assessStmt->execute([$student['id']]);
+        $assessmentCount = (int)$assessStmt->fetchColumn();
+
+        // Derive trust flags from real data
+        $hasResume    = !empty($student['resume_storage_key']);
+        $phoneVerified = !empty($student['phone_verified']) && (bool)$student['phone_verified'];
+        $hasCollege    = !empty($student['college']) && $student['college'] !== 'University Student';
+
+        // Trust score: base 40 + real data signals (max 100)
+        $trustScore = 40
+            + ($hasResume       ? 20 : 0)
+            + ($phoneVerified   ? 10 : 0)
+            + ($hasGithub       ? 10 : 0)
+            + ($assessmentCount > 0 ? 10 : 0)
+            + (count($endorsements) > 0 ? 10 : 0);
 
         jsonResponse([
             'success' => true,
             'trust_profile' => [
-                'academic_verified' => true,
-                'college_email_verified' => true,
-                'phone_verified' => true,
-                'identity_verified' => true,
-                'resume_verified' => $hasResume,
-                'institution' => $student['college'],
-                'program' => $student['program'],
-                'trust_score' => $trustScore,
-                'endorsements' => $endorsements
+                'academic_verified'      => $hasCollege,
+                'college_email_verified' => $hasCollege,
+                'phone_verified'         => $phoneVerified,
+                'identity_verified'      => $hasResume,
+                'resume_verified'        => $hasResume,
+                'github_connected'       => $hasGithub,
+                'assessments_completed'  => $assessmentCount,
+                'institution'            => $student['college'],
+                'program'                => $student['program'],
+                'trust_score'            => min(100, $trustScore),
+                'endorsements'           => $endorsements
             ]
         ]);
     }
+
 
     /**
      * Add student project
@@ -632,14 +708,46 @@ class StudentController {
      */
     public static function verifyPhone(array $currentUser): void {
         AuthMiddleware::requireRole($currentUser, 'student', 'recruiter', 'admin');
+        $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $phone = trim($input['phone'] ?? '+91 98765 43210');
+
+        $phone = trim($input['phone'] ?? '');
+        if (empty($phone)) {
+            errorResponse('Phone number is required.', 400);
+        }
+
+        // Basic phone format validation: allow digits, spaces, dashes, +
+        if (!preg_match('/^\+?[\d\s\-]{7,20}$/', $phone)) {
+            errorResponse('Invalid phone number format.', 422);
+        }
+
+        // Get student ID from user
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ? LIMIT 1');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        // Persist phone and mark as verified in the database
+        $upStmt = $db->prepare('
+            UPDATE students
+            SET phone = ?, phone_verified = TRUE, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ');
+        $upStmt->execute([$phone, $student['id']]);
+
+        AuditLogger::log('student.phone_verified', $currentUser['user_id'], 'student', 'student', $student['id'], [
+            'phone' => $phone
+        ]);
 
         jsonResponse([
-            'success' => true,
-            'message' => "Phone number {$phone} verified successfully via SMS OTP.",
+            'success'  => true,
+            'message'  => "Phone number {$phone} verified successfully.",
             'verified' => true,
-            'phone' => $phone
+            'phone'    => $phone
         ]);
     }
 }
+

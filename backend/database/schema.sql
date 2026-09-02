@@ -3,19 +3,6 @@
 -- Compatible with PostgreSQL 16+
 -- ========================================================================
 
--- Clean drop existing tables
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS interviews CASCADE;
-DROP TABLE IF EXISTS applications CASCADE;
-DROP TABLE IF EXISTS job_skills CASCADE;
-DROP TABLE IF EXISTS jobs CASCADE;
-DROP TABLE IF EXISTS student_skills CASCADE;
-DROP TABLE IF EXISTS students CASCADE;
-DROP TABLE IF EXISTS companies CASCADE;
-DROP TABLE IF EXISTS skills CASCADE;
-DROP TABLE IF EXISTS refresh_tokens CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
 -- ------------------------------------------------------------------------
 -- 1. Users Table (Core Auth with Role-Based Access)
 -- ------------------------------------------------------------------------
