@@ -51,10 +51,10 @@ class Database {
         }
 
         self::loadEnv();
-
         $databaseUrl = getenv('DATABASE_URL') ?: ($_ENV['DATABASE_URL'] ?? ($_SERVER['DATABASE_URL'] ?? ''));
+
         if (empty($databaseUrl) || str_contains($databaseUrl, '@HOST') || str_contains($databaseUrl, 'CHANGE_ME')) {
-            $databaseUrl = 'postgresql://neondb_owner:npg_k36hwEGpisZY@ep-curly-paper-ayqofep8-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+            throw new RuntimeException('DATABASE_URL is not set or contains placeholders. Configure DATABASE_URL in backend/.env.');
         }
 
         // Parse full connection string e.g. postgresql://user:pass@host:port/dbname?sslmode=require
