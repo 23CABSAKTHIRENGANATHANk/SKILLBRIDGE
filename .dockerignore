@@ -1,0 +1,14 @@
+.env
+.env.*
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/storage/logs/*
+backend/storage/resumes/*
+backend/uploads/logos/*
+node_modules
+.output
+.tanstack
+.wrangler
+.git
+.github
