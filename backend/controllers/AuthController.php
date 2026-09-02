@@ -177,11 +177,12 @@ class AuthController {
         $rtStmt->execute([$refreshTokenId, $user['id'], $refreshTokenHash, $expiresAt]);
 
         jsonResponse([
-            'success'      => true,
-            'message'      => 'Login successful.',
-            'token'        => $accessToken,
-            'refreshToken' => $rawRefreshToken,
-            'user'         => [
+            'success'       => true,
+            'message'       => 'Login successful.',
+            'token'         => $accessToken,
+            'refreshToken'  => $rawRefreshToken,
+            'refresh_token' => $rawRefreshToken,
+            'user'          => [
                 'id'      => $user['id'],
                 'email'   => $user['email'],
                 'role'    => $user['role'],
@@ -193,7 +194,7 @@ class AuthController {
     public static function refresh(): void {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $rawRefreshToken = trim($input['refreshToken'] ?? '');
+        $rawRefreshToken = trim($input['refreshToken'] ?? ($input['refresh_token'] ?? ''));
 
         if (empty($rawRefreshToken)) {
             errorResponse('Refresh token is required.', 400);
@@ -234,7 +235,7 @@ class AuthController {
     public static function logout(): void {
         $db = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $rawRefreshToken = trim($input['refreshToken'] ?? '');
+        $rawRefreshToken = trim($input['refreshToken'] ?? ($input['refresh_token'] ?? ''));
 
         // If refresh token provided, revoke it
         if (!empty($rawRefreshToken)) {
