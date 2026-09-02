@@ -40,6 +40,19 @@ The application is not declared `STAGING VERIFIED` or `PRODUCTION READY` because
 the database-backed authorization/upload/E2E tests, production Neon check,
 deployed HTTPS/CSP check, and CI run did not complete.
 
+### 5.5 Gemini / AI Production Verification
+
+| Field | Result | Evidence |
+|-------|--------|----------|
+| `AI_MODEL` | `gemini-2.5-flash` | `backend/.env` is configured with `gemini-2.5-flash`; `GeminiService` uses `GEMINI_MODEL` with the same stable default. Google’s model documentation lists it as stable. |
+| `AI_API` | PASS | One real backend `GeminiService::summariseResume()` request completed with a valid structured response. The API key value was not printed. |
+| `FALLBACK` | PASS | `php -r ... GeminiService::summariseResume(...)` with `GEMINI_API_KEY` explicitly empty returned `FALLBACK_PASS`. |
+| `SECRET_EXPOSURE` | PASS | `GEMINI_API_KEY` is read only by server-side PHP; frontend source, Vite configuration, CI workflow, logs, and this report contain no key value. `backend/.env` remains local configuration and is not committed. |
+
+Google’s current model pages identify `gemini-2.0-flash` as shut down on June 1,
+2026 and list `gemini-2.5-flash` as stable. The service no longer hardcodes the
+retired model and URL-encodes the server-side model/key request components.
+
 ## Verification Update
 
 | Area            | Result        | Evidence                                                                                                                                                            |

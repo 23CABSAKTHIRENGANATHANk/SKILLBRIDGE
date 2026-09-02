@@ -62,7 +62,7 @@ async function run() {
     college: "Anna University",
     program: "B.Tech Computer Science",
   });
-  check("3. Student Registration:", sReg.status === 201 && Boolean(sReg.data?.token), sReg.status);
+  check("3. Student Registration:", sReg.status === 201 && Boolean(sReg.data?.token), sReg.status + " " + JSON.stringify(sReg.data));
   const studentToken = sReg.data?.token;
 
   // 4. Student Login

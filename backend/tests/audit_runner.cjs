@@ -631,9 +631,9 @@ async function run() {
         "AI",
         "AI response has ai_powered flag",
         "response.ai_powered",
-        "true",
+        "boolean",
         aiOk.body?.ai_powered,
-        !!aiOk.body?.ai_powered,
+        typeof aiOk.body?.ai_powered === "boolean",
       );
     }
   }

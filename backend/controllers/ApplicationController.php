@@ -70,6 +70,16 @@ class ApplicationController {
                 ]);
             }
 
+            // Also create a confirmation notification for the student
+            $studentNotifStmt = $db->prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)');
+            $studentNotifStmt->execute([
+                'n_' . bin2hex(random_bytes(8)),
+                $currentUser['user_id'],
+                'Application Submitted',
+                "Your application for {$job['title']} has been successfully sent to {$job['company_id']}.",
+                '/dashboard'
+            ]);
+
             $db->commit();
             jsonResponse([
                 'success' => true,

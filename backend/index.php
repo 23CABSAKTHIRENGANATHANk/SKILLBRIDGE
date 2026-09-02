@@ -151,7 +151,7 @@ switch (true) {
         StudentController::addSkill($user);
         break;
 
-    case $path === '/student/resume' && $method === 'POST':
+    case ($path === '/student/resume' || $path === '/student/resume/upload') && $method === 'POST':
         $user = AuthMiddleware::authenticate();
         StudentController::uploadResume($user);
         break;

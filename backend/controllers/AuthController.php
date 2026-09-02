@@ -41,10 +41,17 @@ class AuthController {
         $userId = 'u_' . bin2hex(random_bytes(10));
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
 
+        if ($db->inTransaction()) {
+            try { $db->rollBack(); } catch (\Throwable) {}
+        }
         $db->beginTransaction();
         try {
-            $stmt = $db->prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)');
-            $stmt->execute([$userId, $email, $passwordHash, $role]);
+            try {
+                $stmt = $db->prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)');
+                $stmt->execute([$userId, $email, $passwordHash, $role]);
+            } catch (\Exception $e) {
+                throw new \Exception("Step 1 (users): " . $e->getMessage());
+            }
 
             $profile = null;
             if ($role === 'student') {
@@ -52,16 +59,24 @@ class AuthController {
                 $college = trim($input['college'] ?? 'University Student');
                 $program = trim($input['program'] ?? 'Computer Science');
 
-                $stmtStudent = $db->prepare('INSERT INTO students (id, user_id, name, college, program) VALUES (?, ?, ?, ?, ?)');
-                $stmtStudent->execute([$studentId, $userId, $name ?: 'Student', $college, $program]);
+                try {
+                    $stmtStudent = $db->prepare('INSERT INTO students (id, user_id, name, college, program) VALUES (?, ?, ?, ?, ?)');
+                    $stmtStudent->execute([$studentId, $userId, $name ?: 'Student', $college, $program]);
+                } catch (\Exception $e) {
+                    throw new \Exception("Step 2 (students): " . $e->getMessage());
+                }
                 $profile = ['id' => $studentId, 'name' => $name ?: 'Student', 'college' => $college, 'program' => $program];
             } else if ($role === 'recruiter') {
                 $companyId = 'c_' . bin2hex(random_bytes(10));
                 $companyName = trim($input['company_name'] ?? ($name . ' Labs'));
                 $industry = trim($input['industry'] ?? 'Technology');
 
-                $stmtCompany = $db->prepare('INSERT INTO companies (id, user_id, name, industry) VALUES (?, ?, ?, ?)');
-                $stmtCompany->execute([$companyId, $userId, $companyName, $industry]);
+                try {
+                    $stmtCompany = $db->prepare('INSERT INTO companies (id, user_id, name, industry) VALUES (?, ?, ?, ?)');
+                    $stmtCompany->execute([$companyId, $userId, $companyName, $industry]);
+                } catch (\Exception $e) {
+                    throw new \Exception("Step 2 (companies): " . $e->getMessage());
+                }
                 $profile = ['id' => $companyId, 'name' => $companyName, 'industry' => $industry];
             }
 
@@ -71,8 +86,12 @@ class AuthController {
             $refreshTokenId = 'rt_' . bin2hex(random_bytes(8));
             $expiresAt = date('Y-m-d H:i:s', time() + (30 * 86400)); // 30 days
 
-            $rtStmt = $db->prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)');
-            $rtStmt->execute([$refreshTokenId, $userId, $refreshTokenHash, $expiresAt]);
+            try {
+                $rtStmt = $db->prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)');
+                $rtStmt->execute([$refreshTokenId, $userId, $refreshTokenHash, $expiresAt]);
+            } catch (\Exception $e) {
+                throw new \Exception("Step 3 (refresh_tokens): " . $e->getMessage());
+            }
 
             $db->commit();
 
@@ -225,13 +244,20 @@ class AuthController {
         }
 
         // If authorization header exists, also revoke tokens for user
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+        if (empty($authHeader) && function_exists('getallheaders')) {
+            $headers = getallheaders();
+            $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        }
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
-            $payload = JWT::decode($matches[1]);
-            if ($payload && isset($payload['user_id'])) {
-                $uStmt = $db->prepare('UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = ?');
-                $uStmt->execute([$payload['user_id']]);
+            try {
+                $payload = JWT::decode(trim($matches[1]));
+                if ($payload && isset($payload['user_id'])) {
+                    $uStmt = $db->prepare('UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = ?');
+                    $uStmt->execute([$payload['user_id']]);
+                }
+            } catch (Throwable $e) {
+                // Ignore decode errors on logout
             }
         }
 

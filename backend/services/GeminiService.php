@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * SkillBridge Gemini AI Service
  *
- * Wraps the Google Gemini 1.5 Flash API for all AI features:
+ * Wraps the Google Gemini API for all AI features:
  *  - Resume summarisation
  *  - Candidate-to-job match explanation
  *  - Personalised job recommendations
@@ -15,7 +15,8 @@ declare(strict_types=1);
  * or the request fails, so the app never breaks.
  */
 class GeminiService {
-    private const API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+    private const DEFAULT_MODEL = 'gemini-2.5-flash';
     private const TIMEOUT  = 12; // seconds
 
     // -----------------------------------------------------------------------
@@ -26,6 +27,11 @@ class GeminiService {
         $apiKey = getenv('GEMINI_API_KEY') ?: '';
         if (empty($apiKey)) {
             return ''; // trigger deterministic fallback
+        }
+
+        $model = getenv('GEMINI_MODEL') ?: self::DEFAULT_MODEL;
+        if (!preg_match('/^gemini-[a-z0-9.-]+$/', $model)) {
+            $model = self::DEFAULT_MODEL;
         }
 
         $payload = json_encode([
@@ -43,7 +49,7 @@ class GeminiService {
             ]
         ]);
 
-        $ch = curl_init(self::API_URL . '?key=' . $apiKey);
+        $ch = curl_init(self::API_BASE_URL . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey));
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
@@ -58,7 +64,6 @@ class GeminiService {
 
         $raw  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if ($raw === false || $code !== 200) {
             return '';

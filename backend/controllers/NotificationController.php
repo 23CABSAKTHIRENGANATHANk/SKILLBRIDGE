@@ -27,6 +27,7 @@ class NotificationController {
 
         jsonResponse([
             'success' => true,
+            'total' => count($notifications),
             'unreadCount' => $unreadCount,
             'notifications' => $notifications
         ]);
