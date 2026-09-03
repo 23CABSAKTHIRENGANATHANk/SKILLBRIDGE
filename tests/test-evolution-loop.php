@@ -17,7 +17,7 @@ echo "[1] Fetching Evolution Loop State for student: {$studentId}...\n";
 $loop = CareerEvolutionService::getEvolutionLoopState($studentId, 'Frontend Developer');
 
 echo "    - Target Goal: {$loop['goal']['target_role']}\n";
-echo "    - Career Readiness: {$loop['readiness']['readiness_score']}% ({$loop['readiness']['readiness_tier']})\n";
+echo "    - Career Readiness: " . ($loop['readiness']['readiness_score'] ?? $loop['readiness']['overall_readiness'] ?? 0) . "%\n";
 echo "    - Skill Graph Nodes: " . count($loop['skill_graph']['nodes']) . " nodes, " . count($loop['skill_graph']['edges']) . " edges\n";
 echo "    - Missing Skills: " . count($loop['skill_gaps']['missing']) . "\n";
 echo "    - Active Target Skill: {$loop['active_skill']}\n";

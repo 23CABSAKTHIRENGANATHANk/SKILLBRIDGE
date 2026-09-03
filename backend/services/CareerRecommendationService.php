@@ -136,7 +136,9 @@ final class CareerRecommendationService
                 'career' => null,
                 'readiness_score' => 0,
                 'tier' => 'Not Started',
-                'breakdown' => []
+                'breakdown' => [],
+                'missing_required_skills' => [],
+                'missing_preferred_skills' => []
             ];
         }
 
@@ -232,10 +234,19 @@ final class CareerRecommendationService
     {
         $db = Database::getConnection();
 
-        // 1. Get Career Readiness & Missing Skills
         $readinessData = self::getCareerReadiness($studentId, $targetCareer);
-        $career = $readinessData['career'];
-        $missingSkills = $readinessData['missing_required_skills'];
+        $career = $readinessData['career'] ?? null;
+        if (!$career) {
+            $careerTitle = $targetCareer ?: 'Software Engineer';
+            $career = [
+                'title' => $careerTitle,
+                'required_skills' => json_encode(['HTML', 'CSS', 'JavaScript', 'React', 'Git']),
+                'preferred_skills' => json_encode(['TypeScript', 'Tailwind CSS'])
+            ];
+            $missingSkills = ['HTML', 'CSS', 'JavaScript', 'React', 'Git'];
+        } else {
+            $missingSkills = (array)($readinessData['missing_required_skills'] ?? []);
+        }
 
         // 2. Fetch Dependency Graph to check prerequisites
         $stmt = $db->query('

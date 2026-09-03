@@ -11,7 +11,9 @@ class Database {
     private static ?PDO $pdo = null;
 
     public static function loadEnv(): void {
+        $env = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? ($_SERVER['APP_ENV'] ?? 'development'));
         $possibleFiles = [
+            dirname(__DIR__) . ($env === 'testing' ? '/.env.testing' : '/.env'),
             dirname(__DIR__) . '/.env',
             dirname(dirname(__DIR__)) . '/.env',
         ];
@@ -48,9 +50,17 @@ class Database {
 
         if ($env === 'testing') {
             $testUrl = getenv('TEST_DATABASE_URL') ?: ($_ENV['TEST_DATABASE_URL'] ?? '');
-            if (!empty($testUrl)) {
-                return $testUrl;
+            if (empty($testUrl)) {
+                throw new RuntimeException('Safety violation: TEST_DATABASE_URL is required when APP_ENV=testing.');
             }
+            $parsedTest = parse_url($testUrl);
+            $testHost = strtolower((string)($parsedTest['host'] ?? ''));
+            $testDatabase = strtolower(ltrim((string)($parsedTest['path'] ?? ''), '/'));
+            $localHosts = ['127.0.0.1', 'localhost', '::1'];
+            if (!in_array($testHost, $localHosts, true) || !preg_match('/(^|[_-])test([_-]|$)/', $testDatabase)) {
+                throw new RuntimeException('Safety violation: testing database must be a local isolated database with a test-specific name.');
+            }
+            return $testUrl;
         } elseif ($env === 'staging') {
             $stagingUrl = getenv('STAGING_DATABASE_URL') ?: ($_ENV['STAGING_DATABASE_URL'] ?? '');
             if (!empty($stagingUrl)) {

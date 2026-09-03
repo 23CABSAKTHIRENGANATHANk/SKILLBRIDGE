@@ -72,7 +72,7 @@ SQL;
 // ---------------------------------------------------------------------------
 $migrationDir = __DIR__;
 $files = glob($migrationDir . '/migrate_*.sql') ?: [];
-sort($files);
+sort($files, SORT_NATURAL);
 
 if (empty($files)) {
     echo "ℹ️  No incremental migration files found (migrate_*.sql).\n";
@@ -114,8 +114,8 @@ if ($doSeed) {
             $db->exec(file_get_contents($seedFile));
             echo "✅ Seed data applied.\n";
         } catch (PDOException $e) {
-            // Seed failures are often due to duplicate rows (idempotent insert conflicts)
-            echo "⚠️  Seed completed with warnings: " . $e->getMessage() . "\n";
+            echo "❌ Seed failed: " . $e->getMessage() . "\n";
+            exit(1);
         }
     } else {
         echo "⚠️  seed.sql not found. Skipping seeding.\n";

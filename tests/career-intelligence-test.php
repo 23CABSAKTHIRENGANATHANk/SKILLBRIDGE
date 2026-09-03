@@ -112,7 +112,7 @@ assertCondition(isset($scoreResult['factors']['freshness']), "Scoring formula br
 
 // --- TEST 7: 'What Should I Do Next?' Engine ---
 echo "\n7. Validating 'What Should I Do Next?' Engine...\n";
-$testStudent = $db->query("SELECT id FROM users WHERE role = 'student' LIMIT 1")->fetchColumn() ?: 'test_student';
+$testStudent = $db->query("SELECT id FROM students ORDER BY id LIMIT 1")->fetchColumn() ?: 'test_student';
 $nextAction = CareerRecommendationService::getNextBestAction($testStudent, 'Frontend Developer');
 assertCondition(!empty($nextAction['primary_action']['title']), "Primary action generated: " . ($nextAction['primary_action']['title'] ?? ''));
 assertCondition(!empty($nextAction['primary_action']['rationale']), "Explainable 'Why this?' rationale provided");

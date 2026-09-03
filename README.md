@@ -218,6 +218,20 @@ node backend/tests/test_runner.cjs
 node backend/tests/audit_runner.cjs
 ```
 
+### Isolated database integration tests
+
+Database-mutating tests must use the disposable PostgreSQL 16 environment. They fail closed unless `APP_ENV=testing` and `TEST_DATABASE_URL` point to a local database whose name contains `test`.
+
+On Windows with Docker Desktop running:
+
+```powershell
+$env:APP_ENV = "testing"
+$env:TEST_DATABASE_URL = "postgresql://skillbridge_test:skillbridge_test_password@127.0.0.1:55432/skillbridge_test?sslmode=disable"
+.\tests\run-integration-tests.ps1
+```
+
+The runner starts `docker-compose.test.yml`, applies `schema.sql` and every incremental migration, runs real PostgreSQL persistence tests, and removes the container and volume in its cleanup step. It returns nonzero when Docker, PostgreSQL, migrations, or any test fails. It never targets the development or production database.
+
 CI runs frontend type, lint, audit, and build checks; PHP syntax checks; PostgreSQL schema and migration setup; the backend integration suite; and the authorization audit suite.
 
 ## Current Limitations

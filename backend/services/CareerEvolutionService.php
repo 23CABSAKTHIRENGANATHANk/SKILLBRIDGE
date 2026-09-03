@@ -43,6 +43,16 @@ class CareerEvolutionService {
     ];
 
     /**
+     * Fetch active student career goal
+     */
+    public static function getCareerGoal(string $studentId): ?array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('SELECT id, target_role, secondary_target_role, career_domain, target_industry, preferred_location, experience_level, target_timeline_weeks, created_at, updated_at FROM career_goals WHERE student_id = ? LIMIT 1');
+        $stmt->execute([$studentId]);
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
+
+    /**
      * 1. Get or resolve Target Role Requirements from DB jobs + fallback taxonomy
      */
     public static function getTargetRoleRequirements(string $targetRole): array {
