@@ -16,10 +16,10 @@ import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
 import { ApiClient } from "@/lib/api-client";
 import { SiteHeader } from "@/components/layout/site-header";
 
-// @ts-ignore – route will be added to routeTree after generation
 export const Route = createFileRoute("/career-agent")({
   component: CareerAgentPage,
 });
+
 
 
 

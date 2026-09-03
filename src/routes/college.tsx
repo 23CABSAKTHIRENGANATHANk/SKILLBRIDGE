@@ -28,10 +28,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
-// @ts-ignore – route will be added to routeTree after generation
 export const Route = createFileRoute("/college")({
   component: CollegePage,
 });
+
 
 
 function CollegePage() {
