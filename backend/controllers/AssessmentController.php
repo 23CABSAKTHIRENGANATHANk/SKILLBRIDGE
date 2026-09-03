@@ -4,6 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../services/ProofOfSkillService.php';
+require_once __DIR__ . '/../services/SkillVerificationService.php';
+require_once __DIR__ . '/../services/SkillIntegrityService.php';
 
 /**
  * AssessmentController
@@ -272,6 +274,10 @@ class AssessmentController {
             errorResponse('Skill name is required.');
         }
 
+        if (!is_array($answers)) {
+            errorResponse('Answers must be provided as an object.');
+        }
+
         $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
         $sStmt->execute([$currentUser['user_id']]);
         $student = $sStmt->fetch();
@@ -300,6 +306,11 @@ class AssessmentController {
             ['id' => 'q3', 'correct' => 'A', 'category' => 'debugging'],
             ['id' => 'q4', 'correct' => 'A', 'category' => 'scenario'],
         ];
+
+        $requiredQuestionIds = array_column($bank, 'id');
+        if (count(array_intersect($requiredQuestionIds, array_keys($answers))) !== count($requiredQuestionIds)) {
+            errorResponse('All assessment questions must be answered before submission.');
+        }
 
         $correctCount = 0;
         $categoryScores = ['conceptual' => 0, 'practical' => 0, 'debugging' => 0, 'scenario' => 0];
@@ -381,5 +392,173 @@ class AssessmentController {
             ],
             'updated_skills' => $skillsProof
         ]);
+    }
+
+    // ============================================================
+    // SKILLBRIDGE 2.0 PHASE 1: AI SKILL VERIFICATION 2.0 & INTEGRITY
+    // ============================================================
+
+    /**
+     * Helper to resolve student profile from JWT user.
+     */
+    private static function resolveStudent(array $currentUser): array {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $stmt = $db->prepare('SELECT id FROM students WHERE user_id = ? LIMIT 1');
+        $stmt->execute([$currentUser['user_id']]);
+        $student = $stmt->fetch();
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+        return $student;
+    }
+
+    /**
+     * Start a new skill verification session.
+     * POST /student/skill-verifications/start
+     * Body: { "skill_name": "Python", "requested_level": "intermediate" }
+     */
+    public static function startVerification(array $currentUser): void {
+        $student = self::resolveStudent($currentUser);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $skillName = trim((string)($input['skill_name'] ?? ''));
+        $requestedLevel = strtolower(trim((string)($input['requested_level'] ?? 'intermediate')));
+
+        if (empty($skillName)) {
+            errorResponse('Skill name is required.');
+        }
+
+        try {
+            $session = SkillVerificationService::startVerification($student['id'], $skillName, $requestedLevel);
+            jsonResponse($session);
+        } catch (\Throwable $e) {
+            errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get active question for an ongoing verification attempt.
+     * GET /student/skill-verifications/{id}/question?index=0
+     */
+    public static function getCurrentQuestion(array $currentUser, string $attemptId): void {
+        $student = self::resolveStudent($currentUser);
+        $qIndex = isset($_GET['index']) ? (int)$_GET['index'] : null;
+
+        try {
+            $question = SkillVerificationService::getQuestion($student['id'], $attemptId, $qIndex);
+            jsonResponse($question);
+        } catch (\Throwable $e) {
+            errorResponse($e->getMessage(), 404);
+        }
+    }
+
+    /**
+     * Submit an answer to a question in a verification attempt.
+     * POST /student/skill-verifications/{id}/answer
+     * Body: { "question_id": "svq_...", "answer": "B" }
+     */
+    public static function submitAnswer(array $currentUser, string $attemptId): void {
+        $student = self::resolveStudent($currentUser);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $questionId = trim((string)($input['question_id'] ?? ''));
+        $answer = trim((string)($input['answer'] ?? ($input['selected_option'] ?? '')));
+
+        if (empty($questionId) || empty($answer)) {
+            errorResponse('Both question_id and answer are required.');
+        }
+
+        try {
+            $result = SkillVerificationService::submitAnswer($student['id'], $attemptId, $questionId, $answer);
+            jsonResponse($result);
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            $status = str_contains(strtolower($msg), 'unauthorized') ? 403 : (str_contains(strtolower($msg), 'not found') ? 404 : 400);
+            errorResponse($msg, $status);
+        }
+    }
+
+    /**
+     * Finalize the verification attempt and calculate deterministic scores.
+     * POST /student/skill-verifications/{id}/complete
+     */
+    public static function completeVerification(array $currentUser, string $attemptId): void {
+        $student = self::resolveStudent($currentUser);
+
+        try {
+            $result = SkillVerificationService::completeVerification($student['id'], $attemptId);
+            jsonResponse($result);
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            $status = str_contains(strtolower($msg), 'unauthorized') ? 403 : (str_contains(strtolower($msg), 'not found') ? 404 : 400);
+            errorResponse($msg, $status);
+        }
+    }
+
+    /**
+     * Retrieve all verification attempt history for the student.
+     * GET /student/skill-verifications
+     */
+    public static function getVerificationHistory(array $currentUser): void {
+        $student = self::resolveStudent($currentUser);
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare('
+            SELECT a.id, a.requested_level, a.difficulty, a.status, a.score,
+                   a.verified_level, a.confidence, a.passed, a.attempt_number,
+                   a.breakdown, a.started_at, a.completed_at,
+                   s.name as skill_name, s.id as skill_id
+            FROM skill_verification_attempts a
+            JOIN skills s ON a.skill_id = s.id
+            WHERE a.student_id = ?
+            ORDER BY a.started_at DESC
+        ');
+        $stmt->execute([$student['id']]);
+        $rows = $stmt->fetchAll();
+
+        foreach ($rows as &$r) {
+            $r['breakdown'] = is_string($r['breakdown']) ? json_decode($r['breakdown'], true) : $r['breakdown'];
+            $r['passed'] = (bool)$r['passed'];
+            $r['score'] = (float)$r['score'];
+            $r['confidence'] = (float)$r['confidence'];
+        }
+
+        jsonResponse([
+            'success' => true,
+            'count' => count($rows),
+            'attempts' => $rows
+        ]);
+    }
+
+    /**
+     * Retrieve complete multi-source skill integrity audit.
+     * GET /student/skill-integrity
+     */
+    public static function getSkillIntegrity(array $currentUser): void {
+        $student = self::resolveStudent($currentUser);
+
+        try {
+            $audit = SkillIntegrityService::auditAllStudentSkills($student['id']);
+            jsonResponse($audit);
+        } catch (\Throwable $e) {
+            errorResponse($e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Retrieve or refresh integrity audit for a specific skill.
+     * GET /student/skill-integrity/{skillId}
+     */
+    public static function getSingleSkillIntegrity(array $currentUser, string $skillId): void {
+        $student = self::resolveStudent($currentUser);
+
+        try {
+            $audit = SkillIntegrityService::auditStudentSkill($student['id'], $skillId);
+            jsonResponse([
+                'success' => true,
+                'skill' => $audit
+            ]);
+        } catch (\Throwable $e) {
+            errorResponse($e->getMessage(), 404);
+        }
     }
 }

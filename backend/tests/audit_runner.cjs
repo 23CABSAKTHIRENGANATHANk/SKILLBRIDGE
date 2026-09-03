@@ -9,7 +9,8 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "http://localhost:8000";
+const BASE = process.env.SKILLBRIDGE_TEST_BASE_URL || "http://localhost:8000";
+const REQUEST_TIMEOUT_MS = Number(process.env.SKILLBRIDGE_TEST_TIMEOUT_MS || 30000);
 const ts = Date.now();
 const results = [];
 
@@ -23,10 +24,11 @@ function log(category, test, req, expected, actual, pass) {
 async function req(method, endpoint, body, token) {
   return new Promise((resolve) => {
     const postData = body ? JSON.stringify(body) : null;
+    const target = new URL(endpoint, BASE);
     const opts = {
-      hostname: "localhost",
-      port: 8000,
-      path: endpoint,
+      hostname: target.hostname,
+      port: target.port || (target.protocol === "https:" ? 443 : 80),
+      path: `${target.pathname}${target.search}`,
       method,
       headers: {
         "Content-Type": "application/json",
@@ -44,6 +46,11 @@ async function req(method, endpoint, body, token) {
           resolve({ status: res.statusCode, body: d, headers: res.headers });
         }
       });
+    });
+    r.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      r.destroy(
+        new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms: ${method} ${endpoint}`),
+      );
     });
     r.on("error", (e) => resolve({ status: 0, error: e.message }));
     if (postData) r.write(postData);

@@ -26,11 +26,16 @@ import { ApiClient } from "@/lib/api-client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 function ThemeToggle() {
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
     const savedTheme = window.localStorage.getItem("sb_theme");
-    return savedTheme ? savedTheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
+    if (savedTheme) {
+      setDark(savedTheme === "dark");
+      return;
+    }
+    setDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

@@ -77,6 +77,22 @@ class AuditLogger {
         self::log($action, $userId, 'recruiter', 'job', $jobId, $meta);
     }
 
+    public static function verification(string $action, string $studentId, string $attemptId, array $meta = []): void {
+        self::log($action, $studentId, 'student', 'skill_verification', $attemptId, $meta);
+    }
+
+    public static function passport(string $action, string $studentId, string $passportToken, array $meta = []): void {
+        self::log($action, $studentId, 'student', 'skill_passport', $passportToken, $meta);
+    }
+
+    public static function shortlist(string $action, string $companyId, string $studentId, array $meta = []): void {
+        self::log($action, $companyId, 'recruiter', 'candidate_shortlist', $studentId, $meta);
+    }
+
+    public static function interview(string $action, string $userId, string $sessionId, array $meta = []): void {
+        self::log($action, $userId, 'student', 'interview_session', $sessionId, $meta);
+    }
+
     // -----------------------------------------------------------------------
     // Retrieval for Admin Dashboard
     // -----------------------------------------------------------------------

@@ -26,15 +26,25 @@ export function AIInterviewModal({
   const [step, setStep] = useState<"intro" | "questions" | "scorecard">("intro");
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
-  const [questions, setQuestions] = useState<Array<{ id: string; category: string; question: string }>>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<{
+    id: string;
+    category: string;
+    question: string;
+  } | null>(null);
+  const [stage, setStage] = useState(0);
+  const [totalStages, setTotalStages] = useState(0);
+  const [answer, setAnswer] = useState("");
   const [scorecard, setScorecard] = useState<any | null>(null);
 
   const startInterview = async () => {
     setLoading(true);
     try {
-      const res = await ApiClient.getAIInterviewSession(targetRole);
-      setQuestions(res.questions || []);
+      const res = await ApiClient.startAdaptiveAIInterview({ target_role: targetRole });
+      setSessionId(res.session_id);
+      setStage(res.current_stage);
+      setTotalStages(res.total_stages);
+      setCurrentQuestion(res.current_question);
       setStep("questions");
     } catch {
       toast.error("Failed to initialize AI interview session.");
@@ -43,20 +53,21 @@ export function AIInterviewModal({
     }
   };
 
-  const handleAnswerChange = (qId: string, val: string) => {
-    setAnswers((prev) => ({ ...prev, [qId]: val }));
-  };
-
   const handleSubmitInterview = async () => {
+    if (!sessionId || !answer.trim()) return;
     setEvaluating(true);
     try {
-      const res = await ApiClient.evaluateAIInterview({
-        role: targetRole,
-        answers,
-      });
-      setScorecard(res.scorecard);
-      setStep("scorecard");
-      toast.success("AI interview evaluation completed!");
+      const answerRes = await ApiClient.submitAdaptiveAIInterviewAnswer(sessionId, answer);
+      setAnswer("");
+      if (answerRes.is_complete) {
+        const completeRes = await ApiClient.completeAdaptiveAIInterview(sessionId);
+        setScorecard(completeRes.scorecard);
+        setStep("scorecard");
+        toast.success("AI interview evaluation completed!");
+      } else {
+        setStage(answerRes.next_stage);
+        setCurrentQuestion(answerRes.next_question);
+      }
     } catch {
       toast.error("Failed to generate interview scorecard.");
     } finally {
@@ -104,29 +115,31 @@ export function AIInterviewModal({
 
         {step === "questions" && (
           <div className="py-3 space-y-5 max-h-[60vh] overflow-y-auto pr-2">
-            {questions.map((q, idx) => (
-              <div key={q.id} className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-2">
+            {currentQuestion ? (
+              <div className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-secondary text-secondary-foreground">
-                    Question {idx + 1} · {q.category}
+                    Stage {stage + 1} of {totalStages} · {currentQuestion.category}
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-foreground">
-                  {q.question}
+                  {currentQuestion.question}
                 </p>
                 <Textarea
                   placeholder="Explain your approach, trade-offs, and lessons learned (STAR format)..."
-                  value={answers[q.id] || ""}
-                  onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
                   className="rounded-xl border-border bg-background text-xs min-h-[90px]"
                 />
               </div>
-            ))}
+            ) : (
+              <p className="py-8 text-center text-xs text-muted-foreground">No interview question is available.</p>
+            )}
 
             <div className="flex justify-end pt-2 border-t border-border/60">
               <Button
                 onClick={handleSubmitInterview}
-                disabled={evaluating || Object.values(answers).some((a) => !a.trim())}
+                disabled={evaluating || !currentQuestion || !answer.trim()}
                 className="rounded-xl font-bold text-xs"
               >
                 {evaluating ? (

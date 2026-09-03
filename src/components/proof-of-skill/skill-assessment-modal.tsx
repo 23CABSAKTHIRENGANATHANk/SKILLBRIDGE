@@ -26,23 +26,38 @@ export function SkillAssessmentModal({
 }: SkillAssessmentModalProps) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [questions, setQuestions] = useState<Array<{
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [question, setQuestion] = useState<{
     id: string;
+    index: number;
     category: string;
     question: string;
-    options: Record<string, string>;
-  }>>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+    options?: Record<string, string> | null;
+  } | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [totalQuestions, setTotalQuestions] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState("");
   const [result, setResult] = useState<any | null>(null);
 
   useEffect(() => {
     if (isOpen && skillName) {
       setResult(null);
-      setAnswers({});
+      setAttemptId(null);
+      setQuestion(null);
+      setCurrentIndex(0);
+      setTotalQuestions(0);
+      setSelectedAnswer("");
       setLoading(true);
-      ApiClient.getSkillAssessment(skillName)
-        .then((res) => {
-          setQuestions(res.questions || []);
+      ApiClient.startSkillVerification({ skill_name: skillName })
+        .then(async (res) => {
+          setAttemptId(res.attempt_id);
+          setCurrentIndex(res.current_question_index);
+          setTotalQuestions(res.total_questions);
+          const questionRes = await ApiClient.getSkillVerificationQuestion(
+            res.attempt_id,
+            res.current_question_index,
+          );
+          setQuestion(questionRes.question ?? null);
         })
         .catch(() => {
           toast.error("Failed to load skill assessment questions.");
@@ -51,23 +66,34 @@ export function SkillAssessmentModal({
     }
   }, [isOpen, skillName]);
 
-  const handleSelectOption = (qId: string, optionKey: string) => {
-    setAnswers((prev) => ({ ...prev, [qId]: optionKey }));
-  };
-
   const handleSubmit = async () => {
-    if (!skillName) return;
+    if (!attemptId || !question || !selectedAnswer) return;
     setSubmitting(true);
     try {
-      const res = await ApiClient.submitSkillAssessment({
-        skill_name: skillName,
-        answers,
-      });
-      setResult(res.result);
-      toast.success(res.message || "Skill assessment successfully verified!");
-      onAssessmentCompleted?.();
+      const answerRes = await ApiClient.submitSkillVerificationAnswer(
+        { question_id: question.id, answer: selectedAnswer },
+        attemptId,
+      );
+      setSelectedAnswer("");
+      if (answerRes.is_last_question) {
+        const completeRes = await ApiClient.completeSkillVerification(attemptId);
+        setResult({
+          score: completeRes.score,
+          level: completeRes.verified_level,
+          knowledge_score: completeRes.breakdown["Conceptual Foundations"] ?? 0,
+          problem_solving_score: completeRes.breakdown["Debugging & Optimization"] ?? 0,
+          practical_score: completeRes.breakdown["Practical Implementation"] ?? 0,
+          summary: completeRes.message,
+        });
+        toast.success(completeRes.message || "Skill assessment successfully verified!");
+        onAssessmentCompleted?.();
+      } else {
+        const nextRes = await ApiClient.getSkillVerificationQuestion(attemptId, answerRes.next_index);
+        setCurrentIndex(answerRes.next_index);
+        setQuestion(nextRes.question ?? null);
+      }
     } catch {
-      toast.error("Failed to evaluate assessment.");
+      toast.error("Failed to save or evaluate this assessment answer.");
     } finally {
       setSubmitting(false);
     }
@@ -136,29 +162,30 @@ export function SkillAssessmentModal({
         ) : (
           /* Questions Form View */
           <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-2">
-            {questions.map((q, idx) => (
-              <div key={q.id} className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-3">
+            {question ? (
+              <div className="rounded-2xl border border-border/70 bg-background/50 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground">
-                    Question {idx + 1} · {q.category}
+                    Question {currentIndex + 1} of {totalQuestions} · {question.category}
                   </span>
-                  {answers[q.id] && (
+                  {selectedAnswer && (
                     <span className="text-xs text-success font-bold flex items-center gap-1">
                       <CheckCircle2 className="size-3.5" /> Selected
                     </span>
                   )}
                 </div>
                 <p className="text-sm font-semibold text-foreground leading-snug">
-                  {q.question}
+                  {question.question}
                 </p>
                 <div className="space-y-2 pt-1">
-                  {Object.entries(q.options).map(([key, label]) => {
-                    const isSelected = answers[q.id] === key;
+                  {Object.entries(question.options ?? {}).map(([key, label]) => {
+                    const isSelected = selectedAnswer === key;
                     return (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => handleSelectOption(q.id, key)}
+                        onClick={() => setSelectedAnswer(key)}
+                        aria-pressed={isSelected}
                         className={`w-full text-left p-3 rounded-xl border text-xs font-medium transition-all flex items-start gap-2.5 ${
                           isSelected
                             ? "border-primary bg-primary/10 text-foreground font-bold shadow-sm"
@@ -176,15 +203,17 @@ export function SkillAssessmentModal({
                   })}
                 </div>
               </div>
-            ))}
+            ) : (
+              <p className="py-8 text-center text-xs text-muted-foreground">No question is available for this assessment.</p>
+            )}
 
             <div className="flex items-center justify-between pt-2 border-t border-border/60">
               <span className="text-xs text-muted-foreground">
-                {Object.keys(answers).length} of {questions.length} answered
+                {currentIndex} of {totalQuestions} answered
               </span>
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || Object.keys(answers).length < questions.length}
+                disabled={submitting || !question || !selectedAnswer}
                 className="rounded-xl font-bold text-xs"
               >
                 {submitting ? (

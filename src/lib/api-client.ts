@@ -711,6 +711,102 @@ export class ApiClient {
     });
   }
 
+  public static async startSkillVerification(data: {
+    skill_name: string;
+    requested_level?: string;
+  }): Promise<{
+    success: boolean;
+    is_resumed: boolean;
+    attempt_id: string;
+    skill_name: string;
+    requested_level?: string;
+    current_question_index: number;
+    total_questions: number;
+    message: string;
+  }> {
+    return this.request("/student/skill-verifications/start", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async getSkillVerificationQuestion(
+    attemptId: string,
+    index?: number,
+  ): Promise<{
+    success: boolean;
+    attempt_id: string;
+    skill_name: string;
+    status: string;
+    current_index: number;
+    total_questions: number;
+    question?: {
+      id: string;
+      index: number;
+      type: string;
+      category: string;
+      question: string;
+      code_snippet?: string | null;
+      options?: Record<string, string> | null;
+      points: number;
+      answered: boolean;
+      previous_answer?: string | null;
+    };
+    message?: string;
+    attempt_status?: string;
+  }> {
+    const qs = index !== undefined ? `?index=${encodeURIComponent(String(index))}` : "";
+    return this.request(`/student/skill-verifications/${encodeURIComponent(attemptId)}/question${qs}`);
+  }
+
+  public static async submitSkillVerificationAnswer(data: {
+    question_id: string;
+    answer: string;
+  }, attemptId: string): Promise<{
+    success: boolean;
+    question_id: string;
+    is_correct: boolean;
+    next_index: number;
+    is_last_question: boolean;
+  }> {
+    return this.request(`/student/skill-verifications/${encodeURIComponent(attemptId)}/answer`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async completeSkillVerification(attemptId: string): Promise<{
+    success: boolean;
+    attempt_id: string;
+    skill_name: string;
+    score: number;
+    verified_level: string;
+    confidence: number;
+    passed: boolean;
+    breakdown: Record<string, number>;
+    integrity: any;
+    message: string;
+  }> {
+    return this.request(`/student/skill-verifications/${encodeURIComponent(attemptId)}/complete`, {
+      method: "POST",
+    });
+  }
+
+  public static async getSkillVerificationHistory(): Promise<{
+    success: boolean;
+    count: number;
+    attempts: any[];
+  }> {
+    return this.request("/student/skill-verifications");
+  }
+
+  public static async getSkillIntegrity(skillId?: string): Promise<any> {
+    if (skillId) {
+      return this.request(`/student/skill-integrity/${encodeURIComponent(skillId)}`);
+    }
+    return this.request("/student/skill-integrity");
+  }
+
   // --- Career Simulator & Gap Analysis & Career Agent ---
   public static async simulateCareer(skills: string[]): Promise<{
     success: boolean;
@@ -784,6 +880,8 @@ export class ApiClient {
       verified_badge: boolean;
       public_token: string;
       verified_at: string;
+      cryptographic_verification?: any;
+      proof_of_work?: any;
     };
   }> {
     return this.request(`/passport/${token}`);
@@ -819,6 +917,98 @@ export class ApiClient {
     return this.request(`/interview-ai/session${qs}`);
   }
 
+  public static async startAdaptiveAIInterview(data: {
+    target_role?: string;
+    job_id?: string | null;
+  }): Promise<{
+    success: boolean;
+    session_id: string;
+    target_role: string;
+    current_stage: number;
+    total_stages: number;
+    current_question: {
+      id: string;
+      category: string;
+      question: string;
+      adaptive_note?: string;
+    } | null;
+    grounded_context: {
+      verified_skills: string[];
+      top_project: string | null;
+    };
+    instructions: string;
+  }> {
+    return this.request("/interview-ai/start", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async submitAdaptiveAIInterviewAnswer(
+    sessionId: string,
+    answer: string,
+  ): Promise<{
+    success: boolean;
+    session_id: string;
+    stage_completed: number;
+    next_stage: number;
+    is_complete: boolean;
+    next_question: {
+      id: string;
+      category: string;
+      question: string;
+      adaptive_note?: string;
+    } | null;
+    message: string;
+  }> {
+    return this.request(`/interview-ai/${encodeURIComponent(sessionId)}/answer`, {
+      method: "POST",
+      body: JSON.stringify({ answer }),
+    });
+  }
+
+  public static async completeAdaptiveAIInterview(sessionId: string): Promise<{
+    success: boolean;
+    session_id: string;
+    target_role: string;
+    scorecard: {
+      technical_score: number;
+      problem_solving_score: number;
+      communication_score: number;
+      role_fit_score: number;
+      overall_score: number;
+      strengths: string[];
+      improvements: string[];
+      evaluator_notes: string;
+    };
+    disclaimer: string;
+  }> {
+    return this.request(`/interview-ai/${encodeURIComponent(sessionId)}/complete`, {
+      method: "POST",
+    });
+  }
+
+  public static async getAdaptiveAIInterviewScorecard(sessionId: string): Promise<{
+    success: boolean;
+    session_id: string;
+    target_role: string;
+    overall_score: number;
+    scorecard: {
+      technical_score: number;
+      problem_solving_score: number;
+      communication_score: number;
+      role_fit_score: number;
+      overall_score: number;
+      strengths: string[];
+      improvements: string[];
+      evaluator_notes: string;
+    };
+    answers: Record<string, string>;
+    question_tree: Array<{ id: string; category: string; question: string; adaptive_note?: string }>;
+  }> {
+    return this.request(`/interview-ai/${encodeURIComponent(sessionId)}/scorecard`);
+  }
+
   public static async evaluateAIInterview(data: {
     role: string;
     answers: Record<string, string>;
@@ -842,5 +1032,191 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  // ============================================================
+  // PHASE 2: Proof-of-Work, Cryptographic Passport, Talent Search
+  // ============================================================
+
+  public static async getProofOfWork(): Promise<{
+    success: boolean;
+    proof_of_work: {
+      has_proof_of_work: boolean;
+      total_repositories: number;
+      overall_pow_score: number;
+      proof_of_work_level: string;
+      top_technologies: string[];
+      repositories: Array<{
+        repo_name: string;
+        repo_url: string;
+        primary_language: string | null;
+        overall_evidence_score: number;
+        proof_strength: string;
+        technologies: string[];
+        signals: Record<string, any>;
+        commit_count: number;
+        analyzed_at: string;
+      }>;
+      signals_summary: string[];
+    };
+  }> {
+    return this.request("/student/proof-of-work");
+  }
+
+  public static async reissueSkillPassport(): Promise<{
+    success: boolean;
+    message: string;
+    credential: Record<string, any>;
+  }> {
+    return this.request("/student/passport/reissue", { method: "POST" });
+  }
+
+  public static async revokeSkillPassport(reason?: string): Promise<{
+    success: boolean;
+    message: string;
+    revocation: Record<string, any>;
+  }> {
+    return this.request("/student/passport/revoke", {
+      method: "POST",
+      body: JSON.stringify({ reason: reason || "Candidate requested revocation" }),
+    });
+  }
+
+  public static async verifyPassportSignature(token: string): Promise<{
+    success: boolean;
+    verification: {
+      valid: boolean;
+      credential_status: string;
+      credential_version?: string;
+      issued_at?: string;
+      algorithm?: string;
+      key_id?: string;
+      signature?: string;
+      public_key?: string;
+      credential_data?: Record<string, any>;
+      message?: string;
+    };
+  }> {
+    return this.request(`/passport/${encodeURIComponent(token)}/verify`);
+  }
+
+  public static async getPassportQr(token: string): Promise<{
+    success: boolean;
+    passport_token: string;
+    verification_url: string;
+    qr_code_svg_url: string;
+  }> {
+    return this.request(`/passport/${encodeURIComponent(token)}/qr`);
+  }
+
+  public static async searchTalent(filters: {
+    role?: string | undefined;
+    skills?: string[] | undefined;
+    verification_level?: string | undefined;
+    min_assessment?: number | undefined;
+    proof_of_work?: string | undefined;
+    location?: string | undefined;
+    experience?: string | undefined;
+    sort_by?: string | undefined;
+    limit?: number | undefined;
+    offset?: number | undefined;
+  }): Promise<{
+    success: boolean;
+    total: number;
+    limit: number;
+    offset: number;
+    candidates: Array<{
+      student_id: string;
+      name: string;
+      college: string;
+      program: string;
+      experience: string;
+      location: string;
+      avatar_url: string | null;
+      passport_token: string | null;
+      credential_status: string;
+      has_cryptographic_passport: boolean;
+      precision_match_score: number;
+      match_strength: string;
+      matched_skills: Array<{
+        skill_name: string;
+        verification_level: string;
+        is_verified: boolean;
+        confidence_score: number;
+      }>;
+      missing_skills: string[];
+      average_assessment_score: number;
+      proof_of_work: {
+        level: string;
+        score: number;
+        repositories_count: number;
+      };
+      relevant_projects_count: number;
+      explainable_reasons: string[];
+      gaps: string[];
+    }>;
+  }> {
+    const params = new URLSearchParams();
+    if (filters.role) params.set("role", filters.role);
+    if (filters.skills && filters.skills.length > 0) params.set("skills", filters.skills.join(","));
+    if (filters.verification_level) params.set("verification_level", filters.verification_level);
+    if (filters.min_assessment) params.set("min_assessment", String(filters.min_assessment));
+    if (filters.proof_of_work) params.set("proof_of_work", filters.proof_of_work);
+    if (filters.location) params.set("location", filters.location);
+    if (filters.experience) params.set("experience", filters.experience);
+    if (filters.sort_by) params.set("sort_by", filters.sort_by);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    if (filters.offset) params.set("offset", String(filters.offset));
+
+    return this.request(`/recruiter/talent-search?${params.toString()}`);
+  }
+
+  public static async getCandidateProof(studentId: string): Promise<{
+    success: boolean;
+    candidate: {
+      student_id: string;
+      name: string;
+      institution: string;
+      program: string;
+      experience: string;
+      location: string;
+      avatar_url: string | null;
+      passport_token: string | null;
+      skills: any[];
+      proof_of_work: any;
+      projects: any[];
+      cryptographic_verification: any;
+    };
+  }> {
+    return this.request(`/recruiter/talent-search/${encodeURIComponent(studentId)}/proof`);
+  }
+
+  public static async shortlistCandidate(
+    studentId: string,
+    stage = "shortlisted",
+    notes = "",
+  ): Promise<{
+    success: boolean;
+    message: string;
+    shortlist: Record<string, any>;
+  }> {
+    return this.request("/recruiter/shortlist", {
+      method: "POST",
+      body: JSON.stringify({ student_id: studentId, stage, notes }),
+    });
+  }
+
+  public static async getShortlists(): Promise<{
+    success: boolean;
+    shortlists: any[];
+  }> {
+    return this.request("/recruiter/shortlists");
+  }
+
+  public static async getSkillProof(): Promise<{
+    success: boolean;
+    skills: any[];
+  }> {
+    return this.request("/student/skill-proof");
   }
 }

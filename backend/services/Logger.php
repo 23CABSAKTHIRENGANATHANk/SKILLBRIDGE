@@ -7,7 +7,8 @@ declare(strict_types=1);
  * Features:
  * - Structured JSON logging format
  * - Automatic daily log rotation
- * - Contextual metadata & stack trace capture
+ * - Comprehensive recursive secret and credential redaction
+ * - Contextual metadata & safe request tracing
  * - Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
  */
 class Logger {
@@ -21,19 +22,52 @@ class Logger {
         return $dir;
     }
 
+    /**
+     * Recursively sanitize and redact sensitive values from logs
+     */
+    private static function redact(mixed $data): mixed {
+        if (is_array($data)) {
+            $sanitized = [];
+            foreach ($data as $key => $val) {
+                $lower = strtolower((string)$key);
+                if (
+                    in_array($lower, ['password', 'password_hash', 'token', 'access_token', 'refresh_token', 'authorization', 'cookie', 'database_url', 'gemini_api_key', 'github_token', 'private_key', 'secret'], true)
+                    || str_contains($lower, 'secret')
+                    || str_contains($lower, 'password')
+                    || str_contains($lower, 'token')
+                    || str_contains($lower, 'apikey')
+                ) {
+                    $sanitized[$key] = '[REDACTED]';
+                } else {
+                    $sanitized[$key] = self::redact($val);
+                }
+            }
+            return $sanitized;
+        } elseif (is_string($data)) {
+            // Redact Bearer tokens, credentials in URIs, etc.
+            $data = preg_replace('/Bearer\s+[A-Za-z0-9._-]+/i', 'Bearer [REDACTED]', $data);
+            $data = preg_replace('/:[^:@]+@/', ':***@', $data);
+            return $data;
+        }
+        return $data;
+    }
+
     public static function log(string $level, string $message, array $context = []): void {
         $dir = self::ensureLogDirectory();
         $date = date('Y-m-d');
         $logFile = "{$dir}/app-{$date}.log";
 
+        $sanitizedContext = self::redact($context);
+        $sanitizedMessage = self::redact($message);
+
         $entry = [
             'timestamp'   => date('c'),
             'level'       => strtoupper($level),
-            'message'     => $message,
+            'message'     => $sanitizedMessage,
             'environment' => getenv('APP_ENV') ?: 'production',
             'ip'          => $_SERVER['REMOTE_ADDR'] ?? 'CLI',
-            'uri'         => $_SERVER['REQUEST_URI'] ?? 'CLI',
-            'context'     => $context
+            'uri'         => preg_replace('/:[^:@]+@/', ':***@', $_SERVER['REQUEST_URI'] ?? 'CLI'),
+            'context'     => $sanitizedContext
         ];
 
         $json = json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;

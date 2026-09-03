@@ -23,6 +23,10 @@ class GeminiService {
     // Core generation helper
     // -----------------------------------------------------------------------
 
+    public static function isConfigured(): bool {
+        return !empty(getenv('GEMINI_API_KEY'));
+    }
+
     public static function generateText(string $prompt, float $temperature = 0.4): string {
         return self::generate($prompt, $temperature);
     }

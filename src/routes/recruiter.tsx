@@ -23,6 +23,12 @@ import {
   ShieldCheck,
   BadgeCheck,
   Clock,
+  Lock,
+  GitBranch,
+  ExternalLink,
+  AlertTriangle,
+  Bookmark,
+  FileCheck2,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -33,6 +39,7 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,7 +85,7 @@ const gradYearOptions = ["All Batches", "2024", "2025", "2026"];
 
 function RecruiterPage() {
   const { user } = useAuth();
-  const [activeView, setActiveView] = useState<"pipeline" | "post-job" | "company-settings">(
+  const [activeView, setActiveView] = useState<"pipeline" | "talent-search" | "post-job" | "company-settings">(
     "pipeline",
   );
   const [searchQuery, setSearchQuery] = useState("");
@@ -90,6 +97,20 @@ function RecruiterPage() {
   const [shortlistedIds, setShortlistedIds] = useState<Record<string, boolean>>({});
   const [candidateNotes, setCandidateNotes] = useState<Record<string, string>>({});
   const [selectedCandidateDetail, setSelectedCandidateDetail] = useState<any>(null);
+
+  // Talent Search 2.0 State
+  const [talentRole, setTalentRole] = useState("");
+  const [talentSkills, setTalentSkills] = useState("");
+  const [talentVerification, setTalentVerification] = useState("All");
+  const [talentMinAssessment, setTalentMinAssessment] = useState(0);
+  const [talentPow, setTalentPow] = useState("Any");
+  const [talentLocation, setTalentLocation] = useState("");
+  const [talentSortBy, setTalentSortBy] = useState("best_match");
+  const [talentResults, setTalentResults] = useState<any[]>([]);
+  const [isSearchingTalent, setIsSearchingTalent] = useState(false);
+  const [hasSearchedTalent, setHasSearchedTalent] = useState(false);
+  const [proofCandidate, setProofCandidate] = useState<any | null>(null);
+  const [loadingProof, setLoadingProof] = useState(false);
 
   // Job creation state
   const [jobTitle, setJobTitle] = useState("");
@@ -205,6 +226,57 @@ function RecruiterPage() {
     setCandidateNotes((prev) => ({ ...prev, [candidateId]: nextNote }));
   };
 
+  const handleTalentSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSearchingTalent(true);
+    setHasSearchedTalent(true);
+    try {
+      const skillsArr = talentSkills
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const res = await ApiClient.searchTalent({
+        role: talentRole.trim() || undefined,
+        skills: skillsArr.length > 0 ? skillsArr : undefined,
+        verification_level: talentVerification,
+        min_assessment: talentMinAssessment > 0 ? talentMinAssessment : undefined,
+        proof_of_work: talentPow !== "Any" ? talentPow : undefined,
+        location: talentLocation.trim() || undefined,
+        sort_by: talentSortBy,
+      });
+      setTalentResults(res.candidates || []);
+    } catch {
+      toast.error("Talent search query failed.");
+    } finally {
+      setIsSearchingTalent(false);
+    }
+  };
+
+  const handleInspectProof = async (studentId: string) => {
+    setLoadingProof(true);
+    try {
+      const res = await ApiClient.getCandidateProof(studentId);
+      setProofCandidate(res.candidate);
+    } catch {
+      toast.error("Failed to load candidate proof.");
+    } finally {
+      setLoadingProof(false);
+    }
+  };
+
+  const handleShortlistFromSearch = async (studentId: string) => {
+    try {
+      const res = await ApiClient.shortlistCandidate(
+        studentId,
+        "shortlisted",
+        "Shortlisted via Talent Search 2.0 Precision Match Engine",
+      );
+      toast.success(res.message || "Candidate shortlisted to company workspace!");
+    } catch {
+      toast.error("Failed to shortlist candidate.");
+    }
+  };
+
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jobTitle.trim()) {
@@ -298,6 +370,23 @@ function RecruiterPage() {
                 }`}
               >
                 Candidates ({filteredAndRankedCandidates.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveView("talent-search");
+                  if (!hasSearchedTalent) {
+                    handleTalentSearch();
+                  }
+                }}
+                className={`rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                  activeView === "talent-search"
+                    ? "bg-accent text-accent-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="size-3.5 inline mr-1 text-primary" />
+                Talent Search 2.0
               </button>
               <button
                 type="button"
@@ -561,6 +650,292 @@ function RecruiterPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Try broadening your skill, location, or graduation batch filters.
                   </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* VIEW: TALENT SEARCH 2.0 & PRECISION MATCH ENGINE */}
+        {activeView === "talent-search" && (
+          <div className="mt-8 space-y-6">
+            {/* Filter / Search Panel */}
+            <ScrollReveal delay={90}>
+              <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-5">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-soft/60 px-3 py-1 text-xs font-semibold text-primary">
+                    <Sparkles className="size-3.5" />
+                    <span>Precision Match Engine 2.0</span>
+                  </div>
+                  <h2 className="mt-2 font-display text-2xl font-bold text-foreground">
+                    Search Candidate Talent Pool
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Filter by verified skill credentials, deterministic Proof-of-Work strength, and assessment cutoffs.
+                  </p>
+                </div>
+
+                <form onSubmit={handleTalentSearch} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="talentRole" className="text-[11px] font-bold text-muted-foreground uppercase">
+                        Target Role / Keyword
+                      </Label>
+                      <Input
+                        id="talentRole"
+                        type="text"
+                        placeholder="e.g. Frontend Engineer, Full Stack"
+                        value={talentRole}
+                        onChange={(e) => setTalentRole(e.target.value)}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="talentSkills" className="text-[11px] font-bold text-muted-foreground uppercase">
+                        Required Skills (Comma separated)
+                      </Label>
+                      <Input
+                        id="talentSkills"
+                        type="text"
+                        placeholder="React, TypeScript, Node.js"
+                        value={talentSkills}
+                        onChange={(e) => setTalentSkills(e.target.value)}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                        Min Verification Level
+                      </Label>
+                      <select
+                        value={talentVerification}
+                        onChange={(e) => setTalentVerification(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-background px-3 h-9 text-xs font-medium"
+                      >
+                        <option value="All">All Verification Levels</option>
+                        <option value="verified">Verified (Any Evidence)</option>
+                        <option value="advanced">Advanced (Score &gt;= 75%)</option>
+                        <option value="expert">Expert (Top Tier)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                        Min Assessment Score ({talentMinAssessment}%)
+                      </Label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={talentMinAssessment}
+                        onChange={(e) => setTalentMinAssessment(Number(e.target.value))}
+                        className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer mt-2"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                        Proof-of-Work Strength
+                      </Label>
+                      <select
+                        value={talentPow}
+                        onChange={(e) => setTalentPow(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-background px-3 h-9 text-xs font-medium"
+                      >
+                        <option value="Any">Any Proof-of-Work</option>
+                        <option value="HIGH">High (2+ Active Repositories)</option>
+                        <option value="MEDIUM">Medium (1+ Repository)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                        Sort Ranking By
+                      </Label>
+                      <select
+                        value={talentSortBy}
+                        onChange={(e) => setTalentSortBy(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-background px-3 h-9 text-xs font-medium"
+                      >
+                        <option value="best_match">Precision Match Score (Best)</option>
+                        <option value="highest_assessment">Highest Assessment Score</option>
+                        <option value="highest_pow">Highest Proof-of-Work Evidence</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button
+                      type="submit"
+                      disabled={isSearchingTalent}
+                      className="rounded-xl font-bold text-xs gap-1.5 px-6"
+                    >
+                      <Search className="size-3.5" />
+                      {isSearchingTalent ? "Searching Database..." : "Search Talent Pool"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </ScrollReveal>
+
+            {/* Results Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Matched Candidates ({talentResults.length})
+                </p>
+              </div>
+
+              {isSearchingTalent ? (
+                <div className="py-16 text-center text-sm font-semibold text-muted-foreground animate-pulse">
+                  Querying PostgreSQL indexed candidate database and scoring precision metrics...
+                </div>
+              ) : talentResults.length === 0 ? (
+                <div className="rounded-3xl border border-dashed bg-card/60 py-16 text-center space-y-2">
+                  <Users className="mx-auto size-10 text-muted-foreground" />
+                  <h3 className="font-display text-lg font-bold text-foreground">
+                    {hasSearchedTalent ? "No candidates meet all hard constraints" : "Ready to discover talent"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    {hasSearchedTalent
+                      ? "Try lowering the assessment score cutoff or broadening required skills to see more candidates."
+                      : "Click 'Search Talent Pool' to evaluate candidates using the 6-factor precision matching model."}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {talentResults.map((cand) => (
+                    <div
+                      key={cand.student_id}
+                      className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft space-y-4 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        {/* Top candidate line */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              <h3 className="font-display text-base font-bold text-foreground">
+                                {cand.name}
+                              </h3>
+                              {cand.has_cryptographic_passport && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                                  <Lock className="size-2.5" /> RS256 Verified
+                                </span>
+                              )}
+                              {cand.proof_of_work?.level !== "NONE" && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                                  <GitBranch className="size-2.5" /> PoW: {cand.proof_of_work.level}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {cand.program} · <strong className="text-foreground">{cand.college}</strong>
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {cand.location} · {cand.experience || "Fresher"}
+                            </p>
+                          </div>
+
+                          {/* Precision Match Score Badge */}
+                          <div className="text-right shrink-0">
+                            <span
+                              className={`inline-block px-3 py-1 rounded-2xl text-xs font-black border ${
+                                cand.precision_match_score >= 80
+                                  ? "bg-success-soft text-success border-success/30"
+                                  : cand.precision_match_score >= 60
+                                  ? "bg-accent-soft text-accent border-accent/30"
+                                  : "bg-muted text-muted-foreground border-border"
+                              }`}
+                            >
+                              {cand.precision_match_score}% Match
+                            </span>
+                            <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">
+                              {cand.match_strength}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Matched skills */}
+                        {cand.matched_skills?.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase mb-1.5">
+                              Matched Skills
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {cand.matched_skills.map((sk: any, sidx: number) => (
+                                <span
+                                  key={sidx}
+                                  className={`px-2 py-0.5 rounded-lg text-xs font-bold border ${
+                                    sk.is_verified
+                                      ? "bg-primary/10 text-primary border-primary/20"
+                                      : "bg-background border-border text-foreground"
+                                  }`}
+                                >
+                                  {sk.skill_name} · {sk.verification_level}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Explainable Reasons */}
+                        {cand.explainable_reasons?.length > 0 && (
+                          <div className="rounded-2xl bg-background/50 border border-border/60 p-3 space-y-1">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                              Explainable Match Reasoning
+                            </p>
+                            {cand.explainable_reasons.slice(0, 3).map((reason: string, ridx: number) => (
+                              <div key={ridx} className="flex items-center gap-1.5 text-xs text-foreground">
+                                <CheckCircle2 className="size-3 text-success shrink-0" />
+                                <span>{reason}</span>
+                              </div>
+                            ))}
+                            {cand.gaps?.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-0.5">
+                                <AlertTriangle className="size-3 text-warning shrink-0" />
+                                <span>{cand.gaps[0]}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-between gap-2 border-t border-border/40 pt-3">
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleInspectProof(cand.student_id)}
+                            className="rounded-xl text-xs font-bold h-8 px-3 border-border"
+                          >
+                            <FileCheck2 className="size-3.5 mr-1 text-primary" /> Proof
+                          </Button>
+                          {cand.passport_token && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(`/passport/${cand.passport_token}`, "_blank")}
+                              className="rounded-xl text-xs font-bold h-8 px-2"
+                            >
+                              <ExternalLink className="size-3 mr-1" /> Passport
+                            </Button>
+                          )}
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={() => handleShortlistFromSearch(cand.student_id)}
+                          className="rounded-xl text-xs font-bold h-8 px-3.5"
+                        >
+                          <Bookmark className="size-3 mr-1" /> Shortlist
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -853,6 +1228,129 @@ function RecruiterPage() {
           onUpdateStage={handleStageUpdate}
         />
       )}
+
+      {/* CANDIDATE PROOF INSPECTION MODAL */}
+      <Dialog open={Boolean(proofCandidate) || loadingProof} onOpenChange={(open) => !open && setProofCandidate(null)}>
+        <DialogContent className="max-w-2xl rounded-3xl border border-border/80 bg-card p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+          {loadingProof ? (
+            <div className="py-16 text-center text-sm font-semibold text-muted-foreground animate-pulse">
+              Loading empirical proof graph & cryptographic credentials...
+            </div>
+          ) : proofCandidate ? (
+            <div className="space-y-6">
+              <DialogHeader>
+                <div className="flex items-center gap-2 text-primary font-bold">
+                  <FileCheck2 className="size-5" />
+                  <span className="text-xs uppercase tracking-wider font-extrabold">Empirical Proof Profile</span>
+                </div>
+                <DialogTitle className="font-display text-2xl font-bold text-foreground">
+                  {proofCandidate.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  {proofCandidate.program} · {proofCandidate.institution} · {proofCandidate.location}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Cryptographic verification status */}
+              {proofCandidate.cryptographic_verification && (
+                <div className="p-3.5 rounded-2xl border border-success/30 bg-success/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="size-4 text-success" />
+                    <span className="text-xs font-bold text-foreground">
+                      Cryptographically Signed Passport (RS256)
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    Key: {proofCandidate.cryptographic_verification.key_id || "sb_k1_2026"}
+                  </span>
+                </div>
+              )}
+
+              {/* Skills with Evidence Breakdown */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-sm text-foreground">Verified Skills & Empirical Evidence</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {(proofCandidate.skills || []).map((sk: any) => (
+                    <div key={sk.skill_id} className="p-3 rounded-xl border border-border/60 bg-background/50 space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground">{sk.skill_name}</span>
+                        <span className="font-bold text-primary">{sk.confidence_score}%</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Level: <strong className="text-foreground">{sk.verification_level}</strong> · {sk.integrity_status}
+                      </p>
+                      {sk.proof_signals?.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground italic">
+                          {sk.proof_signals[0]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Proof of Work Repositories */}
+              {proofCandidate.proof_of_work?.has_proof_of_work && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-sm text-foreground">Proof-of-Work Repositories</h4>
+                    <span className="text-xs font-bold text-primary">
+                      Tier: {proofCandidate.proof_of_work.proof_of_work_level} ({proofCandidate.proof_of_work.overall_pow_score}% avg)
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {(proofCandidate.proof_of_work.repositories || []).map((repo: any, idx: number) => (
+                      <div key={idx} className="p-3 rounded-xl border border-border/60 bg-background/50 flex items-center justify-between text-xs">
+                        <div>
+                          <a href={repo.repo_url} target="_blank" rel="noreferrer" className="font-bold text-primary hover:underline flex items-center gap-1">
+                            <GitBranch className="size-3" /> {repo.repo_name}
+                          </a>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Language: {repo.primary_language || "General"} · Commits: {repo.commit_count || 5}+
+                          </p>
+                        </div>
+                        <span className="px-2 py-1 rounded-md bg-card border border-border text-xs font-bold font-mono">
+                          {repo.overall_evidence_score}% Evidence
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Projects */}
+              {proofCandidate.projects?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-bold text-sm text-foreground">Projects</h4>
+                  <div className="space-y-2">
+                    {proofCandidate.projects.map((pr: any, idx: number) => (
+                      <div key={idx} className="p-2.5 rounded-xl border border-border/60 bg-background/50 text-xs">
+                        <span className="font-bold text-foreground">{pr.title}</span>
+                        <p className="text-muted-foreground text-[11px] mt-0.5">{pr.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border/40">
+                <Button variant="outline" size="sm" onClick={() => setProofCandidate(null)} className="rounded-xl text-xs font-bold">
+                  Close
+                </Button>
+                {proofCandidate.passport_token && (
+                  <Button
+                    size="sm"
+                    onClick={() => window.open(`/passport/${proofCandidate.passport_token}`, "_blank")}
+                    className="rounded-xl text-xs font-bold"
+                  >
+                    <ExternalLink className="size-3.5 mr-1" /> Open Skill Passport
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

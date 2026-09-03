@@ -38,6 +38,7 @@ require_once __DIR__ . '/controllers/CareerCopilotController.php';
 require_once __DIR__ . '/controllers/PassportController.php';
 require_once __DIR__ . '/controllers/GitHubController.php';
 require_once __DIR__ . '/controllers/InterviewAIController.php';
+require_once __DIR__ . '/controllers/TalentSearchController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -66,6 +67,12 @@ switch (true) {
         $health = HealthService::checkHealth();
         $statusCode = ($health['status'] === 'healthy') ? 200 : 503;
         jsonResponse($health, $statusCode);
+        break;
+
+    case $path === '/health/db':
+        $dbHealth = HealthService::getDatabaseHealth();
+        $statusCode = ($dbHealth['status'] === 'healthy') ? 200 : 503;
+        jsonResponse($dbHealth, $statusCode);
         break;
 
     case $path === '/ping':
@@ -178,6 +185,7 @@ switch (true) {
         break;
 
     case preg_match('#^/student/assessments/([^/]+)$#', $path, $matches) && $method === 'GET':
+        RateLimitMiddleware::check('assessment_generation', 10, 60);
         $user = AuthMiddleware::authenticate();
         AssessmentController::getAssessment($user, urldecode($matches[1]));
         break;
@@ -185,6 +193,43 @@ switch (true) {
     case $path === '/student/assessments' && $method === 'POST':
         $user = AuthMiddleware::authenticate();
         AssessmentController::submitAssessment($user);
+        break;
+
+    // --- SkillBridge 2.0: AI Skill Verification 2.0 & Integrity ---
+    case $path === '/student/skill-verifications/start' && $method === 'POST':
+        RateLimitMiddleware::check('verification_generation', 10, 60);
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::startVerification($user);
+        break;
+
+    case $path === '/student/skill-verifications' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::getVerificationHistory($user);
+        break;
+
+    case preg_match('#^/student/skill-verifications/([a-zA-Z0-9_-]+)/question$#', $path, $matches) && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::getCurrentQuestion($user, $matches[1]);
+        break;
+
+    case preg_match('#^/student/skill-verifications/([a-zA-Z0-9_-]+)/answer$#', $path, $matches) && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::submitAnswer($user, $matches[1]);
+        break;
+
+    case preg_match('#^/student/skill-verifications/([a-zA-Z0-9_-]+)/complete$#', $path, $matches) && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::completeVerification($user, $matches[1]);
+        break;
+
+    case $path === '/student/skill-integrity' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::getSkillIntegrity($user);
+        break;
+
+    case preg_match('#^/student/skill-integrity/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AssessmentController::getSingleSkillIntegrity($user, $matches[1]);
         break;
 
     // --- Student Projects ---
@@ -403,6 +448,7 @@ switch (true) {
 
     // --- AI Pre-screen Interview Studio ---
     case $path === '/interview-ai/session' && $method === 'GET':
+        RateLimitMiddleware::check('ai_interview_generation', 10, 60);
         $user = AuthMiddleware::authenticate();
         InterviewAIController::startSession($user);
         break;
@@ -411,6 +457,74 @@ switch (true) {
         RateLimitMiddleware::check('ai_features', 20, 60);
         $user = AuthMiddleware::authenticate();
         InterviewAIController::evaluateSession($user);
+        break;
+
+    // --- SkillBridge 2.0: AI Interview 2.0 Adaptive Studio ---
+    case $path === '/interview-ai/start' && $method === 'POST':
+        RateLimitMiddleware::check('ai_interview_generation', 10, 60);
+        $user = AuthMiddleware::authenticate();
+        InterviewAIController::startAdaptiveSession($user);
+        break;
+
+    case preg_match('#^/interview-ai/([a-zA-Z0-9_-]+)/answer$#', $path, $matches) && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        InterviewAIController::submitAdaptiveAnswer($user, $matches[1]);
+        break;
+
+    case preg_match('#^/interview-ai/([a-zA-Z0-9_-]+)/complete$#', $path, $matches) && $method === 'POST':
+        RateLimitMiddleware::check('ai_features', 20, 60);
+        $user = AuthMiddleware::authenticate();
+        InterviewAIController::completeAdaptiveSession($user, $matches[1]);
+        break;
+
+    case preg_match('#^/interview-ai/([a-zA-Z0-9_-]+)/scorecard$#', $path, $matches) && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        InterviewAIController::getSessionScorecard($user, $matches[1]);
+        break;
+
+    // --- Phase 2: Proof-of-Work Engine & Cryptographic Passport ---
+    case $path === '/student/proof-of-work' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        GitHubController::getProofOfWork($user);
+        break;
+
+    case $path === '/student/passport/reissue' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        PassportController::reissueCredential($user);
+        break;
+
+    case $path === '/student/passport/revoke' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        PassportController::revokeCredential($user);
+        break;
+
+    case preg_match('#^/passport/([a-zA-Z0-9_-]+)/verify$#', $path, $matches) && $method === 'GET':
+        PassportController::verifyCredentialEndpoint($matches[1]);
+        break;
+
+    case preg_match('#^/passport/([a-zA-Z0-9_-]+)/qr$#', $path, $matches) && $method === 'GET':
+        PassportController::getPassportQr($matches[1]);
+        break;
+
+    // --- Phase 2: Recruiter Talent Search 2.0 & Precision Match Engine ---
+    case $path === '/recruiter/talent-search' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        TalentSearchController::searchTalent($user);
+        break;
+
+    case preg_match('#^/recruiter/talent-search/([a-zA-Z0-9_-]+)/proof$#', $path, $matches) && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        TalentSearchController::getCandidateProof($user, $matches[1]);
+        break;
+
+    case $path === '/recruiter/shortlist' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        TalentSearchController::shortlistCandidate($user);
+        break;
+
+    case $path === '/recruiter/shortlists' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        TalentSearchController::getShortlists($user);
         break;
 
     default:

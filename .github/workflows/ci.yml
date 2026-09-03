@@ -37,6 +37,10 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
@@ -96,3 +100,12 @@ jobs:
           curl --fail --silent http://127.0.0.1:8000/api/ping >/dev/null
           node backend/tests/test_runner.cjs
           node backend/tests/audit_runner.cjs
+          php tests/postgres-verification.php
+          php tests/phase1-verification-test.php
+          php tests/phase1-hardening-test.php
+          php tests/phase2-proof-of-work-test.php
+          php tests/phase2-passport-test.php
+          php tests/phase2-talent-search-test.php
+          php tests/phase2-security-test.php
+          php tests/release-candidate-test.php
+          php tests/test-suite.php

@@ -1,6 +1,7 @@
 const http = require("http");
 
 const BASE = process.env.SKILLBRIDGE_TEST_BASE_URL || "http://127.0.0.1:8000/api";
+const REQUEST_TIMEOUT_MS = Number(process.env.SKILLBRIDGE_TEST_TIMEOUT_MS || 30000);
 let failures = 0;
 let refreshCookie = "";
 
@@ -21,8 +22,11 @@ function req(path, method = "GET", data = null, token = null) {
       let raw = "";
       res.on("data", (chunk) => (raw += chunk));
       res.on("end", () => {
-        const setCookie = res.headers["set-cookie"]?.find((value) => value.startsWith("sb_refresh_token="));
-        if (setCookie && !setCookie.startsWith("sb_refresh_token=;")) refreshCookie = setCookie.split(";")[0];
+        const setCookie = res.headers["set-cookie"]?.find((value) =>
+          value.startsWith("sb_refresh_token="),
+        );
+        if (setCookie && !setCookie.startsWith("sb_refresh_token=;"))
+          refreshCookie = setCookie.split(";")[0];
         let json = null;
         try {
           json = JSON.parse(raw);
@@ -33,7 +37,12 @@ function req(path, method = "GET", data = null, token = null) {
       });
     });
 
-    request.on("error", reject);
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      request.destroy(
+        new Error(`Request timed out after ${REQUEST_TIMEOUT_MS}ms: ${method} ${path}`),
+      );
+    });
+    request.on("error", (error) => reject(new Error(`${method} ${path}: ${error.message}`)));
     if (bodyStr) request.write(bodyStr);
     request.end();
   });
@@ -45,7 +54,16 @@ async function run() {
   const rand = Math.floor(1000 + Math.random() * 9000);
 
   // 1. Health
-  const h = await req("/health");
+  let h;
+  try {
+    h = await req("/health");
+  } catch (error) {
+    console.error(
+      `FATAL: API preflight failed. Check SKILLBRIDGE_TEST_BASE_URL and database connectivity. ${error.message}`,
+    );
+    process.exitCode = 2;
+    return;
+  }
   const check = (name, passed, details = "") => {
     if (!passed) failures++;
     console.log(name, passed ? "✅ PASS" : "❌ FAIL", details);
@@ -66,7 +84,11 @@ async function run() {
     college: "Anna University",
     program: "B.Tech Computer Science",
   });
-  check("3. Student Registration:", sReg.status === 201 && Boolean(sReg.data?.token), sReg.status + " " + JSON.stringify(sReg.data));
+  check(
+    "3. Student Registration:",
+    sReg.status === 201 && Boolean(sReg.data?.token),
+    `HTTP ${sReg.status}`,
+  );
   const studentToken = sReg.data?.token;
 
   // 4. Student Login
@@ -164,10 +186,29 @@ async function run() {
   check("8a. Student Profile Update:", updateProf.status === 200, updateProf.status);
 
   // 8b. Student Add Skills
-  const addSk1 = await req("/student/skills", "POST", { skill_name: "React", proficiency: 90 }, studentAuthToken);
-  const addSk2 = await req("/student/skills", "POST", { skill_name: "TypeScript", proficiency: 85 }, studentAuthToken);
-  const addSk3 = await req("/student/skills", "POST", { skill_name: "Python", proficiency: 80 }, studentAuthToken);
-  check("8b. Student Add Skills:", addSk1.status === 200 && addSk2.status === 200 && addSk3.status === 200, "Added 3 skills");
+  const addSk1 = await req(
+    "/student/skills",
+    "POST",
+    { skill_name: "React", proficiency: 90 },
+    studentAuthToken,
+  );
+  const addSk2 = await req(
+    "/student/skills",
+    "POST",
+    { skill_name: "TypeScript", proficiency: 85 },
+    studentAuthToken,
+  );
+  const addSk3 = await req(
+    "/student/skills",
+    "POST",
+    { skill_name: "Python", proficiency: 80 },
+    studentAuthToken,
+  );
+  check(
+    "8b. Student Add Skills:",
+    addSk1.status === 200 && addSk2.status === 200 && addSk3.status === 200,
+    "Added 3 skills",
+  );
 
   // 8c. Student Check Dashboard Recalculation
   const sDash = await req("/student/dashboard", "GET", null, studentAuthToken);
@@ -190,7 +231,11 @@ async function run() {
     },
     studentAuthToken,
   );
-  check("8d. Student Add Project:", addProj.status === 201 && Boolean(addProj.data?.projectId), addProj.status);
+  check(
+    "8d. Student Add Project:",
+    addProj.status === 201 && Boolean(addProj.data?.projectId),
+    addProj.status,
+  );
 
   // 8e. Student Add Certificate
   const addCert = await req(
@@ -204,7 +249,11 @@ async function run() {
     },
     studentAuthToken,
   );
-  check("8e. Student Add Certificate:", addCert.status === 201 && Boolean(addCert.data?.certificateId), addCert.status);
+  check(
+    "8e. Student Add Certificate:",
+    addCert.status === 201 && Boolean(addCert.data?.certificateId),
+    addCert.status,
+  );
 
   // 8f. Student 80%+ Progress Check
   const sDashFull = await req("/student/dashboard", "GET", null, studentAuthToken);
@@ -375,7 +424,12 @@ async function run() {
   );
 
   // 26. Career Simulator
-  const simRes = await req("/career/simulate", "POST", { skills: ["PostgreSQL", "Docker", "AWS"] }, studentAuthToken);
+  const simRes = await req(
+    "/career/simulate",
+    "POST",
+    { skills: ["PostgreSQL", "Docker", "AWS"] },
+    studentAuthToken,
+  );
   check(
     "26. Career Growth Simulator:",
     simRes.status === 200 &&
@@ -386,7 +440,12 @@ async function run() {
   );
 
   // 27. Career Gap Analysis
-  const gapRes = await req("/career/gap-analysis", "POST", { target_role: "Full Stack Engineer" }, studentAuthToken);
+  const gapRes = await req(
+    "/career/gap-analysis",
+    "POST",
+    { target_role: "Full Stack Engineer" },
+    studentAuthToken,
+  );
   check(
     "27. AI Skill Gap Analysis:",
     gapRes.status === 200 && Boolean(gapRes.data?.target_role),
@@ -412,7 +471,12 @@ async function run() {
   }
 
   // 29. GitHub Proof-of-Work
-  const ghRes = await req("/student/github/connect", "POST", { github_username: "octocat" }, studentAuthToken);
+  const ghRes = await req(
+    "/student/github/connect",
+    "POST",
+    { github_username: "octocat" },
+    studentAuthToken,
+  );
   check(
     "29. GitHub Proof-of-Work Repository Analysis:",
     ghRes.status === 200 && Boolean(ghRes.data?.profile?.username),
@@ -420,7 +484,12 @@ async function run() {
   );
 
   // 30. AI Pre-screen Studio Session
-  const intvSess = await req("/interview-ai/session?role=Full+Stack+Engineer", "GET", null, studentAuthToken);
+  const intvSess = await req(
+    "/interview-ai/session?role=Full+Stack+Engineer",
+    "GET",
+    null,
+    studentAuthToken,
+  );
   check(
     "30. AI Interview Session Generation:",
     intvSess.status === 200 && (intvSess.data?.questions?.length ?? 0) >= 3,

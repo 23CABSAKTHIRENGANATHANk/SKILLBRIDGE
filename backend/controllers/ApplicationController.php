@@ -217,6 +217,26 @@ class ApplicationController {
             $diff = time() - strtotime($row['applied_at']);
             $appliedStr = $diff < 3600 ? 'Just now' : ($diff < 86400 ? (int)floor($diff / 3600) . ' hours ago' : (int)floor($diff / 86400) . ' days ago');
 
+            // Integrity & Evidence Verification Details
+            $iaStmt = $db->prepare('SELECT status, COUNT(*) FROM skill_integrity_audits WHERE student_id = ? GROUP BY status');
+            $iaStmt->execute([$row['student_id']]);
+            $iaCounts = $iaStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $verifiedCount = (int)($iaCounts['VERIFIED'] ?? 0);
+            $mismatchCount = (int)($iaCounts['EVIDENCE_MISMATCH'] ?? 0);
+            $integrityStatus = $mismatchCount > 0 ? 'Verification Inconsistency Detected' : ($verifiedCount > 0 ? 'Verified Evidence Backed' : 'Verification Pending');
+
+            // Latest Interview Scorecard
+            $ivStmt = $db->prepare('SELECT overall_score, technical_score, communication_score, strengths, improvements FROM ai_interview_sessions WHERE student_id = ? ORDER BY created_at DESC LIMIT 1');
+            $ivStmt->execute([$row['student_id']]);
+            $ivRow = $ivStmt->fetch();
+            $interviewScorecard = $ivRow ? [
+                'overall_score' => (float)$ivRow['overall_score'],
+                'technical_score' => (int)$ivRow['technical_score'],
+                'communication_score' => (int)$ivRow['communication_score'],
+                'strengths' => is_string($ivRow['strengths']) ? json_decode($ivRow['strengths'], true) : $ivRow['strengths'],
+                'improvements' => is_string($ivRow['improvements']) ? json_decode($ivRow['improvements'], true) : $ivRow['improvements']
+            ] : null;
+
             $candidates[] = [
                 'id'             => $row['student_id'],
                 'appId'          => $row['app_id'],
@@ -232,7 +252,13 @@ class ApplicationController {
                 'jobTitle'       => $row['job_title'],
                 'location'       => $candidateLocation,
                 'graduationYear' => $gradYear,
-                'roleFitScore'   => $match['role_fit_score'] ?? $match['score']
+                'roleFitScore'   => $match['role_fit_score'] ?? $match['score'],
+                'integrity'      => [
+                    'status' => $integrityStatus,
+                    'verifiedCount' => $verifiedCount,
+                    'mismatchCount' => $mismatchCount,
+                ],
+                'interview'      => $interviewScorecard
             ];
         }
 

@@ -62,6 +62,7 @@ import { SkillAssessmentModal } from "@/components/proof-of-skill/skill-assessme
 import { CareerSimulatorCard } from "@/components/career/career-simulator-card";
 import { SkillPassportModal } from "@/components/career/skill-passport-modal";
 import { AIInterviewModal } from "@/components/interview/ai-interview-modal";
+import { SkillVerificationCenter } from "@/components/proof-of-skill/skill-verification-center";
 import type { Job, CareerProgress } from "@/types/skillbridge";
 import { ApiClient } from "@/lib/api-client";
 
@@ -116,7 +117,7 @@ function DashboardPage() {
   } = useInterviewsQuery();
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "ai" | "profile" | "applications" | "trust" | "interviews"
+    "overview" | "ai" | "verification" | "profile" | "applications" | "trust" | "interviews"
   >("overview");
   const [selectedOpportunityJob, setSelectedOpportunityJob] = useState<Job | null>(null);
   const [newSkillName, setNewSkillName] = useState("");
@@ -538,6 +539,18 @@ function DashboardPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab("verification")}
+                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === "verification"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ShieldCheck className="size-3.5" />
+                <span>Verification Center</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("profile")}
                 className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
                   activeTab === "profile"
@@ -911,6 +924,13 @@ function DashboardPage() {
                 <CareerSimulatorCard />
               </ScrollReveal>
             </div>
+          </div>
+        )}
+
+        {/* TAB: SKILL VERIFICATION CENTER */}
+        {activeTab === "verification" && (
+          <div className="mt-8">
+            <SkillVerificationCenter onStartAssessment={handleOpenAssessment} />
           </div>
         )}
 

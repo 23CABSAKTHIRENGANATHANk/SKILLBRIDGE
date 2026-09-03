@@ -1,0 +1,299 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SkillBridge 2.0 - Phase 1 API Specification",
+    "version": "2.0.0",
+    "description": "Enterprise Proof-of-Skill AI Hiring Platform: AI Skill Verification 2.0, Multi-Source Skill Integrity Engine, and Adaptive AI Interview 2.0 Studio."
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Production API Gateway"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter your SkillBridge JWT access token."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "Resource not found or unauthorized." }
+        }
+      },
+      "VerificationStartRequest": {
+        "type": "object",
+        "required": ["skill_name"],
+        "properties": {
+          "skill_name": { "type": "string", "example": "Python" },
+          "requested_level": { "type": "string", "enum": ["beginner", "intermediate", "advanced", "expert"], "default": "intermediate" }
+        }
+      },
+      "VerificationQuestionResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "attempt_id": { "type": "string", "example": "sva_0d7a63ce600c7f0b" },
+          "skill_name": { "type": "string", "example": "Python" },
+          "status": { "type": "string", "example": "in_progress" },
+          "current_index": { "type": "integer", "example": 0 },
+          "total_questions": { "type": "integer", "example": 4 },
+          "question": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "example": "svq_1234abcd" },
+              "index": { "type": "integer", "example": 0 },
+              "type": { "type": "string", "example": "MCQ" },
+              "category": { "type": "string", "example": "Conceptual Foundations" },
+              "question": { "type": "string", "example": "How does Python handle memory management?" },
+              "code_snippet": { "type": "string", "nullable": true },
+              "options": { "type": "object", "additionalProperties": { "type": "string" } },
+              "points": { "type": "integer", "example": 25 },
+              "answered": { "type": "boolean", "example": false }
+            }
+          }
+        }
+      },
+      "VerificationAnswerRequest": {
+        "type": "object",
+        "required": ["question_id", "answer"],
+        "properties": {
+          "question_id": { "type": "string", "example": "svq_1234abcd" },
+          "answer": { "type": "string", "example": "B" }
+        }
+      },
+      "VerificationFinalizeResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "attempt_id": { "type": "string", "example": "sva_0d7a63ce600c7f0b" },
+          "skill_name": { "type": "string", "example": "Python" },
+          "score": { "type": "number", "example": 75.0 },
+          "verified_level": { "type": "string", "example": "Advanced" },
+          "passed": { "type": "boolean", "example": true },
+          "confidence": { "type": "number", "example": 75.0 },
+          "breakdown": {
+            "type": "object",
+            "properties": {
+              "Conceptual Foundations": { "type": "number", "example": 100.0 },
+              "Practical Implementation": { "type": "number", "example": 100.0 },
+              "Debugging & Optimization": { "type": "number", "example": 100.0 },
+              "Production Scenario": { "type": "number", "example": 0.0 }
+            }
+          },
+          "integrity_status": { "type": "string", "enum": ["VERIFIED", "EVIDENCE_MISMATCH", "NOT_VERIFIED"], "example": "VERIFIED" }
+        }
+      },
+      "IntegrityAuditResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "audit": {
+            "type": "object",
+            "properties": {
+              "skill_id": { "type": "string" },
+              "skill_name": { "type": "string", "example": "Python" },
+              "claimed_level": { "type": "string", "example": "Advanced" },
+              "supported_level": { "type": "string", "example": "Advanced" },
+              "status": { "type": "string", "example": "VERIFIED" },
+              "confidence_score": { "type": "number", "example": 75.0 },
+              "evidence_sources": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": [
+                  "Verified Assessment: Advanced (75%)",
+                  "Resume Evidence: Verified skill match (65%) from parsed candidate resume"
+                ]
+              },
+              "recommendations": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["Maintain your verified standing by completing occasional advanced technical scenarios."]
+              }
+            }
+          }
+        }
+      },
+      "InterviewAdaptiveStartRequest": {
+        "type": "object",
+        "required": ["target_role"],
+        "properties": {
+          "target_role": { "type": "string", "example": "Frontend Engineer" },
+          "job_id": { "type": "string", "nullable": true, "example": "job-1" }
+        }
+      },
+      "InterviewScorecard": {
+        "type": "object",
+        "properties": {
+          "technical_score": { "type": "integer", "example": 85 },
+          "problem_solving_score": { "type": "integer", "example": 82 },
+          "communication_score": { "type": "integer", "example": 88 },
+          "role_fit_score": { "type": "integer", "example": 86 },
+          "overall_score": { "type": "integer", "example": 85 },
+          "strengths": { "type": "array", "items": { "type": "string" } },
+          "improvements": { "type": "array", "items": { "type": "string" } },
+          "evaluator_notes": { "type": "string" }
+        }
+      }
+    }
+  },
+  "security": [
+    { "BearerAuth": [] }
+  ],
+  "paths": {
+    "/student/skill-verifications/start": {
+      "post": {
+        "summary": "Start or resume an AI Skill Verification 2.0 attempt",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerificationStartRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Verification session active", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerificationQuestionResponse" } } } },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden - Student role required" }
+        }
+      }
+    },
+    "/student/skill-verifications/{id}/question": {
+      "get": {
+        "summary": "Retrieve active question for an attempt (hiding answer keys)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "index", "in": "query", "required": false, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Question retrieved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerificationQuestionResponse" } } } },
+          "404": { "description": "Attempt not found or unauthorized" }
+        }
+      }
+    },
+    "/student/skill-verifications/{id}/answer": {
+      "post": {
+        "summary": "Submit answer for active question (deterministic server evaluation)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerificationAnswerRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Answer evaluated and recorded" },
+          "400": { "description": "Session expired or already finalized" }
+        }
+      }
+    },
+    "/student/skill-verifications/{id}/complete": {
+      "post": {
+        "summary": "Finalize attempt, compute weighted scores, update evidence, and run integrity audit",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Attempt finalized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerificationFinalizeResponse" } } } },
+          "400": { "description": "Invalid attempt" }
+        }
+      }
+    },
+    "/student/skill-verifications": {
+      "get": {
+        "summary": "Get verification history for current authenticated student",
+        "responses": {
+          "200": { "description": "List of student attempts" }
+        }
+      }
+    },
+    "/student/skill-verifications/{skillId}/integrity": {
+      "get": {
+        "summary": "Retrieve multi-source skill integrity audit and constructive recommendations",
+        "parameters": [
+          { "name": "skillId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Integrity audit report", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IntegrityAuditResponse" } } } }
+        }
+      }
+    },
+    "/interview-ai/start": {
+      "post": {
+        "summary": "Start an evidence-grounded adaptive AI Interview 2.0 session",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InterviewAdaptiveStartRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Interview session initialized" }
+        }
+      }
+    },
+    "/interview-ai/{id}/answer": {
+      "post": {
+        "summary": "Submit answer for the current interview stage and receive next adaptive follow-up",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["answer"], "properties": { "answer": { "type": "string" } } } } }
+        },
+        "responses": {
+          "200": { "description": "Answer recorded and next stage returned" },
+          "400": { "description": "Session already completed" }
+        }
+      }
+    },
+    "/interview-ai/{id}/complete": {
+      "post": {
+        "summary": "Finalize adaptive interview session and synthesize candidate scorecard",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Scorecard evaluated", "content": { "application/json": { "schema": { "type": "object", "properties": { "scorecard": { "$ref": "#/components/schemas/InterviewScorecard" } } } } } }
+        }
+      }
+    },
+    "/interview-ai/{id}/scorecard": {
+      "get": {
+        "summary": "Get scorecard and full transcript (authorized student or job recruiter)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Scorecard details" },
+          "404": { "description": "Not found or unauthorized" }
+        }
+      }
+    },
+    "/student/resume": {
+      "post": {
+        "summary": "Upload resume file (PDF or DOCX), extract text layer, match skills, and persist evidence",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "resume": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Resume stored and skills extracted" },
+          "400": { "description": "Invalid MIME type or size exceeded" }
+        }
+      }
+    }
+  }
+}

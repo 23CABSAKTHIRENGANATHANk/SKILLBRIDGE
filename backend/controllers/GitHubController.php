@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../services/ProofOfSkillService.php';
+require_once __DIR__ . '/../services/ProofOfWorkService.php';
 
 /**
  * GitHubController
@@ -55,14 +56,19 @@ class GitHubController {
         if (is_array($repos)) {
             foreach ($repos as $repo) {
                 if (!empty($repo['language'])) {
-                    $detectedLanguages[] = $repo['language'];
-                    $detectedSkills[] = $repo['language'];
+                    $normLang = ProofOfWorkService::normalizeSkillName($repo['language']);
+                    $detectedLanguages[] = $normLang;
+                    $detectedSkills[] = $normLang;
                 }
                 if (!empty($repo['topics']) && is_array($repo['topics'])) {
                     foreach ($repo['topics'] as $topic) {
-                        $detectedSkills[] = ucfirst((string)$topic);
+                        $detectedSkills[] = ProofOfWorkService::normalizeSkillName((string)$topic);
                     }
                 }
+
+                // Analyze repository with ProofOfWork engine
+                ProofOfWorkService::saveRepositoryProof($student['id'], $repo);
+
                 $topRepos[] = [
                     'name' => $repo['name'] ?? '',
                     'language' => $repo['language'] ?? 'N/A',
@@ -98,26 +104,7 @@ class GitHubController {
             json_encode(array_slice($topRepos, 0, 5))
         ]);
 
-        // Record GitHub evidence for student's registered skills
-        $skStmt = $db->prepare('SELECT id, name FROM skills');
-        $skStmt->execute();
-        $allSkills = $skStmt->fetchAll();
-
-        foreach ($allSkills as $ms) {
-            $norm = strtolower($ms['name']);
-            foreach ($detectedSkills as $ds) {
-                if (str_contains(strtolower((string)$ds), $norm)) {
-                    $evStmt = $db->prepare('
-                        INSERT INTO skill_evidence (id, student_id, skill_id, source, confidence, metadata, verified_at)
-                        VALUES (?, ?, ?, \'github_evidence\', 85, ?, CURRENT_TIMESTAMP)
-                        ON CONFLICT (student_id, skill_id, source) DO UPDATE SET confidence = 85, verified_at = CURRENT_TIMESTAMP
-                    ');
-                    $evStmt->execute(['ev_gh_' . bin2hex(random_bytes(6)), $student['id'], $ms['id'], json_encode(['username' => $username])]);
-                    break;
-                }
-            }
-        }
-
+        $powSummary = ProofOfWorkService::getStudentProofOfWorkSummary($student['id']);
         $skillsWithProof = ProofOfSkillService::getStudentSkillsWithProof($student['id']);
 
         jsonResponse([
@@ -130,7 +117,31 @@ class GitHubController {
                 'detected_skills' => $detectedSkills,
                 'top_repositories' => array_slice($topRepos, 0, 4)
             ],
+            'proof_of_work' => $powSummary,
             'updated_skills' => $skillsWithProof
+        ]);
+    }
+
+    /**
+     * Get aggregate Proof-of-Work summary for the authenticated student.
+     * GET /student/proof-of-work
+     */
+    public static function getProofOfWork(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch();
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $summary = ProofOfWorkService::getStudentProofOfWorkSummary($student['id']);
+        jsonResponse([
+            'success' => true,
+            'proof_of_work' => $summary
         ]);
     }
 }

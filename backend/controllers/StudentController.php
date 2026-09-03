@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/cors.php';
 require_once __DIR__ . '/../services/MatchingService.php';
 require_once __DIR__ . '/../services/FileUploadService.php';
 require_once __DIR__ . '/../services/ProofOfSkillService.php';
+require_once __DIR__ . '/../services/ResumeExtractionService.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 class StudentController {
@@ -87,7 +88,7 @@ class StudentController {
         AuthMiddleware::requireRole($currentUser, 'student', 'admin');
         $db = Database::getConnection();
 
-        $stmt = $db->prepare('SELECT id, name, college, program, resume_storage_key, experience FROM students WHERE user_id = ? LIMIT 1');
+        $stmt = $db->prepare('SELECT id, name, avatar_url, college, program, resume_storage_key, experience FROM students WHERE user_id = ? LIMIT 1');
         $stmt->execute([$currentUser['user_id']]);
         $student = $stmt->fetch();
 
@@ -316,10 +317,19 @@ class StudentController {
         $upStmt = $db->prepare('UPDATE students SET resume_storage_key = ? WHERE id = ?');
         $upStmt->execute([$upload['storageKey'], $student['id']]);
 
+        // Trigger native text extraction & skill evidence pipeline
+        $extraction = null;
+        try {
+            $extraction = ResumeExtractionService::processResumeEvidence($student['id'], $upload['storageKey']);
+        } catch (\Throwable $e) {
+            error_log('Automated resume extraction error: ' . $e->getMessage());
+        }
+
         jsonResponse([
             'success' => true,
             'message' => 'Resume uploaded to secure storage.',
-            'hasResume' => true
+            'hasResume' => true,
+            'extraction' => $extraction
         ]);
     }
 
