@@ -62,6 +62,7 @@ function CareerGoalContent() {
 
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [customRole, setCustomRole] = useState<string>("");
+  const [secondaryRole, setSecondaryRole] = useState<string>("");
   const [timelineWeeks, setTimelineWeeks] = useState<number>(16);
   const [preferredLocation, setPreferredLocation] = useState<string>("");
   const [experienceLevel, setExperienceLevel] = useState<string>("entry");
@@ -77,6 +78,7 @@ function CareerGoalContent() {
         setCustomRole(g.target_role);
       }
       setTimelineWeeks(g.target_timeline_weeks || 16);
+      setSecondaryRole(g.secondary_target_role || "");
       setPreferredLocation(g.preferred_location || "");
       setExperienceLevel(g.experience_level || "entry");
     }
@@ -88,6 +90,7 @@ function CareerGoalContent() {
     mutationFn: () =>
       ApiClient.saveCareerGoal({
         target_role: effectiveRole,
+        ...(secondaryRole.trim() ? { secondary_target_role: secondaryRole.trim() } : {}),
         target_timeline_weeks: Number(timelineWeeks),
         ...(preferredLocation.trim() ? { preferred_location: preferredLocation.trim() } : {}),
         experience_level: experienceLevel,
@@ -210,7 +213,7 @@ function CareerGoalContent() {
         <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-6">
           <h2 className="font-display text-base font-bold">2. Target Timeline & Preferences</h2>
 
-          <div className="grid gap-6 sm:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="timeline-input" className="flex items-center gap-1.5">
                 <Calendar className="size-4 text-primary" /> Target Timeline (Weeks)
@@ -225,6 +228,20 @@ function CareerGoalContent() {
                 className="rounded-xl"
               />
               <p className="text-[11px] text-muted-foreground">Standard timeline is 12 to 24 weeks.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="secondary-role-input" className="flex items-center gap-1.5">
+                <Target className="size-4 text-primary" /> Secondary Goal <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="secondary-role-input"
+                placeholder="e.g. ML Engineer"
+                value={secondaryRole}
+                onChange={(e) => setSecondaryRole(e.target.value)}
+                maxLength={128}
+                className="rounded-xl"
+              />
             </div>
 
             <div className="space-y-2">

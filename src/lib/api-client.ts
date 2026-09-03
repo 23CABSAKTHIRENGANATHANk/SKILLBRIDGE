@@ -32,7 +32,14 @@ import type {
   CareerOpportunitiesResponse,
   KnowledgeEvolutionEvent,
   LearningResource,
+  LearningProgress,
+  ProjectProgress,
   CareerDashboardAggregated,
+  EvolutionLoopState,
+  EvolutionAdvanceResponse,
+  CareerInsightItem,
+  ReadinessSnapshot,
+  InteractiveSkillGraphData,
 } from "@/types/skillbridge";
 
 
@@ -1257,7 +1264,7 @@ export class ApiClient {
   // SkillBridge 3.0 — Student Career Evolution Engine
   // -------------------------------------------------------------------------
   public static async getCareerDashboard(): Promise<CareerDashboardAggregated> {
-    return this.request("/student/career-dashboard");
+    return this.request("/student/career-os");
   }
 
   public static async getCareerGoal(): Promise<{ goal: CareerGoal | null }> {
@@ -1266,6 +1273,7 @@ export class ApiClient {
 
   public static async saveCareerGoal(data: {
     target_role: string;
+    secondary_target_role?: string | undefined;
     target_industry?: string | undefined;
     preferred_location?: string | undefined;
     experience_level?: string | undefined;
@@ -1276,6 +1284,21 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
+  }
+
+  public static async updateCareerGoal(data: {
+    target_role: string;
+    secondary_target_role?: string | undefined;
+    target_industry?: string | undefined;
+    preferred_location?: string | undefined;
+    experience_level?: string | undefined;
+    target_timeline_weeks?: number | undefined;
+  }): Promise<{ message: string; goal: CareerGoal; roadmap: CareerRoadmapResponse }> {
+    return this.request("/student/career-goal", { method: "PUT", body: JSON.stringify(data) });
+  }
+
+  public static async deleteCareerGoal(): Promise<{ message: string }> {
+    return this.request("/student/career-goal", { method: "DELETE" });
   }
 
   public static async getCareerReadiness(role?: string): Promise<CareerReadiness> {
@@ -1311,6 +1334,14 @@ export class ApiClient {
     return this.request(`/student/learning${qs}`);
   }
 
+  public static async updateLearningProgress(resourceId: string, data: { status: "started" | "in_progress" | "completed"; progress?: number }): Promise<{ resource_id: string; progress: LearningProgress }> {
+    return this.request(`/student/learning/${encodeURIComponent(resourceId)}/progress`, { method: "POST", body: JSON.stringify(data) });
+  }
+
+  public static async updateRecommendedProjectProgress(projectId: string, data: { status: "not_started" | "in_progress" | "completed" | "submitted" | "verified"; progress?: number; repository_url?: string }): Promise<{ project_id: string; progress: ProjectProgress }> {
+    return this.request(`/student/projects/${encodeURIComponent(projectId)}/progress`, { method: "POST", body: JSON.stringify(data) });
+  }
+
   public static async getKnowledgeEvolution(): Promise<{ events: KnowledgeEvolutionEvent[]; total_events: number }> {
     return this.request("/student/evolution");
   }
@@ -1327,6 +1358,18 @@ export class ApiClient {
 
   public static async getCareerOpportunities(): Promise<CareerOpportunitiesResponse> {
     return this.request("/student/opportunities");
+  }
+
+  public static async getEvolution(): Promise<{ events: KnowledgeEvolutionEvent[]; total_events: number }> {
+    return this.request<{ events: KnowledgeEvolutionEvent[]; total_events: number }>("/student/evolution");
+  }
+
+  public static async getRecommendedProjects(skill?: string, difficulty?: string): Promise<{ projects: any[]; count: number }> {
+    const params = new URLSearchParams();
+    if (skill) params.set("skill", skill);
+    if (difficulty) params.set("difficulty", difficulty);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return this.request<{ projects: any[]; count: number }>(`/student/projects/recommended${qs}`);
   }
 
   public static async getSkillDependencies(skill?: string): Promise<{ dependencies: Array<{ skill_name: string; prerequisite_name: string; relationship_type: string }> }> {
@@ -1412,6 +1455,82 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // --- Master Closed-Loop Career Evolution Flywheel ---
+  public static async getEvolutionLoop(role?: string): Promise<EvolutionLoopState> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request<EvolutionLoopState>(`/student/evolution-loop${qs}`);
+  }
+
+  public static async advanceEvolutionLoop(
+    skill: string,
+    stage: string,
+    payload?: Record<string, unknown>
+  ): Promise<EvolutionAdvanceResponse> {
+    return this.request<EvolutionAdvanceResponse>("/student/evolution-loop/advance", {
+      method: "POST",
+      body: JSON.stringify({ skill, stage, payload }),
+    });
+  }
+
+  // --- Personal Career Operating System APIs ---
+  public static async getCareerOS(role?: string): Promise<CareerDashboardAggregated> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request<CareerDashboardAggregated>(`/student/career-os${qs}`);
+  }
+
+  public static async getCareerInsights(role?: string): Promise<{ insights: CareerInsightItem[] }> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request<{ insights: CareerInsightItem[] }>(`/student/career-insights${qs}`);
+  }
+
+  public static async getSkillGraph(role?: string): Promise<InteractiveSkillGraphData> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request<InteractiveSkillGraphData>(`/student/skill-graph${qs}`);
+  }
+
+  public static async getReadinessHistory(role?: string): Promise<{ history: ReadinessSnapshot[] }> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request<{ history: ReadinessSnapshot[] }>(`/student/readiness-history${qs}`);
+  }
+
+  public static async startLearning(resourceId: string): Promise<any> {
+    return this.request(`/student/learning/${encodeURIComponent(resourceId)}/start`, {
+      method: "POST",
+    });
+  }
+
+  public static async completeLearning(resourceId: string): Promise<any> {
+    return this.request(`/student/learning/${encodeURIComponent(resourceId)}/complete`, {
+      method: "POST",
+    });
+  }
+
+  public static async startProject(projectId: string): Promise<any> {
+    return this.request(`/student/projects/${encodeURIComponent(projectId)}/start`, {
+      method: "POST",
+    });
+  }
+
+  public static async completeProject(projectId: string, repoUrl?: string): Promise<any> {
+    return this.request(`/student/projects/${encodeURIComponent(projectId)}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ repository_url: repoUrl }),
+    });
+  }
+
+  public static async regenerateWeeklyPlan(role?: string): Promise<any> {
+    const qs = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request(`/student/weekly-plan/regenerate${qs}`, {
+      method: "POST",
+    });
+  }
+
+  public static async skipWeeklyTask(taskId: string): Promise<any> {
+    return this.request(`/student/weekly-plan/task/${encodeURIComponent(taskId)}/skip`, {
+      method: "POST",
+    });
+  }
 }
 
 // -------------------------------------------------------------------------
@@ -1455,4 +1574,3 @@ export interface TrustBreakdownItem {
   present: boolean;
   detail: string;
 }
-

@@ -43,7 +43,23 @@ class CareerEvolutionController {
         $gStmt = $db->prepare('SELECT target_role, target_timeline_weeks, target_industry, preferred_location, experience_level FROM career_goals WHERE student_id = ?');
         $gStmt->execute([$student['id']]);
         $goal = $gStmt->fetch();
-        $targetRole = (string)($goal['target_role'] ?? 'Full Stack Developer');
+        if (!$goal) {
+            jsonResponse([
+                'student' => $student,
+                'goal' => null,
+                'setup_required' => true,
+                'readiness' => null,
+                'gaps' => null,
+                'next_action' => null,
+                'roadmap' => null,
+                'weekly_plan' => null,
+                'opportunities' => null,
+                'evolution' => CareerEvolutionService::getKnowledgeEvolution($student['id']),
+                'achievements' => CareerEvolutionService::getAchievements($student['id']),
+            ]);
+            return;
+        }
+        $targetRole = (string)$goal['target_role'];
 
         // 2. Readiness & Gaps
         $readiness = CareerEvolutionService::calculateReadiness($student['id'], $targetRole);
@@ -67,6 +83,18 @@ class CareerEvolutionController {
         // 8. Achievements
         $achievements = CareerEvolutionService::getAchievements($student['id']);
 
+        // 9. Deterministic Career Insights (CareerInsightService)
+        $insights = CareerInsightService::generateInsights($student['id'], $targetRole);
+
+        // 10. Reachable Jobs 4-Tier Matrix
+        $reachableJobs = CareerRecommendationService::getReachableJobs($student['id'], $targetRole);
+
+        // 11. Historical Readiness Progression
+        $readinessHistory = CareerEvolutionService::getReadinessHistory($student['id'], $targetRole);
+
+        // 12. Interactive Topological Skill Graph
+        $skillGraph = CareerEvolutionService::getInteractiveSkillGraph($student['id'], $targetRole);
+
         jsonResponse([
             'student' => $student,
             'goal' => $goal ?: null,
@@ -78,6 +106,10 @@ class CareerEvolutionController {
             'opportunities' => $opportunities,
             'evolution' => $evolution,
             'achievements' => $achievements,
+            'insights' => $insights,
+            'reachable_jobs' => $reachableJobs,
+            'readiness_history' => $readinessHistory,
+            'skill_graph' => $skillGraph,
         ]);
     }
 
@@ -86,7 +118,7 @@ class CareerEvolutionController {
      */
     public static function getGoal(array $user): void {
         $student = self::student($user);
-        $stmt = Database::getConnection()->prepare('SELECT id, target_role, target_industry, preferred_location, experience_level, target_timeline_weeks, created_at, updated_at FROM career_goals WHERE student_id = ?');
+        $stmt = Database::getConnection()->prepare('SELECT id, target_role, secondary_target_role, career_domain, target_industry, preferred_location, experience_level, target_timeline_weeks, created_at, updated_at FROM career_goals WHERE student_id = ?');
         $stmt->execute([$student['id']]);
         jsonResponse(['goal' => $stmt->fetch() ?: null]);
     }
@@ -100,6 +132,8 @@ class CareerEvolutionController {
         $role = trim((string)($input['target_role'] ?? ''));
         $timeline = (int)($input['target_timeline_weeks'] ?? 16);
         $industry = trim((string)($input['target_industry'] ?? '')) ?: null;
+        $secondaryRole = trim((string)($input['secondary_target_role'] ?? '')) ?: null;
+        $careerDomain = trim((string)($input['career_domain'] ?? '')) ?: null;
         $location = trim((string)($input['preferred_location'] ?? '')) ?: null;
         $expLevel = trim((string)($input['experience_level'] ?? 'entry')) ?: 'entry';
 
@@ -108,20 +142,32 @@ class CareerEvolutionController {
 
         $db = Database::getConnection();
         $stmt = $db->prepare('
-            INSERT INTO career_goals (id, student_id, target_role, target_industry, preferred_location, experience_level, target_timeline_weeks)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO career_goals (id, student_id, target_role, secondary_target_role, career_domain, target_industry, preferred_location, experience_level, target_timeline_weeks)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (student_id) DO UPDATE
                 SET target_role = EXCLUDED.target_role,
+                    secondary_target_role = EXCLUDED.secondary_target_role,
+                    career_domain = EXCLUDED.career_domain,
                     target_industry = EXCLUDED.target_industry,
                     preferred_location = EXCLUDED.preferred_location,
                     experience_level = EXCLUDED.experience_level,
                     target_timeline_weeks = EXCLUDED.target_timeline_weeks,
                     updated_at = CURRENT_TIMESTAMP
         ');
-        $stmt->execute(['goal_' . bin2hex(random_bytes(8)), $student['id'], $role, $industry, $location, $expLevel, $timeline]);
+        $stmt->execute(['goal_' . bin2hex(random_bytes(8)), $student['id'], $role, $secondaryRole, $careerDomain, $industry, $location, $expLevel, $timeline]);
 
         // Auto-generate or update personalized roadmap
         $roadmap = CareerEvolutionService::getOrCreateRoadmap($student['id'], $role, $timeline);
+
+        // Record readiness snapshot
+        $readiness = CareerRecommendationService::getCareerReadiness($student['id'], $role);
+        CareerEvolutionService::recordReadinessSnapshot(
+            $student['id'],
+            $role,
+            (int)($readiness['readiness_score'] ?? 0),
+            (string)($readiness['readiness_tier'] ?? 'Foundational'),
+            $readiness['breakdown'] ?? []
+        );
 
         // Record knowledge evolution milestone
         CareerEvolutionService::recordEvolutionEvent(
@@ -135,6 +181,8 @@ class CareerEvolutionController {
             'message' => 'Career goal saved successfully.',
             'goal' => [
                 'target_role' => $role,
+                'secondary_target_role' => $secondaryRole,
+                'career_domain' => $careerDomain,
                 'target_timeline_weeks' => $timeline,
                 'target_industry' => $industry,
                 'preferred_location' => $location,
@@ -142,6 +190,20 @@ class CareerEvolutionController {
             ],
             'roadmap' => $roadmap,
         ]);
+    }
+
+    /** PUT /student/career-goal -- explicit update contract, backed by the same upsert. */
+    public static function updateGoal(array $user): void {
+        self::saveGoal($user);
+    }
+
+    /** DELETE /student/career-goal. Roadmap history is retained; only the active destination is removed. */
+    public static function deleteGoal(array $user): void {
+        $student = self::student($user);
+        $stmt = Database::getConnection()->prepare('DELETE FROM career_goals WHERE student_id = ?');
+        $stmt->execute([$student['id']]);
+        if ($stmt->rowCount() === 0) errorResponse('Career goal not found.', 404);
+        jsonResponse(['message' => 'Career goal removed. Set a new goal to receive personalized recommendations.']);
     }
 
     /**
@@ -279,11 +341,71 @@ class CareerEvolutionController {
      * GET /student/learning
      */
     public static function getLearningResources(array $user): void {
-        self::student($user);
+        $student = self::student($user);
         $skill = isset($_GET['skill']) ? trim((string)$_GET['skill']) : null;
         $type = isset($_GET['type']) ? trim((string)$_GET['type']) : null;
         $resources = CareerEvolutionService::getLearningResources($skill, $type);
+        if (!empty($resources)) {
+            $ids = array_values(array_filter(array_column($resources, 'id')));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $progressStmt = Database::getConnection()->prepare("SELECT resource_id, status, progress, started_at, completed_at, last_accessed_at FROM student_learning_progress WHERE student_id = ? AND resource_id IN ({$placeholders})");
+            $progressStmt->execute(array_merge([$student['id']], $ids));
+            $progressByResource = [];
+            foreach ($progressStmt->fetchAll() as $progress) $progressByResource[$progress['resource_id']] = $progress;
+            foreach ($resources as &$resource) $resource['progress'] = $progressByResource[$resource['id']] ?? null;
+            unset($resource);
+        }
         jsonResponse(['resources' => $resources, 'count' => count($resources)]);
+    }
+
+    /** POST /student/learning/:resourceId/progress -- explicit, idempotent learning state mutation. */
+    public static function updateLearningProgress(array $user, string $resourceId): void {
+        $student = self::student($user);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $status = strtolower(trim((string)($input['status'] ?? 'started')));
+        $progress = (int)($input['progress'] ?? ($status === 'completed' ? 100 : 0));
+        if (!in_array($status, ['started', 'in_progress', 'completed'], true) || $progress < 0 || $progress > 100) {
+            errorResponse('Invalid learning progress state.', 422);
+        }
+        if ($status === 'completed') $progress = 100;
+        $db = Database::getConnection();
+        $exists = $db->prepare('SELECT 1 FROM learning_resources WHERE id = ?');
+        $exists->execute([$resourceId]);
+        if (!$exists->fetchColumn()) errorResponse('Learning resource not found.', 404);
+        $stmt = $db->prepare("INSERT INTO student_learning_progress (student_id, resource_id, status, progress, started_at, completed_at, last_accessed_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE NULL END, CURRENT_TIMESTAMP)
+            ON CONFLICT (student_id, resource_id) DO UPDATE SET
+              status = EXCLUDED.status, progress = EXCLUDED.progress,
+              completed_at = CASE WHEN EXCLUDED.status = 'completed' THEN COALESCE(student_learning_progress.completed_at, CURRENT_TIMESTAMP) ELSE student_learning_progress.completed_at END,
+              last_accessed_at = CURRENT_TIMESTAMP
+            RETURNING status, progress, started_at, completed_at, last_accessed_at");
+        $stmt->execute([$student['id'], $resourceId, $status, $progress, $status]);
+        jsonResponse(['resource_id' => $resourceId, 'progress' => $stmt->fetch()]);
+    }
+
+    /** POST /student/projects/:projectId/progress -- only records explicit student actions. */
+    public static function updateProjectProgress(array $user, string $projectId): void {
+        $student = self::student($user);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $status = strtolower(trim((string)($input['status'] ?? 'not_started')));
+        $progress = (int)($input['progress'] ?? ($status === 'completed' ? 100 : 0));
+        $repositoryUrl = trim((string)($input['repository_url'] ?? '')) ?: null;
+        if (!in_array($status, ['not_started', 'in_progress', 'completed', 'submitted', 'verified'], true) || $progress < 0 || $progress > 100) errorResponse('Invalid project progress state.', 422);
+        if ($status === 'completed') $progress = 100;
+        $db = Database::getConnection();
+        $exists = $db->prepare('SELECT 1 FROM project_recommendations WHERE id = ?');
+        $exists->execute([$projectId]);
+        if (!$exists->fetchColumn()) errorResponse('Project recommendation not found.', 404);
+        $stmt = $db->prepare("INSERT INTO student_project_progress (student_id, project_id, status, progress, repository_url, started_at, completed_at)
+            VALUES (?, ?, ?, ?, ?, CASE WHEN ? IN ('in_progress','completed','submitted','verified') THEN CURRENT_TIMESTAMP ELSE NULL END, CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE NULL END)
+            ON CONFLICT (student_id, project_id) DO UPDATE SET status = EXCLUDED.status, progress = EXCLUDED.progress,
+              repository_url = COALESCE(EXCLUDED.repository_url, student_project_progress.repository_url),
+              started_at = COALESCE(student_project_progress.started_at, EXCLUDED.started_at),
+              completed_at = CASE WHEN EXCLUDED.status = 'completed' THEN COALESCE(student_project_progress.completed_at, CURRENT_TIMESTAMP) ELSE student_project_progress.completed_at END,
+              last_accessed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            RETURNING status, progress, repository_url, started_at, completed_at, last_accessed_at");
+        $stmt->execute([$student['id'], $projectId, $status, $progress, $repositoryUrl, $status, $status]);
+        jsonResponse(['project_id' => $projectId, 'progress' => $stmt->fetch()]);
     }
 
     public static function getRecommendedProjects(array $user): void {
@@ -329,6 +451,37 @@ class CareerEvolutionController {
     public static function getDataQuality(): void {
         $audit = DataQualityService::runAudit();
         jsonResponse($audit);
+    }
+
+    /**
+     * GET /student/evolution-loop
+     */
+    public static function getEvolutionLoop(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        jsonResponse(CareerEvolutionService::getEvolutionLoopState($student['id'], $role));
+    }
+
+    /**
+     * POST /student/evolution-loop/advance
+     */
+    public static function advanceEvolutionLoop(array $user): void {
+        $student = self::student($user);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $skill = trim((string)($input['skill'] ?? ''));
+        $stage = trim((string)($input['stage'] ?? ''));
+        $payload = (array)($input['payload'] ?? []);
+
+        if (empty($skill) || empty($stage)) {
+            errorResponse('Both skill and stage parameters are required.', 422);
+        }
+
+        try {
+            $result = CareerEvolutionService::advanceEvolutionLoop($student['id'], $skill, $stage, $payload);
+            jsonResponse($result);
+        } catch (\Throwable $e) {
+            errorResponse($e->getMessage(), 400);
+        }
     }
 
     /**
@@ -399,6 +552,124 @@ Respond in structured JSON format with:
             ];
         }
 
+        // Persist to career_coach_sessions and career_coach_messages
+        try {
+            $sessionStmt = $db->prepare('SELECT id FROM career_coach_sessions WHERE student_id = ? ORDER BY updated_at DESC LIMIT 1');
+            $sessionStmt->execute([$student['id']]);
+            $sessionId = $sessionStmt->fetchColumn();
+            if (!$sessionId) {
+                $sessionId = 'session_' . bin2hex(random_bytes(8));
+                $db->prepare('INSERT INTO career_coach_sessions (id, student_id, title) VALUES (?, ?, ?)')
+                   ->execute([$sessionId, $student['id'], 'Career Strategy for ' . $targetRole]);
+            } else {
+                $db->prepare('UPDATE career_coach_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+                   ->execute([$sessionId]);
+            }
+            $db->prepare('INSERT INTO career_coach_messages (session_id, sender, message) VALUES (?, ?, ?)')
+               ->execute([$sessionId, 'student', $query]);
+            $db->prepare('INSERT INTO career_coach_messages (session_id, sender, message, metadata) VALUES (?, ?, ?, ?)')
+               ->execute([$sessionId, 'coach', $parsed['reply'], json_encode($parsed)]);
+        } catch (\Throwable) {
+            // Non-fatal
+        }
+
         jsonResponse($parsed);
+    }
+
+    /**
+     * GET /student/career-insights
+     */
+    public static function getCareerInsights(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        jsonResponse([
+            'insights' => CareerInsightService::generateInsights($student['id'], $role)
+        ]);
+    }
+
+    /**
+     * GET /student/skill-graph
+     */
+    public static function getSkillGraph(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        jsonResponse(CareerEvolutionService::getInteractiveSkillGraph($student['id'], $role));
+    }
+
+    /**
+     * POST /student/learning/{id}/start
+     */
+    public static function startLearning(array $user, string $resourceId): void {
+        $student = self::student($user);
+        jsonResponse([
+            'success' => true,
+            'progress' => CareerEvolutionService::startLearningResource($student['id'], $resourceId)
+        ]);
+    }
+
+    /**
+     * POST /student/learning/{id}/complete
+     */
+    public static function completeLearning(array $user, string $resourceId): void {
+        $student = self::student($user);
+        jsonResponse([
+            'success' => true,
+            'progress' => CareerEvolutionService::completeLearningResource($student['id'], $resourceId)
+        ]);
+    }
+
+    /**
+     * POST /student/projects/{id}/start
+     */
+    public static function startProject(array $user, string $projectId): void {
+        $student = self::student($user);
+        jsonResponse([
+            'success' => true,
+            'progress' => CareerEvolutionService::startProjectRecommendation($student['id'], $projectId)
+        ]);
+    }
+
+    /**
+     * POST /student/projects/{id}/complete
+     */
+    public static function completeProject(array $user, string $projectId): void {
+        $student = self::student($user);
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $repoUrl = trim((string)($input['repository_url'] ?? '')) ?: null;
+        jsonResponse([
+            'success' => true,
+            'progress' => CareerEvolutionService::completeProjectRecommendation($student['id'], $projectId, $repoUrl)
+        ]);
+    }
+
+    /**
+     * POST /student/weekly-plan/regenerate
+     */
+    public static function regenerateWeeklyPlan(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        jsonResponse([
+            'success' => true,
+            'weekly_plan' => CareerEvolutionService::regenerateWeeklyPlan($student['id'], $role)
+        ]);
+    }
+
+    /**
+     * POST /student/weekly-plan/task/{id}/skip
+     */
+    public static function skipWeeklyTask(array $user, string $taskId): void {
+        $student = self::student($user);
+        jsonResponse(CareerEvolutionService::skipWeeklyTask($student['id'], $taskId));
+    }
+
+    /**
+     * GET /student/readiness-history
+     */
+    public static function getReadinessHistory(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        jsonResponse([
+            'history' => CareerEvolutionService::getReadinessHistory($student['id'], $role)
+        ]);
     }
 }

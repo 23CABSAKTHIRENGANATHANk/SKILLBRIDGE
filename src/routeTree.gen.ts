@@ -29,7 +29,13 @@ import { Route as RecruiterRouteImport } from './routes/recruiter'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PassportTokenRouteImport } from './routes/passport.$token'
+import { Route as StudentCareerRouteImport } from './routes/student.career'
+import { Route as StudentCareerCoachRouteImport } from './routes/student.career-coach'
+import { Route as StudentEvolutionRouteImport } from './routes/student.evolution'
+import { Route as StudentProjectsRouteImport } from './routes/student.projects'
+import { Route as StudentSkillGraphRouteImport } from './routes/student.skill-graph'
 import { Route as StudentSkillVerificationRouteImport } from './routes/student.skill-verification'
+import { Route as StudentSkillsRouteImport } from './routes/student.skills'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -131,12 +137,42 @@ const PassportTokenRoute = PassportTokenRouteImport.update({
   path: '/passport/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudentCareerRoute = StudentCareerRouteImport.update({
+  id: '/student/career',
+  path: '/student/career',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentCareerCoachRoute = StudentCareerCoachRouteImport.update({
+  id: '/student/career-coach',
+  path: '/student/career-coach',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentEvolutionRoute = StudentEvolutionRouteImport.update({
+  id: '/student/evolution',
+  path: '/student/evolution',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentProjectsRoute = StudentProjectsRouteImport.update({
+  id: '/student/projects',
+  path: '/student/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentSkillGraphRoute = StudentSkillGraphRouteImport.update({
+  id: '/student/skill-graph',
+  path: '/student/skill-graph',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudentSkillVerificationRoute =
   StudentSkillVerificationRouteImport.update({
     id: '/student/skill-verification',
     path: '/student/skill-verification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const StudentSkillsRoute = StudentSkillsRouteImport.update({
+  id: '/student/skills',
+  path: '/student/skills',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -159,7 +195,13 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/passport/$token': typeof PassportTokenRoute
+  '/student/career': typeof StudentCareerRoute
+  '/student/career-coach': typeof StudentCareerCoachRoute
+  '/student/evolution': typeof StudentEvolutionRoute
+  '/student/projects': typeof StudentProjectsRoute
+  '/student/skill-graph': typeof StudentSkillGraphRoute
   '/student/skill-verification': typeof StudentSkillVerificationRoute
+  '/student/skills': typeof StudentSkillsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -182,7 +224,13 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/passport/$token': typeof PassportTokenRoute
+  '/student/career': typeof StudentCareerRoute
+  '/student/career-coach': typeof StudentCareerCoachRoute
+  '/student/evolution': typeof StudentEvolutionRoute
+  '/student/projects': typeof StudentProjectsRoute
+  '/student/skill-graph': typeof StudentSkillGraphRoute
   '/student/skill-verification': typeof StudentSkillVerificationRoute
+  '/student/skills': typeof StudentSkillsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -206,7 +254,13 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/passport/$token': typeof PassportTokenRoute
+  '/student/career': typeof StudentCareerRoute
+  '/student/career-coach': typeof StudentCareerCoachRoute
+  '/student/evolution': typeof StudentEvolutionRoute
+  '/student/projects': typeof StudentProjectsRoute
+  '/student/skill-graph': typeof StudentSkillGraphRoute
   '/student/skill-verification': typeof StudentSkillVerificationRoute
+  '/student/skills': typeof StudentSkillsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -231,7 +285,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/passport/$token'
+    | '/student/career'
+    | '/student/career-coach'
+    | '/student/evolution'
+    | '/student/projects'
+    | '/student/skill-graph'
     | '/student/skill-verification'
+    | '/student/skills'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -254,7 +314,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/passport/$token'
+    | '/student/career'
+    | '/student/career-coach'
+    | '/student/evolution'
+    | '/student/projects'
+    | '/student/skill-graph'
     | '/student/skill-verification'
+    | '/student/skills'
   id:
     | '__root__'
     | '/'
@@ -277,7 +343,13 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/passport/$token'
+    | '/student/career'
+    | '/student/career-coach'
+    | '/student/evolution'
+    | '/student/projects'
+    | '/student/skill-graph'
     | '/student/skill-verification'
+    | '/student/skills'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -301,7 +373,13 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   PassportTokenRoute: typeof PassportTokenRoute
+  StudentCareerRoute: typeof StudentCareerRoute
+  StudentCareerCoachRoute: typeof StudentCareerCoachRoute
+  StudentEvolutionRoute: typeof StudentEvolutionRoute
+  StudentProjectsRoute: typeof StudentProjectsRoute
+  StudentSkillGraphRoute: typeof StudentSkillGraphRoute
   StudentSkillVerificationRoute: typeof StudentSkillVerificationRoute
+  StudentSkillsRoute: typeof StudentSkillsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -446,11 +524,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PassportTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/student/career': {
+      id: '/student/career'
+      path: '/student/career'
+      fullPath: '/student/career'
+      preLoaderRoute: typeof StudentCareerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/career-coach': {
+      id: '/student/career-coach'
+      path: '/student/career-coach'
+      fullPath: '/student/career-coach'
+      preLoaderRoute: typeof StudentCareerCoachRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/evolution': {
+      id: '/student/evolution'
+      path: '/student/evolution'
+      fullPath: '/student/evolution'
+      preLoaderRoute: typeof StudentEvolutionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/projects': {
+      id: '/student/projects'
+      path: '/student/projects'
+      fullPath: '/student/projects'
+      preLoaderRoute: typeof StudentProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/skill-graph': {
+      id: '/student/skill-graph'
+      path: '/student/skill-graph'
+      fullPath: '/student/skill-graph'
+      preLoaderRoute: typeof StudentSkillGraphRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/student/skill-verification': {
       id: '/student/skill-verification'
       path: '/student/skill-verification'
       fullPath: '/student/skill-verification'
       preLoaderRoute: typeof StudentSkillVerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/skills': {
+      id: '/student/skills'
+      path: '/student/skills'
+      fullPath: '/student/skills'
+      preLoaderRoute: typeof StudentSkillsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -477,7 +597,13 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   PassportTokenRoute: PassportTokenRoute,
+  StudentCareerRoute: StudentCareerRoute,
+  StudentCareerCoachRoute: StudentCareerCoachRoute,
+  StudentEvolutionRoute: StudentEvolutionRoute,
+  StudentProjectsRoute: StudentProjectsRoute,
+  StudentSkillGraphRoute: StudentSkillGraphRoute,
   StudentSkillVerificationRoute: StudentSkillVerificationRoute,
+  StudentSkillsRoute: StudentSkillsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

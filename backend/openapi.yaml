@@ -1238,3 +1238,95 @@ paths:
         "200":
           description: Company shortlisted candidates
 
+  /student/career-os:
+    get:
+      tags: [Students]
+      summary: Get the authenticated student's Career Command Center payload
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Aggregated career state, or a setup-required payload when no goal is set
+        "401":
+          description: Authentication required
+        "403":
+          description: Student role required
+
+  /student/career-goal:
+    put:
+      tags: [Students]
+      summary: Update the authenticated student's career goal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_role]
+              properties:
+                target_role: { type: string, maxLength: 128 }
+                secondary_target_role: { type: string, maxLength: 128, nullable: true }
+                target_timeline_weeks: { type: integer, minimum: 1, maximum: 260 }
+    delete:
+      tags: [Students]
+      summary: Delete the authenticated student's career goal
+      security:
+        - BearerAuth: []
+      responses:
+        "200": { description: Goal removed }
+        "404": { description: No goal exists }
+
+  /student/learning/{resourceId}/progress:
+    post:
+      tags: [Students]
+      summary: Explicitly update learning progress for the authenticated student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [started, in_progress, completed] }
+                progress: { type: integer, minimum: 0, maximum: 100 }
+      responses:
+        "200": { description: Progress persisted }
+        "404": { description: Resource not found }
+        "422": { description: Invalid state }
+
+  /student/projects/{projectId}/progress:
+    post:
+      tags: [Students]
+      summary: Explicitly update recommended-project progress for the authenticated student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [not_started, in_progress, completed, submitted, verified] }
+                progress: { type: integer, minimum: 0, maximum: 100 }
+                repository_url: { type: string, format: uri }
+      responses:
+        "200": { description: Progress persisted }
+        "404": { description: Project recommendation not found }
+        "422": { description: Invalid state }

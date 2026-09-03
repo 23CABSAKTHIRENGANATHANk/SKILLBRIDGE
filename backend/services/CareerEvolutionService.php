@@ -5,6 +5,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/ProofOfSkillService.php';
 require_once __DIR__ . '/ProofOfWorkService.php';
 require_once __DIR__ . '/MatchingService.php';
+require_once __DIR__ . '/CareerRecommendationService.php';
+require_once __DIR__ . '/CareerInsightService.php';
 
 /**
  * CareerEvolutionService
@@ -804,10 +806,688 @@ class CareerEvolutionService {
         if (!empty($skillName)) {
             $stmt = $db->prepare('SELECT skill_name, prerequisite_name, relationship_type FROM skill_dependencies WHERE LOWER(skill_name) = LOWER(?) OR LOWER(prerequisite_name) = LOWER(?)');
             $stmt->execute([trim($skillName), trim($skillName)]);
-        } else {
-            $stmt = $db->query('SELECT skill_name, prerequisite_name, relationship_type FROM skill_dependencies ORDER BY skill_name ASC');
         }
 
         return $stmt->fetchAll();
     }
+
+    /**
+     * 14. Master Closed-Loop Career Evolution Flywheel State
+     */
+    public static function getEvolutionLoopState(string $studentId, ?string $targetRole = null): array {
+        $db = Database::getConnection();
+
+        // 1. Resolve Goal & Target Role
+        if (empty($targetRole)) {
+            $gStmt = $db->prepare('SELECT target_role, target_timeline_weeks, target_industry, preferred_location, experience_level FROM career_goals WHERE student_id = ? LIMIT 1');
+            $gStmt->execute([$studentId]);
+            $goal = $gStmt->fetch();
+            $targetRole = (string)($goal['target_role'] ?? 'Full Stack Developer');
+        } else {
+            $goal = [
+                'target_role' => $targetRole,
+                'target_timeline_weeks' => 16,
+                'target_industry' => 'Technology',
+                'preferred_location' => 'Remote / Hybrid',
+                'experience_level' => 'Entry / Mid'
+            ];
+        }
+
+        // 2. Career Readiness (0-100%)
+        $readiness = CareerRecommendationService::getCareerReadiness($studentId, $targetRole);
+
+        // 3. Skill Gaps Breakdown
+        $gaps = self::analyzeSkillGaps($studentId, $targetRole);
+
+        // 4. What Should I Do Next? (Prerequisite-aware Next Best Action)
+        $nextAction = CareerRecommendationService::getNextBestAction($studentId, $targetRole);
+        $activeSkill = $nextAction['primary_action']['skill'] ?? 'React';
+
+        // 5. My Personalized Skill Graph (Sub-graph around Career Requirements)
+        $careerDetail = CareerRecommendationService::getCareerDetail($targetRole) ?? [];
+        $requiredSkills = $careerDetail['required_skills'] ?? ['HTML', 'CSS', 'JavaScript', 'React', 'Git'];
+        $preferredSkills = $careerDetail['preferred_skills'] ?? ['TypeScript', 'Docker'];
+        $confidenceMap = ProofOfSkillService::getStudentSkillConfidence($studentId);
+
+        $graphNodes = [];
+        $allRoleSkills = array_values(array_unique(array_merge($requiredSkills, $preferredSkills, [$activeSkill])));
+        foreach ($allRoleSkills as $sk) {
+            $skLower = strtolower(trim($sk));
+            $conf = $confidenceMap[$skLower] ?? 0;
+            $status = $conf >= 70 ? 'verified' : ($conf >= 25 ? 'in_progress' : 'missing');
+            $graphNodes[] = [
+                'id' => $sk,
+                'name' => $sk,
+                'confidence' => $conf,
+                'status' => $status,
+                'is_required' => in_array($sk, $requiredSkills, true),
+                'is_active_target' => (strtolower($sk) === strtolower($activeSkill))
+            ];
+        }
+
+        // Graph Edges for these skills
+        $graphEdges = [];
+        if (!empty($allRoleSkills)) {
+            $inClause = implode(',', array_fill(0, count($allRoleSkills), '?'));
+            $edgeStmt = $db->prepare("
+                SELECT skill_name, prerequisite_name, relationship_type, strength
+                FROM skill_dependencies
+                WHERE skill_name IN ({$inClause}) OR prerequisite_name IN ({$inClause})
+            ");
+            $edgeStmt->execute(array_merge($allRoleSkills, $allRoleSkills));
+            $graphEdges = $edgeStmt->fetchAll();
+        }
+
+        // 6. Action Modality 1: LEARN (Courses, Docs, Videos)
+        $learnStmt = $db->prepare("
+            SELECT id, title, provider, resource_type, level, url, duration, is_free, quality_score, channel, video_id
+            FROM learning_resources
+            WHERE LOWER(skill) = LOWER(?) AND active = TRUE
+            ORDER BY quality_score DESC, is_free DESC
+            LIMIT 4
+        ");
+        $learnStmt->execute([$activeSkill]);
+        $learnResources = $learnStmt->fetchAll();
+
+        // 7. Action Modality 2: PRACTICE (Interactive Coding Drills)
+        $practiceDrills = self::generatePracticeDrillsForSkill($activeSkill);
+
+        // 8. Action Modality 3: BUILD (Real-World Project Blueprint)
+        $buildStmt = $db->prepare("
+            SELECT id, title, description, deliverables, tech_stack, difficulty, repo_template_url, estimated_hours, portfolio_value
+            FROM project_recommendations
+            WHERE (LOWER(skill) = LOWER(?) OR deliverables::text ILIKE ?) AND active = TRUE
+            ORDER BY CASE WHEN portfolio_value = 'high' THEN 1 ELSE 2 END ASC
+            LIMIT 2
+        ");
+        $buildStmt->execute([$activeSkill, '%' . $activeSkill . '%']);
+        $buildProjects = $buildStmt->fetchAll();
+        if (!empty($buildProjects)) {
+            foreach ($buildProjects as &$bp) {
+                $bp['deliverables'] = is_string($bp['deliverables']) ? json_decode($bp['deliverables'], true) : $bp['deliverables'];
+                $bp['tech_stack'] = is_string($bp['tech_stack']) ? json_decode($bp['tech_stack'], true) : $bp['tech_stack'];
+            }
+            unset($bp);
+        }
+
+        // 9. Action Modality 4: ASSESS (Technical Skill Evaluation)
+        $assessmentInfo = [
+            'skill' => $activeSkill,
+            'assessment_title' => "{$activeSkill} Technical Competency Benchmark",
+            'duration_minutes' => 20,
+            'question_count' => 10,
+            'passing_score' => 70,
+            'format' => 'Multiple-choice + Production Architecture Analysis',
+            'verified_badge_reward' => "Certified {$activeSkill} Specialist"
+        ];
+
+        // 10. Action Modality 5: VERIFY (Proof-of-Skill Multi-Factor Evidence)
+        $conf = $confidenceMap[strtolower($activeSkill)] ?? 0;
+        $verifyInfo = [
+            'skill' => $activeSkill,
+            'confidence_score' => $conf,
+            'weights' => ProofOfSkillService::WEIGHTS,
+            'is_verified' => ($conf >= 70),
+            'breakdown' => [
+                'self_declared' => 10,
+                'resume_evidence' => $conf >= 50 ? 20 : 0,
+                'project_evidence' => $conf >= 60 ? 20 : 0,
+                'assessment_passed' => $conf >= 70 ? 35 : 0,
+                'github_evidence' => $conf >= 80 ? 15 : 0
+            ]
+        ];
+
+        // 11. Reachable Jobs (4-Tier Analysis)
+        $reachableJobs = CareerRecommendationService::getReachableJobs($studentId, $targetRole);
+
+        // 12. Active Modality Stage
+        $currentModality = $conf >= 70 ? 'verify' : ($conf >= 50 ? 'assess' : ($conf >= 25 ? 'build' : 'learn'));
+
+        return [
+            'goal' => $goal,
+            'readiness' => $readiness,
+            'skill_graph' => [
+                'nodes' => $graphNodes,
+                'edges' => $graphEdges,
+                'total_nodes' => count($graphNodes),
+                'total_edges' => count($graphEdges)
+            ],
+            'skill_gaps' => $gaps,
+            'next_action' => $nextAction,
+            'active_skill' => $activeSkill,
+            'current_modality' => $currentModality,
+            'modalities' => [
+                'learn' => [
+                    'title' => "Master {$activeSkill} Foundations",
+                    'resources' => $learnResources,
+                    'count' => count($learnResources)
+                ],
+                'practice' => [
+                    'title' => "Interactive Hands-on {$activeSkill} Drills",
+                    'drills' => $practiceDrills
+                ],
+                'build' => [
+                    'title' => "Build {$activeSkill} Portfolio Project",
+                    'projects' => $buildProjects
+                ],
+                'assess' => $assessmentInfo,
+                'verify' => $verifyInfo
+            ],
+            'reachable_jobs' => $reachableJobs,
+            'flywheel_stages' => [
+                ['id' => 'goal', 'name' => 'Career Goal', 'status' => 'completed'],
+                ['id' => 'readiness', 'name' => 'Career Readiness', 'status' => 'completed'],
+                ['id' => 'graph', 'name' => 'My Skill Graph', 'status' => 'completed'],
+                ['id' => 'gaps', 'name' => 'Skill Gaps', 'status' => 'completed'],
+                ['id' => 'next_action', 'name' => 'What Should I Do Next?', 'status' => 'in_progress'],
+                ['id' => 'learn', 'name' => 'Learn', 'status' => $currentModality === 'learn' ? 'active' : 'pending'],
+                ['id' => 'practice', 'name' => 'Practice', 'status' => $currentModality === 'practice' ? 'active' : 'pending'],
+                ['id' => 'build', 'name' => 'Build', 'status' => $currentModality === 'build' ? 'active' : 'pending'],
+                ['id' => 'assess', 'name' => 'Assess', 'status' => $currentModality === 'assess' ? 'active' : 'pending'],
+                ['id' => 'verify', 'name' => 'Verify', 'status' => $currentModality === 'verify' ? 'active' : 'pending'],
+                ['id' => 'boost', 'name' => 'Readiness Boost', 'status' => 'pending'],
+                ['id' => 'jobs', 'name' => 'Reachable Jobs', 'status' => 'pending'],
+                ['id' => 'repeat', 'name' => 'Repeat (Next Node)', 'status' => 'pending']
+            ]
+        ];
+    }
+
+    /**
+     * Generate interactive practice coding drills for a skill
+     */
+    public static function generatePracticeDrillsForSkill(string $skillName): array {
+        return [
+            [
+                'id' => 'drill_1_' . strtolower(preg_replace('/[^a-z0-9]/', '_', $skillName)),
+                'title' => "Core Syntax & Architecture Drill",
+                'instruction' => "Implement a clean, performant module utilizing {$skillName} with strict error handling and defensive typing.",
+                'difficulty' => 'intermediate',
+                'estimated_minutes' => 15,
+                'starter_code' => "// Write your {$skillName} implementation here\nfunction executeTask(payload) {\n  // TODO: Validate and process\n}",
+                'test_criteria' => ['Zero unhandled exceptions', 'Deterministic state propagation', 'Time complexity O(N)']
+            ],
+            [
+                'id' => 'drill_2_' . strtolower(preg_replace('/[^a-z0-9]/', '_', $skillName)),
+                'title' => "Production Edge Cases & Concurrency",
+                'instruction' => "Handle race conditions, asynchronous timeouts, and idempotent retries in a {$skillName} workflow.",
+                'difficulty' => 'advanced',
+                'estimated_minutes' => 20,
+                'starter_code' => "// Asynchronous {$skillName} handler\nasync function handleTransaction(req) {\n  // TODO: Concurrency control\n}",
+                'test_criteria' => ['Atomic operation guarantee', 'Thread-safe / race-free execution']
+            ]
+        ];
+    }
+
+    /**
+     * 15. Advance the Student through the Flywheel Loop
+     */
+    public static function advanceEvolutionLoop(string $studentId, string $skillName, string $stage, array $payload = []): array {
+        $db = Database::getConnection();
+
+        $stage = strtolower(trim($stage));
+        $validStages = ['learn', 'practice', 'build', 'assess', 'verify'];
+        if (!in_array($stage, $validStages, true)) {
+            throw new \InvalidArgumentException("Invalid flywheel stage: {$stage}");
+        }
+
+        // Fetch current readiness before advancing
+        $goalStmt = $db->prepare('SELECT target_role FROM career_goals WHERE student_id = ? LIMIT 1');
+        $goalStmt->execute([$studentId]);
+        $targetRole = (string)($goalStmt->fetchColumn() ?: 'Full Stack Developer');
+        $prevReadiness = CareerRecommendationService::getCareerReadiness($studentId, $targetRole);
+        $prevScore = (int)($prevReadiness['readiness_score'] ?? 0);
+
+        // Resolve skill ID
+        $sStmt = $db->prepare('SELECT id, name FROM skills WHERE LOWER(name) = LOWER(?) LIMIT 1');
+        $sStmt->execute([$skillName]);
+        $skillRow = $sStmt->fetch();
+        $skillId = $skillRow['id'] ?? ('sk_' . substr(md5($skillName), 0, 30));
+
+        // Advance based on persisted evidence; missing evidence cannot be promoted.
+        $eventTitle = '';
+        $nextStage = '';
+
+        if ($stage === 'learn') {
+            $learnedStmt = $db->prepare("SELECT 1 FROM student_learning_progress slp JOIN learning_resources lr ON lr.id = slp.resource_id WHERE slp.student_id = ? AND LOWER(lr.skill) = LOWER(?) AND slp.status = 'completed' LIMIT 1");
+            $learnedStmt->execute([$studentId, $skillName]);
+            if (!$learnedStmt->fetchColumn()) {
+                throw new \InvalidArgumentException('Complete a verified learning resource before advancing from the learn stage.');
+            }
+            $eventTitle = "Completed foundational study for {$skillName}";
+            $nextStage = 'practice';
+        } elseif ($stage === 'practice') {
+            throw new \InvalidArgumentException('Practice completion must be recorded by a verified assessment workflow.');
+        } elseif ($stage === 'build') {
+            $projectTitle = trim((string)($payload['project_title'] ?? ''));
+            $repoUrl = trim((string)($payload['repo_url'] ?? ''));
+            if ($projectTitle === '' || $repoUrl === '') {
+                throw new \InvalidArgumentException('A real project title and repository URL are required to complete the build stage.');
+            }
+            $eventTitle = "Built portfolio project: {$projectTitle} ({$skillName})";
+            $nextStage = 'assess';
+
+            // Record project in student_projects if table exists
+            try {
+                $pStmt = $db->prepare("
+                    INSERT INTO student_projects (student_id, title, description, repo_url, live_url, tech_stack)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+                $pStmt->execute([
+                    $studentId,
+                    $projectTitle,
+                    "Verified portfolio project built via SkillBridge Career Flywheel for {$skillName}",
+                    $repoUrl,
+                    $repoUrl,
+                    json_encode([$skillName, 'Git'])
+                ]);
+            } catch (\Throwable) {
+                // Non-fatal if schema differs
+            }
+        } elseif ($stage === 'assess') {
+            if (empty($payload['score'])) {
+                throw new \InvalidArgumentException('Assessment completion must come from the verified assessment workflow.');
+            }
+            $score = (int)$payload['score'];
+            $eventTitle = "Completed Diagnostic Assessment for {$skillName} (Score: {$score}%)";
+            $nextStage = 'verify';
+            try {
+                $db->prepare("
+                    INSERT INTO student_assessments (student_id, skill_id, score, status, completed_at)
+                    VALUES (?, ?, ?, 'passed', CURRENT_TIMESTAMP)
+                ")->execute([$studentId, $skillId, $score]);
+            } catch (\Throwable) {
+                // Non-fatal if table not present
+            }
+        } elseif ($stage === 'verify') {
+            $confData = ProofOfSkillService::calculateConfidenceScore($studentId, $skillName);
+            $conf = (int)($payload['confidence_score'] ?? $confData['confidence_score'] ?? 0);
+            if ($conf < 70) {
+                throw new \InvalidArgumentException('Skill verification requires passing assessment and evidence checks first.');
+            }
+            $eventTitle = "Earned Verified Proof-of-Skill Certificate for {$skillName}";
+            $nextStage = 'repeat';
+
+            // Elevate skill into student_skills table
+            try {
+                $db->prepare("
+                    INSERT INTO student_skills (student_id, skill_id, proficiency)
+                    VALUES (?, ?, 'advanced')
+                    ON CONFLICT (student_id, skill_id) DO UPDATE SET proficiency = 'advanced'
+                ")->execute([$studentId, $skillId]);
+            } catch (\Throwable) {
+                // If table uses different constraint
+            }
+        }
+
+        // Record Knowledge Evolution Event
+        try {
+            $db->prepare("
+                INSERT INTO knowledge_evolution_events (student_id, event_type, title, description, metadata, event_date)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ")->execute([
+                $studentId,
+                'skill_' . $stage,
+                $eventTitle,
+                "Stage {$stage} completed in the Continuous Career Evolution Flywheel for {$skillName}.",
+                json_encode(['skill' => $skillName, 'stage' => $stage, 'payload' => $payload])
+            ]);
+        } catch (\Throwable) {
+            // Non-fatal
+        }
+
+        // Recalculate fresh readiness and reachable jobs
+        $newReadiness = CareerRecommendationService::getCareerReadiness($studentId, $targetRole);
+        $newScore = (int)($newReadiness['readiness_score'] ?? 0);
+        $newJobs = CareerRecommendationService::getReachableJobs($studentId, $targetRole);
+
+        // Next Action in the DAG
+        $nextAction = CareerRecommendationService::getNextBestAction($studentId, $targetRole);
+
+        return [
+            'success' => true,
+            'completed_stage' => $stage,
+            'next_stage' => $nextStage,
+            'skill' => $skillName,
+            'readiness_change' => $newScore - $prevScore,
+            'previous_score' => $prevScore,
+            'new_score' => $newScore,
+            'new_tier' => $newReadiness['readiness_tier'] ?? 'Developing',
+            'reachable_jobs_summary' => $newJobs['tier_summary'] ?? [],
+            'next_recommended_action' => $nextAction['primary_action'] ?? null
+        ];
+    }
+
+    /**
+     * 16. Record Career Readiness Snapshot
+     */
+    public static function recordReadinessSnapshot(string $studentId, string $targetRole, int $score, string $tier, array $breakdown = []): void {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            INSERT INTO career_readiness_snapshots (student_id, target_role, readiness_score, readiness_tier, breakdown)
+            VALUES (?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([$studentId, $targetRole, $score, $tier, json_encode($breakdown)]);
+    }
+
+    /**
+     * 17. Get Career Readiness History
+     */
+    public static function getReadinessHistory(string $studentId, ?string $targetRole = null): array {
+        $db = Database::getConnection();
+        if ($targetRole) {
+            $stmt = $db->prepare('
+                SELECT id, target_role, readiness_score, readiness_tier, breakdown, snapshot_date
+                FROM career_readiness_snapshots
+                WHERE student_id = ? AND target_role = ?
+                ORDER BY snapshot_date ASC
+            ');
+            $stmt->execute([$studentId, $targetRole]);
+        } else {
+            $stmt = $db->prepare('
+                SELECT id, target_role, readiness_score, readiness_tier, breakdown, snapshot_date
+                FROM career_readiness_snapshots
+                WHERE student_id = ?
+                ORDER BY snapshot_date ASC
+            ');
+            $stmt->execute([$studentId]);
+        }
+        $rows = $stmt->fetchAll();
+        return array_map(function($r) {
+            if (isset($r['breakdown']) && is_string($r['breakdown'])) {
+                $r['breakdown'] = json_decode($r['breakdown'], true) ?: [];
+            }
+            return $r;
+        }, $rows);
+    }
+
+    /**
+     * 18. Get Interactive Skill Graph (Topological Node/Edge Structure with student state)
+     */
+    public static function getInteractiveSkillGraph(string $studentId, ?string $targetRole = null): array {
+        $db = Database::getConnection();
+        $targetRole = $targetRole ?: CareerRecommendationService::getStudentTargetRole($studentId);
+
+        // Fetch career required and preferred skills
+        $career = CareerRecommendationService::getCareerDetail($targetRole) ?? [];
+        $requiredSkills = $career['required_skills'] ?? ['HTML', 'CSS', 'JavaScript', 'React', 'Git'];
+        $preferredSkills = $career['preferred_skills'] ?? ['TypeScript', 'Docker'];
+        $coreSkillSet = array_unique(array_merge($requiredSkills, $preferredSkills));
+
+        // Get student confidence map
+        $confidenceMap = ProofOfSkillService::getStudentSkillConfidence($studentId);
+
+        // Fetch dependencies for core skills
+        $depStmt = $db->query('SELECT skill_name, prerequisite_name, relationship_type, strength FROM skill_dependencies');
+        $allDeps = $depStmt->fetchAll();
+
+        $prereqsBySkill = [];
+        $dependentsBySkill = [];
+        $edges = [];
+
+        foreach ($allDeps as $d) {
+            $sk = $d['skill_name'];
+            $pr = $d['prerequisite_name'];
+            $prereqsBySkill[$sk][] = $pr;
+            $dependentsBySkill[$pr][] = $sk;
+        }
+
+        // Expand coreSkillSet to include immediate prerequisites
+        $allGraphSkills = $coreSkillSet;
+        foreach ($coreSkillSet as $sk) {
+            if (!empty($prereqsBySkill[$sk])) {
+                foreach ($prereqsBySkill[$sk] as $pr) {
+                    $allGraphSkills[] = $pr;
+                }
+            }
+        }
+        $allGraphSkills = array_values(array_unique($allGraphSkills));
+
+        // Build nodes
+        $nodes = [];
+        $unlockedCount = 0;
+        $verifiedCount = 0;
+
+        foreach ($allGraphSkills as $sk) {
+            $skLower = strtolower(trim($sk));
+            $conf = $confidenceMap[$skLower] ?? 0;
+            $isRequired = in_array($sk, $requiredSkills, true);
+            $prereqs = $prereqsBySkill[$sk] ?? [];
+
+            // Check if prerequisites are satisfied (each prerequisite >= 50% confidence)
+            $prereqsSatisfied = true;
+            foreach ($prereqs as $p) {
+                $pConf = $confidenceMap[strtolower(trim($p))] ?? 0;
+                if ($pConf < 50) {
+                    $prereqsSatisfied = false;
+                    break;
+                }
+            }
+
+            // Determine status
+            if ($conf >= 70) {
+                $status = 'VERIFIED';
+                $verifiedCount++;
+                $unlockedCount++;
+            } elseif ($conf >= 25) {
+                $status = 'IN_PROGRESS';
+                $unlockedCount++;
+            } elseif (!$prereqsSatisfied && !empty($prereqs)) {
+                $status = 'LOCKED';
+            } else {
+                $status = 'AVAILABLE';
+                $unlockedCount++;
+            }
+
+            // Fetch domain/difficulty from skills table
+            $stmt = $db->prepare('SELECT category, difficulty FROM skills WHERE name = ? LIMIT 1');
+            $stmt->execute([$sk]);
+            $skMeta = $stmt->fetch() ?: ['category' => 'Engineering', 'difficulty' => 'intermediate'];
+
+            $nodes[] = [
+                'id' => $sk,
+                'name' => $sk,
+                'status' => $status,
+                'confidence' => $conf,
+                'is_required' => $isRequired,
+                'domain' => $skMeta['category'] ?? 'Engineering',
+                'difficulty' => $skMeta['difficulty'] ?? 'intermediate',
+                'prerequisites' => $prereqs,
+                'prerequisites_satisfied' => $prereqsSatisfied
+            ];
+        }
+
+        // Filter edges for included nodes
+        $nodeSet = array_flip($allGraphSkills);
+        foreach ($allDeps as $d) {
+            if (isset($nodeSet[$d['skill_name']]) && isset($nodeSet[$d['prerequisite_name']])) {
+                $edges[] = [
+                    'source' => $d['prerequisite_name'],
+                    'target' => $d['skill_name'],
+                    'relationship_type' => $d['relationship_type'],
+                    'strength' => (float)($d['strength'] ?? 1.0)
+                ];
+            }
+        }
+
+        return [
+            'target_role' => $targetRole,
+            'nodes' => $nodes,
+            'edges' => $edges,
+            'total_nodes' => count($nodes),
+            'total_edges' => count($edges),
+            'unlocked_count' => $unlockedCount,
+            'verified_count' => $verifiedCount
+        ];
+    }
+
+    /**
+     * 19. Start Learning Resource
+     */
+    public static function startLearningResource(string $studentId, string $resourceId): array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            INSERT INTO student_learning_progress (student_id, resource_id, status, progress, started_at, last_accessed_at)
+            VALUES (?, ?, \'started\', 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (student_id, resource_id) DO UPDATE
+                SET status = CASE WHEN student_learning_progress.status = \'completed\' THEN \'completed\' ELSE \'started\' END,
+                    last_accessed_at = CURRENT_TIMESTAMP
+            RETURNING id, student_id, resource_id, status, progress, started_at, completed_at, last_accessed_at
+        ');
+        $stmt->execute([$studentId, $resourceId]);
+        $row = $stmt->fetch();
+
+        // Log evolution event
+        self::recordEvolutionEvent(
+            $studentId,
+            'skill_learned',
+            "Started Learning: {$resourceId}",
+            "Committed to studying technical resource {$resourceId}."
+        );
+
+        return $row ?: ['status' => 'started', 'resource_id' => $resourceId];
+    }
+
+    /**
+     * 20. Complete Learning Resource
+     */
+    public static function completeLearningResource(string $studentId, string $resourceId): array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            INSERT INTO student_learning_progress (student_id, resource_id, status, progress, started_at, completed_at, last_accessed_at)
+            VALUES (?, ?, \'completed\', 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (student_id, resource_id) DO UPDATE
+                SET status = \'completed\',
+                    progress = 100,
+                    completed_at = CURRENT_TIMESTAMP,
+                    last_accessed_at = CURRENT_TIMESTAMP
+            RETURNING id, student_id, resource_id, status, progress, started_at, completed_at, last_accessed_at
+        ');
+        $stmt->execute([$studentId, $resourceId]);
+        $row = $stmt->fetch();
+
+        // Get resource skill
+        $rStmt = $db->prepare('SELECT skill, title FROM learning_resources WHERE id = ? LIMIT 1');
+        $rStmt->execute([$resourceId]);
+        $res = $rStmt->fetch();
+        $skill = $res['skill'] ?? 'Technical Skill';
+        $title = $res['title'] ?? $resourceId;
+
+        // Log evolution event
+        self::recordEvolutionEvent(
+            $studentId,
+            'skill_learned',
+            "Completed: {$title}",
+            "Finished comprehensive curriculum for {$skill}."
+        );
+
+        return $row ?: ['status' => 'completed', 'resource_id' => $resourceId, 'skill' => $skill];
+    }
+
+    /**
+     * 21. Start Project Recommendation
+     */
+    public static function startProjectRecommendation(string $studentId, string $projectId): array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            INSERT INTO student_project_progress (student_id, project_id, status, progress, started_at, last_accessed_at)
+            VALUES (?, ?, \'in_progress\', 15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (student_id, project_id) DO UPDATE
+                SET status = CASE WHEN student_project_progress.status IN (\'completed\', \'verified\') THEN student_project_progress.status ELSE \'in_progress\' END,
+                    last_accessed_at = CURRENT_TIMESTAMP
+            RETURNING id, student_id, project_id, status, progress, repository_url, started_at, completed_at, last_accessed_at
+        ');
+        $stmt->execute([$studentId, $projectId]);
+        $row = $stmt->fetch();
+
+        // Log evolution event
+        self::recordEvolutionEvent(
+            $studentId,
+            'project_added',
+            "Started Project: {$projectId}",
+            "Initiated implementation on hands-on project blueprint {$projectId}."
+        );
+
+        return $row ?: ['status' => 'in_progress', 'project_id' => $projectId];
+    }
+
+    /**
+     * 22. Complete Project Recommendation
+     */
+    public static function completeProjectRecommendation(string $studentId, string $projectId, ?string $repoUrl = null): array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            INSERT INTO student_project_progress (student_id, project_id, status, progress, repository_url, started_at, completed_at, last_accessed_at)
+            VALUES (?, ?, \'completed\', 100, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (student_id, project_id) DO UPDATE
+                SET status = \'completed\',
+                    progress = 100,
+                    repository_url = COALESCE(EXCLUDED.repository_url, student_project_progress.repository_url),
+                    completed_at = CURRENT_TIMESTAMP,
+                    last_accessed_at = CURRENT_TIMESTAMP
+            RETURNING id, student_id, project_id, status, progress, repository_url, started_at, completed_at, last_accessed_at
+        ');
+        $stmt->execute([$studentId, $projectId, $repoUrl]);
+        $row = $stmt->fetch();
+
+        // Get project title & skill
+        $pStmt = $db->prepare('SELECT title, skill FROM project_recommendations WHERE id = ? LIMIT 1');
+        $pStmt->execute([$projectId]);
+        $proj = $pStmt->fetch();
+        $title = $proj['title'] ?? $projectId;
+        $skill = $proj['skill'] ?? 'Engineering';
+
+        // Log evolution event
+        self::recordEvolutionEvent(
+            $studentId,
+            'project_added',
+            "Built Project: {$title}",
+            "Delivered tangible code deliverables for {$skill}." . ($repoUrl ? " Repository: {$repoUrl}" : "")
+        );
+
+        return $row ?: ['status' => 'completed', 'project_id' => $projectId, 'title' => $title];
+    }
+
+    /**
+     * 23. Regenerate Weekly Plan
+     */
+    public static function regenerateWeeklyPlan(string $studentId, ?string $targetRole = null): array {
+        $db = Database::getConnection();
+        $targetRole = $targetRole ?: CareerRecommendationService::getStudentTargetRole($studentId);
+
+        // Delete active plan tasks for current week to rebalance
+        $monday = date('Y-m-d', strtotime('monday this week'));
+        $planStmt = $db->prepare('SELECT id FROM weekly_career_plans WHERE student_id = ? AND week_start_date = ? LIMIT 1');
+        $planStmt->execute([$studentId, $monday]);
+        $planId = $planStmt->fetchColumn();
+
+        if ($planId) {
+            $db->prepare('DELETE FROM career_plan_tasks WHERE plan_id = ?')->execute([$planId]);
+            $db->prepare('DELETE FROM weekly_career_plans WHERE id = ?')->execute([$planId]);
+        }
+
+        // Re-create freshly balanced plan
+        return self::getOrCreateWeeklyPlan($studentId, $targetRole);
+    }
+
+    /**
+     * 24. Skip Weekly Task
+     */
+    public static function skipWeeklyTask(string $studentId, string $taskId): array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            UPDATE career_plan_tasks
+            SET is_completed = true,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND plan_id IN (SELECT id FROM weekly_career_plans WHERE student_id = ?)
+            RETURNING id, title, day_of_week, is_completed
+        ');
+        $stmt->execute([$taskId, $studentId]);
+        $task = $stmt->fetch();
+        if (!$task) {
+            throw new \RuntimeException('Task not found or unauthorized');
+        }
+        return ['skipped' => true, 'task' => $task];
+    }
 }
+

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   Video,
@@ -22,6 +22,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { LearningResource } from "@/types/skillbridge";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/learning")({
   component: LearningPage,
@@ -55,6 +56,7 @@ const TYPE_FILTERS = [
 ];
 
 function LearningContent() {
+  const queryClient = useQueryClient();
   const searchParams: any = useSearch({ strict: false });
   const initialSkill = searchParams?.skill || "All";
 
@@ -65,6 +67,16 @@ function LearningContent() {
   const { data, isLoading } = useQuery({
     queryKey: ["learning-resources", selectedSkill, selectedType],
     queryFn: () => ApiClient.getLearningResources(selectedSkill, selectedType),
+  });
+
+  const progressMutation = useMutation({
+    mutationFn: ({ resourceId, status }: { resourceId: string; status: "started" | "completed" }) =>
+      ApiClient.updateLearningProgress(resourceId, { status, progress: status === "completed" ? 100 : 0 }),
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["learning-resources"] });
+      toast.success(variables.status === "completed" ? "Learning marked complete." : "Learning started.");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Unable to update learning progress."),
   });
 
   const resources = data?.resources || [];
@@ -215,19 +227,33 @@ function LearningContent() {
                     )}
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-border/60 flex items-center justify-between">
+                  <div className="pt-4 mt-4 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold text-muted-foreground capitalize">
-                      {res.level} Level
+                      {res.progress?.status === "completed" ? "Completed" : `${res.level} Level`}
                     </span>
-                    <a
-                      href={res.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
-                    >
-                      <span>Open {isVideo ? "Video" : isDoc ? "Docs" : "Course"}</span>
-                      <ExternalLink className="size-3" />
-                    </a>
+                    <div className="flex items-center gap-2">
+                      {res.progress?.status !== "completed" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={progressMutation.isPending}
+                          onClick={() => progressMutation.mutate({ resourceId: res.id, status: res.progress ? "completed" : "started" })}
+                          className="rounded-xl text-xs font-bold"
+                        >
+                          {res.progress ? "Mark complete" : "Start"}
+                        </Button>
+                      )}
+                      <a
+                        href={res.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+                      >
+                        <span>Open {isVideo ? "Video" : isDoc ? "Docs" : "Course"}</span>
+                        <ExternalLink className="size-3" />
+                      </a>
+                    </div>
                   </div>
                 </div>
               );

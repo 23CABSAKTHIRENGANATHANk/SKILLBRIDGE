@@ -324,7 +324,7 @@ final class CareerRecommendationService
         $topProject = $projStmt->fetch() ?: null;
 
         // 6. Formulate Primary Action
-        $estHours = $topResource['duration'] ?? (!empty($topProject['estimated_hours']) ? ($topProject['estimated_hours'] . ' hours') : '4 hours');
+        $estHours = $topResource['duration'] ?? (!empty($topProject['estimated_hours']) ? ($topProject['estimated_hours'] . ' hours') : null);
         $primaryAction = [
             'action_type' => $readinessData['readiness_score'] >= 85.0 ? 'apply_job' : ($topResource ? 'learn_skill' : 'build_project'),
             'focus_skill' => $nextSkill,
@@ -332,7 +332,6 @@ final class CareerRecommendationService
                 ? "Apply to Verified {$career['title']} Positions"
                 : ($topResource ? "Learn {$nextSkill}: {$topResource['title']}" : "Build {$nextSkill} Capstone Project"),
             'rationale' => $nextSkillRationale,
-            'expected_readiness_boost' => $isPrereqRecommendation ? '+8% Career Readiness' : '+15% Career Readiness',
             'estimated_hours' => $estHours,
             'learning_resource' => $topResource,
             'project_blueprint' => $topProject

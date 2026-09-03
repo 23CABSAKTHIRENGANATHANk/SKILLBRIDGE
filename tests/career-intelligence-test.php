@@ -116,7 +116,7 @@ $testStudent = $db->query("SELECT id FROM users WHERE role = 'student' LIMIT 1")
 $nextAction = CareerRecommendationService::getNextBestAction($testStudent, 'Frontend Developer');
 assertCondition(!empty($nextAction['primary_action']['title']), "Primary action generated: " . ($nextAction['primary_action']['title'] ?? ''));
 assertCondition(!empty($nextAction['primary_action']['rationale']), "Explainable 'Why this?' rationale provided");
-assertCondition(!empty($nextAction['primary_action']['expected_readiness_boost']), "Quantified readiness boost provided (+X%)");
+assertCondition(array_key_exists('estimated_hours', $nextAction['primary_action']), "Recommendation includes sourced effort metadata");
 assertCondition(count($nextAction['secondary_actions']) <= 3, "Prioritizes up to 3 secondary follow-up actions (Actual: " . count($nextAction['secondary_actions']) . ")");
 
 // --- TEST 8: Career Readiness Engine ---

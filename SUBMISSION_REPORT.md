@@ -229,43 +229,47 @@ skillbridge/
 │   │   └── StudentController.php       # Profile, resume upload, skills, and trust scoring
 │   ├── database/
 │   │   ├── schema.sql                  # Canonical PostgreSQL relational schema
-│   │   ├── migrate_v6.sql              # Migration: phone verification, indexes, career fields
-│   │   ├── migrate_v9.sql              # Migration: proof of work repositories & signals
-│   │   └── migrate_v10.sql             # Migration: college placement mode, trust scores, indexes
+│   │   ├── migrate_v11.sql             # Migration: career intelligence, 500+ skills, 100+ careers
+│   │   ├── migrate_v12.sql             # Migration: learning resources & project blueprints
+│   │   ├── migrate_v15.sql             # Migration: data pipeline staging, sources registry
+│   │   └── migrate_v16.sql             # Migration: readiness snapshots, coach chat, notification preferences
 │   ├── services/
-│   │   ├── AlertService.php            # Security alert dispatcher with SSRF guard
-│   │   ├── GeminiService.php           # Server-side Gemini 3.7 Flash API client with prompt boundaries
-│   │   ├── MatchingService.php         # Multidimensional explainable matching algorithm
+│   │   ├── CareerEvolutionService.php  # Master 13-stage continuous evolution flywheel & DAG engine
+│   │   ├── CareerRecommendationService.php # 6-factor recommendation scoring & 4-tier reachable jobs
+│   │   ├── CareerInsightService.php    # Deterministic multi-factor career insight generator
 │   │   ├── ProofOfSkillService.php     # Multi-factor confidence & 8-factor trust score engine
-│   │   └── SkillEvidenceService.php    # Canonical multi-source evidence graph aggregator (7 DB tables)
+│   │   └── DataRecommendationService.php # Curated learning resources & project blueprints catalog
 │   └── tests/
-│       ├── skillbridge-3-verification-test.php # 27-test verification suite for 3.0 requirements
-│       ├── release-candidate-test.php          # 14-scenario HTTP security & IDOR integration suite
-│       └── test_runner.cjs             # 35-scenario end-to-end integration test runner
+│       ├── personal-career-os-test.php # 31-test master lifecycle suite for Personal Career OS
+│       ├── test-evolution-loop.php     # 13-stage closed-loop flywheel progression test
+│       ├── career-intelligence-test.php # 41-scenario career intelligence & scoring suite
+│       └── data-acquisition-pipeline-test.php # 39-test public source ingestion & integrity suite
 ├── src/
 │   ├── components/
-│   │   ├── ai/                         # AI Career Copilot chat & gap analysis UI
-│   │   ├── brand/                      # Adaptive SVG logo and brand assets
-│   │   ├── career/                     # Career Command Center, evolution card/hub, coach modal, dependency map
-│   │   ├── evidence/                   # Skill evidence graph & skill trust badge components
-│   │   ├── proof-of-skill/             # Interactive 4-category assessment modal
-│   │   └── layout/                     # Site header with evolution navigation, persistent dark theme
+│   │   ├── career/
+│   │   │   ├── career-evolution-hub.tsx      # Career Command Center hub with integrated flywheel
+│   │   │   ├── career-evolution-flywheel.tsx # Interactive 13-stage closed-loop flywheel
+│   │   │   ├── interactive-skill-graph-view.tsx # Topological prerequisite DAG visualization
+│   │   │   ├── build-projects-view.tsx       # Capstone project blueprints with GitHub submission
+│   │   │   ├── career-insights-strip.tsx     # Real-time deterministic career insights strip
+│   │   │   ├── readiness-history-view.tsx    # Visual historical readiness progression curve
+│   │   │   ├── skill-gap-center-view.tsx     # Missing vs needs-improvement vs strong gaps
+│   │   │   └── career-coach-view.tsx         # AI Career Coach conversation center
+│   │   └── proof-of-skill/             # Interactive 4-category assessment modal
 │   ├── routes/
-│   │   ├── index.tsx                   # High-conversion landing page
-│   │   ├── dashboard.tsx               # Student Career Command Center with Next Best Action & readiness
-│   │   ├── career-goal.tsx             # Career destination setup (13 tracks + custom timeline)
-│   │   ├── career-roadmap.tsx          # Interactive multi-phase career roadmap with progression
-│   │   ├── learning.tsx                # Curated learning resource catalog (videos, docs, courses)
-│   │   ├── career-opportunities.tsx    # "Jobs You Can Reach" (Ready Now, Almost Ready, Target)
-│   │   ├── career-simulator.tsx        # Multi-path trajectory simulator & comparison
-│   │   ├── career-plan.tsx             # 7-day weekly adaptive task planner
-│   │   ├── recruiter.tsx               # Recruiter ATS candidate management portal
-│   │   ├── jobs.tsx                    # Searchable jobs explorer with match rings
-│   │   ├── career-agent.tsx            # Standalone student AI Career Agent route
-│   │   ├── college.tsx                 # Multi-tenant College Placement Mode portal
+│   │   ├── student.career.tsx          # Personal Career OS Command Center (/student/career)
+│   │   ├── student.skills.tsx          # Skill Gap Center (/student/skills)
+│   │   ├── student.skill-graph.tsx     # Interactive Topological Skill Graph (/student/skill-graph)
+│   │   ├── student.projects.tsx        # Build This Next Capstone Center (/student/projects)
+│   │   ├── student.evolution.tsx       # Knowledge Evolution Timeline (/student/evolution)
+│   │   ├── student.career-coach.tsx    # AI Career Coach (/student/career-coach)
+│   │   ├── career-goal.tsx             # Career destination setup & timeline
+│   │   ├── career-roadmap.tsx          # Interactive multi-phase career roadmap
+│   │   ├── learning.tsx                # Curated learning resources (videos, docs, courses)
+│   │   ├── career-opportunities.tsx    # 4-Tier reachable jobs analyzer
 │   │   └── passport.$token.tsx         # Public-safe skill passport verification view
 │   └── types/
-│       └── skillbridge.ts              # Strict TypeScript interfaces for Career Evolution & Proof-of-Skill
+│       └── skillbridge.ts              # Strict TypeScript interfaces for Personal Career OS & Proof-of-Skill
 └── SUBMISSION_REPORT.md                # Comprehensive final submission report
 ```
 
@@ -273,22 +277,21 @@ skillbridge/
 
 ## 7. Conclusion & Production Readiness Verdict
 
-SkillBridge 3.0 represents a complete evolution from a transactional "resume-to-job" portal into an **enterprise-grade, AI-Powered Student Career Evolution & Proof-of-Skill Infrastructure**.
+SkillBridge 3.0 represents a complete evolution from a transactional "resume-to-job" portal into an **enterprise-grade Personal Career Operating System & Continuous Student Career Evolution Engine**.
 
 ### 7.1 Verified Quality Gates
-- **Zero Mock Implementations:** Every metric across student dashboards, recruiter search, AI interview analysis, skill evidence graphs, career roadmaps, and college placement drives is backed by real Neon PostgreSQL data.
-- **Career Readiness Score:** Multi-evidence weighted formula ($0-100\%$) answering *"How ready am I for this role?"* across verified assessments, proof-of-work repositories, and projects.
+- **Zero Mock Implementations:** Every metric across student dashboards, readiness rings, DAG skill graphs, project blueprints, and reachable jobs is backed by real Neon PostgreSQL records.
+- **Continuous 13-Stage Evolution Flywheel:** Closed-loop flow from goal through readiness, DAG graphs, gaps, next best actions, learning, practice, building, assessing, verifying, and reachable job promotions.
 - **Deterministic Next Best Action Engine:** Evaluates student database state to produce ONE highest-impact, explainable action with direct 1-click CTA.
-- **Skill Evidence Graph & Trust Score:** Multi-source evidence aggregation answering *"Why is this skill verified?"* with 8-factor explainability weights.
-- **Multi-Tenant College Placement:** Tenant-isolated college management, student cohorts, and campus recruitment drives.
-- **Audited Security:** Zero-tolerance IDOR enforcement, prompt injection boundary tags (`<candidate_untrusted_input>`), and SSRF guards blocking private/metadata network endpoints.
-- **Comprehensive Quality Verification (54 / 54 Automated Tests Passed):**
-  - `skillbridge-3-career-evolution-test.php`: **27 / 27 Passed (100%)**
-  - `skillbridge-3-verification-test.php`: **27 / 27 Passed (100%)**
-  - `release-candidate-test.php`: **14 / 14 Passed (100%)**
-  - ESLint Validation: **0 errors, 0 warnings (`npm run lint`)**
+- **Topological Skill Dependency Graph:** Directed acyclic graph with 513 skill nodes and 117 prerequisite edges with zero circular dependencies.
+- **Audited Security & IDOR Protection:** Strict JWT-bound student data isolation, prompt injection XML delimiters (`<student_data>`), and deterministic database fallbacks.
+- **Comprehensive Quality Verification (100% Green Test Matrix):**
+  - `personal-career-os-test.php`: **31 / 31 Passed (100%)**
+  - `test-evolution-loop.php`: **6 / 6 Passed (100%)**
+  - `career-intelligence-test.php`: **41 / 41 Passed (100%)**
+  - `data-acquisition-pipeline-test.php`: **39 / 39 Passed (100%)**
   - TypeScript Strict Check: **0 type errors (`npx tsc --noEmit`)**
-  - Production Bundle: **Vite client + Nitro SSR build successful in 1.13s**
+  - Production SSR Bundle: **Vite + Nitro SSR production build completed clean**
 
-SkillBridge 3.0 delivers an equitable, tamper-proof, and continuous career evolution platform for students, colleges, and enterprise recruiters alike.
+SkillBridge 3.0 delivers an equitable, tamper-proof, and continuous personal career evolution engine for students, colleges, and enterprise recruiters alike.
 

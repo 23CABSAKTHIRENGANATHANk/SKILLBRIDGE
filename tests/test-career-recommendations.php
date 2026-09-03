@@ -25,7 +25,7 @@ $action = CareerRecommendationService::getNextBestAction($studentId, 'Frontend D
 echo "    Primary Action Type: {$action['primary_action']['action_type']}\n";
 echo "    Title: {$action['primary_action']['title']}\n";
 echo "    Rationale: {$action['primary_action']['rationale']}\n";
-echo "    Expected Boost: {$action['primary_action']['expected_readiness_boost']}\n";
+echo "    Estimated Effort: " . ($action['primary_action']['estimated_hours'] ?? 'Not available') . "\n";
 echo "    Secondary Actions: " . count($action['secondary_actions']) . " steps\n\n";
 
 // 3. Reachable Jobs

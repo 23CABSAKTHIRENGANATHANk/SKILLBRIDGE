@@ -19,6 +19,7 @@ import { Link } from "@tanstack/react-router";
 import { ApiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { SkillDependencyMap } from "./skill-dependency-map";
+import { CareerEvolutionFlywheel } from "./career-evolution-flywheel";
 import type { CareerDashboardAggregated } from "@/types/skillbridge";
 
 export function CareerEvolutionHub() {
@@ -46,6 +47,17 @@ export function CareerEvolutionHub() {
     );
   }
 
+  if (!dashboard || dashboard.setup_required || !dashboard.goal) {
+    return (
+      <section className="rounded-3xl border border-dashed border-primary/40 bg-card p-8 text-center space-y-4" aria-labelledby="career-command-center-title">
+        <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Career Command Center</p>
+        <h2 id="career-command-center-title" className="font-display text-2xl font-black text-foreground">Set your career goal to unlock your plan</h2>
+        <p className="mx-auto max-w-xl text-sm text-muted-foreground">Choose a destination and SkillBridge will calculate readiness, gaps, a dependency-aware roadmap, and your next best action from your own profile data.</p>
+        <Link to="/career-goal"><Button className="rounded-full font-bold">Set career goal <ArrowRight className="ml-1 size-4" /></Button></Link>
+      </section>
+    );
+  }
+
   const readiness = dashboard?.readiness;
   const gaps = dashboard?.gaps;
   const roadmap = dashboard?.roadmap;
@@ -67,7 +79,7 @@ export function CareerEvolutionHub() {
             Your Continuous Career Evolution
           </h2>
           <p className="text-xs text-muted-foreground">
-            Targeting: <span className="font-bold text-foreground">{readiness?.target_role || "Full Stack Developer"}</span> • Real evidence-backed readiness and continuous gap closure.
+            Targeting: <span className="font-bold text-foreground">{readiness?.target_role}</span> • Real evidence-backed readiness and continuous gap closure.
           </p>
         </div>
 
@@ -84,6 +96,9 @@ export function CareerEvolutionHub() {
           </Link>
         </div>
       </div>
+
+      {/* Interactive Continuous Career Evolution Flywheel */}
+      <CareerEvolutionFlywheel targetRole={readiness?.target_role} />
 
       {/* Grid Row 1: Readiness & Skill Gaps */}
       <div className="grid gap-6 md:grid-cols-12">

@@ -596,6 +596,10 @@ switch (true) {
         CareerEvolutionController::getDashboard(AuthMiddleware::authenticate());
         break;
 
+    case $path === '/student/career-os' && $method === 'GET':
+        CareerEvolutionController::getDashboard(AuthMiddleware::authenticate());
+        break;
+
     case $path === '/student/career-intelligence' && $method === 'GET':
         CareerEvolutionController::getCareerIntelligence(AuthMiddleware::authenticate());
         break;
@@ -606,6 +610,14 @@ switch (true) {
 
     case $path === '/student/career-goal' && $method === 'POST':
         CareerEvolutionController::saveGoal(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/career-goal' && $method === 'PUT':
+        CareerEvolutionController::updateGoal(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/career-goal' && $method === 'DELETE':
+        CareerEvolutionController::deleteGoal(AuthMiddleware::authenticate());
         break;
 
     case $path === '/student/readiness' && $method === 'GET':
@@ -624,8 +636,28 @@ switch (true) {
         CareerEvolutionController::getCareerIntelligence(AuthMiddleware::authenticate());
         break;
 
+    case $path === '/student/evolution-loop' && $method === 'GET':
+        CareerEvolutionController::getEvolutionLoop(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/evolution-loop/advance' && $method === 'POST':
+        CareerEvolutionController::advanceEvolutionLoop(AuthMiddleware::authenticate());
+        break;
+
     case $path === '/student/reachable-jobs' && $method === 'GET':
         CareerEvolutionController::getReachableJobs(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/career-insights' && $method === 'GET':
+        CareerEvolutionController::getCareerInsights(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/skill-graph' && $method === 'GET':
+        CareerEvolutionController::getSkillGraph(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/readiness-history' && $method === 'GET':
+        CareerEvolutionController::getReadinessHistory(AuthMiddleware::authenticate());
         break;
 
     case $path === '/student/roadmap' && $method === 'GET':
@@ -640,8 +672,32 @@ switch (true) {
         CareerEvolutionController::getLearningResources(AuthMiddleware::authenticate());
         break;
 
+    case preg_match('#^/student/learning/([a-zA-Z0-9_-]+)/start$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::startLearning(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case preg_match('#^/student/learning/([a-zA-Z0-9_-]+)/progress$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::updateLearningProgress(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case preg_match('#^/student/learning/([a-zA-Z0-9_-]+)/complete$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::completeLearning(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
     case $path === '/student/projects/recommended' && $method === 'GET':
         CareerEvolutionController::getRecommendedProjects(AuthMiddleware::authenticate());
+        break;
+
+    case preg_match('#^/student/projects/([a-zA-Z0-9_-]+)/start$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::startProject(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case preg_match('#^/student/projects/([a-zA-Z0-9_-]+)/progress$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::updateProjectProgress(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case preg_match('#^/student/projects/([a-zA-Z0-9_-]+)/complete$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::completeProject(AuthMiddleware::authenticate(), $matches[1]);
         break;
 
     case $path === '/student/opportunities' && $method === 'GET':
@@ -656,11 +712,19 @@ switch (true) {
         CareerEvolutionController::getWeeklyPlan(AuthMiddleware::authenticate());
         break;
 
+    case $path === '/student/weekly-plan/regenerate' && $method === 'POST':
+        CareerEvolutionController::regenerateWeeklyPlan(AuthMiddleware::authenticate());
+        break;
+
     case preg_match('#^/student/weekly-plan/task/([a-zA-Z0-9_-]+)/toggle$#', $path, $matches) && $method === 'POST':
         CareerEvolutionController::toggleWeeklyTask(AuthMiddleware::authenticate(), $matches[1]);
         break;
 
-    case $path === '/career-coach/message' && $method === 'POST':
+    case preg_match('#^/student/weekly-plan/task/([a-zA-Z0-9_-]+)/skip$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::skipWeeklyTask(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case ($path === '/career-coach/message' || $path === '/student/career-coach/message') && $method === 'POST':
         CareerEvolutionController::chatCoach(AuthMiddleware::authenticate());
         break;
 
@@ -713,4 +777,3 @@ switch (true) {
         Logger::warning("404 Route Not Found: {$method} {$path}");
         errorResponse("Endpoint not found: {$method} {$path}", 404);
 }
-

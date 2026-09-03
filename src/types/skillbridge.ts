@@ -205,6 +205,8 @@ export interface AIRecommendedJob extends Job {
 export interface CareerGoal {
   id?: string;
   target_role: string;
+  secondary_target_role?: string | null;
+  career_domain?: string | null;
   target_industry?: string | null;
   preferred_location?: string | null;
   experience_level?: "entry" | "mid" | "senior" | string;
@@ -223,11 +225,13 @@ export interface ReadinessSkillBreakdown {
 
 export interface CareerReadiness {
   target_role: string;
-  overall_readiness: number;
-  required_skills_count: number;
-  matched_skills_count: number;
-  verified_skills_count: number;
-  breakdown: ReadinessSkillBreakdown[];
+  overall_readiness?: number;
+  readiness_score?: number;
+  readiness_tier?: string;
+  required_skills_count?: number;
+  matched_skills_count?: number;
+  verified_skills_count?: number;
+  breakdown?: any;
 }
 
 export interface SkillGapItem {
@@ -240,6 +244,8 @@ export interface SkillGapItem {
   reason?: string;
   estimated_effort?: string;
   detail?: string;
+  confidence?: number;
+  evidence_level?: string;
 }
 
 export interface SkillGapAnalysis {
@@ -252,14 +258,28 @@ export interface SkillGapAnalysis {
 }
 
 export interface NextBestAction {
-  type: "complete_assessment" | "learn_skill" | "connect_github" | "apply_jobs" | string;
-  badge: string;
-  skill: string;
-  title: string;
-  reason: string;
-  cta_label: string;
+  type?: "complete_assessment" | "learn_skill" | "connect_github" | "apply_jobs" | string;
+  badge?: string;
+  skill?: string;
+  title?: string;
+  reason?: string;
+  cta_label?: string;
   cta_url: string;
-  impact: string;
+  impact?: string;
+  primary_action?: {
+    skill?: string;
+    action_type?: string;
+    title?: string;
+    rationale?: string;
+    expected_readiness_boost?: string;
+    estimated_minutes?: number;
+  };
+  secondary_actions?: Array<{
+    action_type: string;
+    title: string;
+    rationale: string;
+    estimated_minutes?: number;
+  }>;
 }
 
 export interface CareerRoadmapStep {
@@ -350,6 +370,9 @@ export interface KnowledgeEvolutionEvent {
   description?: string | null;
   metadata?: Record<string, any>;
   event_date: string;
+  created_at?: string;
+  skill?: string;
+  readiness_impact?: number;
 }
 
 export interface StudentAchievement {
@@ -372,6 +395,7 @@ export interface LearningResource {
   is_free: boolean;
   relevance_reason?: string | null;
   verified_at: string;
+  progress?: LearningProgress | null;
 }
 
 export interface CareerDashboardAggregated {
@@ -398,5 +422,208 @@ export interface CareerDashboardAggregated {
     total_unlocked: number;
     learning_streak_days: number;
   };
+  insights?: CareerInsightItem[];
+  reachable_jobs?: any;
+  readiness_history?: ReadinessSnapshot[];
+  skill_graph?: InteractiveSkillGraphData;
+  setup_required?: boolean;
 }
 
+export interface CareerInsightItem {
+  type: 'STRENGTH' | 'GAP' | 'OPPORTUNITY' | 'PROGRESS' | 'REACHABILITY' | string;
+  badge: string;
+  title: string;
+  description: string;
+  metric: string;
+  action_label: string;
+  action_url: string;
+  priority: number;
+}
+
+export interface ReadinessSnapshot {
+  id: number | string;
+  target_role: string;
+  readiness_score: number;
+  readiness_tier: string;
+  breakdown: Record<string, any>;
+  snapshot_date: string;
+}
+
+export interface SkillGraphNode {
+  id: string;
+  name: string;
+  status: 'VERIFIED' | 'IN_PROGRESS' | 'AVAILABLE' | 'LOCKED';
+  confidence: number;
+  is_required: boolean;
+  domain: string;
+  difficulty: string;
+  prerequisites: string[];
+  prerequisites_satisfied: boolean;
+}
+
+export interface SkillGraphEdge {
+  source: string;
+  target: string;
+  relationship_type: string;
+  strength: number;
+}
+
+export interface InteractiveSkillGraphData {
+  target_role: string;
+  nodes: SkillGraphNode[];
+  edges: SkillGraphEdge[];
+  total_nodes: number;
+  total_edges: number;
+  unlocked_count: number;
+  verified_count: number;
+}
+
+export interface LearningProgress {
+  status: "started" | "in_progress" | "completed";
+  progress: number;
+  started_at: string;
+  completed_at?: string | null;
+  last_accessed_at: string;
+}
+
+export interface ProjectProgress {
+  status: "not_started" | "in_progress" | "completed" | "submitted" | "verified";
+  progress: number;
+  repository_url?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  last_accessed_at: string;
+}
+
+export interface FlywheelStageItem {
+  id: string;
+  name: string;
+  status: 'completed' | 'active' | 'in_progress' | 'pending';
+}
+
+export interface PracticeDrill {
+  id: string;
+  title: string;
+  instruction: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  estimated_minutes: number;
+  starter_code: string;
+  test_criteria: string[];
+}
+
+export interface BuildProjectBlueprint {
+  id: string;
+  title: string;
+  description: string;
+  deliverables: string[];
+  tech_stack: string[];
+  difficulty: string;
+  repo_template_url: string;
+  estimated_hours: number;
+  portfolio_value: string;
+}
+
+export interface EvolutionLoopState {
+  goal: {
+    target_role: string;
+    target_timeline_weeks: number;
+    target_industry: string;
+    preferred_location: string;
+    experience_level: string;
+  };
+  readiness: CareerReadiness;
+  skill_graph: {
+    nodes: {
+      id: string;
+      name: string;
+      confidence: number;
+      status: 'verified' | 'in_progress' | 'missing';
+      is_required: boolean;
+      is_active_target: boolean;
+    }[];
+    edges: {
+      skill_name: string;
+      prerequisite_name: string;
+      relationship_type: string;
+      strength?: number;
+    }[];
+    total_nodes: number;
+    total_edges: number;
+  };
+  skill_gaps: SkillGapAnalysis;
+  next_action: NextBestAction;
+  active_skill: string;
+  current_modality: 'learn' | 'practice' | 'build' | 'assess' | 'verify';
+  modalities: {
+    learn: {
+      title: string;
+      resources: {
+        id: string;
+        title: string;
+        provider: string;
+        resource_type: string;
+        level: string;
+        url: string;
+        duration?: string | null;
+        is_free: boolean;
+        quality_score?: number;
+        channel?: string | null;
+        video_id?: string | null;
+      }[];
+      count: number;
+    };
+    practice: {
+      title: string;
+      drills: PracticeDrill[];
+    };
+    build: {
+      title: string;
+      projects: BuildProjectBlueprint[];
+    };
+    assess: {
+      skill: string;
+      assessment_title: string;
+      duration_minutes: number;
+      question_count: number;
+      passing_score: number;
+      format: string;
+      verified_badge_reward: string;
+    };
+    verify: {
+      skill: string;
+      confidence_score: number;
+      weights: Record<string, number>;
+      is_verified: boolean;
+      breakdown: Record<string, number>;
+    };
+  };
+  reachable_jobs: {
+    total_opportunities: number;
+    tier_summary: {
+      ready_now: number;
+      nearly_ready: number;
+      skill_gap: number;
+      future_target: number;
+    };
+    tiers: {
+      ready_now: any[];
+      nearly_ready: any[];
+      skill_gap: any[];
+      future_target: any[];
+    };
+  };
+  flywheel_stages: FlywheelStageItem[];
+}
+
+export interface EvolutionAdvanceResponse {
+  success: boolean;
+  completed_stage: string;
+  next_stage: string;
+  skill: string;
+  readiness_change: number;
+  previous_score: number;
+  new_score: number;
+  new_tier: string;
+  reachable_jobs_summary: Record<string, number>;
+  next_recommended_action?: any;
+}
