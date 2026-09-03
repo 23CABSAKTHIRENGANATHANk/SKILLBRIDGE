@@ -23,7 +23,18 @@ import type {
   AISkillGapAnalysis,
   AIRecruiterInsights,
   SkillProof,
+  CareerGoal,
+  CareerReadiness,
+  SkillGapAnalysis,
+  NextBestAction,
+  CareerRoadmapResponse,
+  WeeklyCareerPlanResponse,
+  CareerOpportunitiesResponse,
+  KnowledgeEvolutionEvent,
+  LearningResource,
+  CareerDashboardAggregated,
 } from "@/types/skillbridge";
+
 
 const API_BASE_URL = import.meta.env["VITE_API_URL"] || "/api";
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -1241,6 +1252,99 @@ export class ApiClient {
   }> {
     return this.request("/student/skills/trust-score");
   }
+
+  // -------------------------------------------------------------------------
+  // SkillBridge 3.0 — Student Career Evolution Engine
+  // -------------------------------------------------------------------------
+  public static async getCareerDashboard(): Promise<CareerDashboardAggregated> {
+    return this.request("/student/career-dashboard");
+  }
+
+  public static async getCareerGoal(): Promise<{ goal: CareerGoal | null }> {
+    return this.request("/student/career-goal");
+  }
+
+  public static async saveCareerGoal(data: {
+    target_role: string;
+    target_industry?: string | undefined;
+    preferred_location?: string | undefined;
+    experience_level?: string | undefined;
+    target_timeline_weeks?: number | undefined;
+  }): Promise<{ message: string; goal: CareerGoal; roadmap: CareerRoadmapResponse }> {
+
+    return this.request("/student/career-goal", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  public static async getCareerReadiness(role?: string): Promise<CareerReadiness> {
+    const q = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request(`/student/readiness${q}`);
+  }
+
+  public static async getSkillGaps(role?: string): Promise<SkillGapAnalysis> {
+    const q = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request(`/student/skill-gaps${q}`);
+  }
+
+  public static async getNextCareerAction(): Promise<{ action: NextBestAction }> {
+    return this.request("/student/next-action");
+  }
+
+  public static async getCareerRoadmap(role?: string): Promise<CareerRoadmapResponse> {
+    const q = role ? `?role=${encodeURIComponent(role)}` : "";
+    return this.request(`/student/roadmap${q}`);
+  }
+
+  public static async completeRoadmapStep(stepId: string): Promise<{ message: string; roadmap: CareerRoadmapResponse }> {
+    return this.request(`/student/roadmap/step/${encodeURIComponent(stepId)}/complete`, {
+      method: "POST",
+    });
+  }
+
+  public static async getLearningResources(skill?: string, type?: string): Promise<{ resources: LearningResource[]; count: number }> {
+    const params = new URLSearchParams();
+    if (skill) params.set("skill", skill);
+    if (type) params.set("type", type);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return this.request(`/student/learning${qs}`);
+  }
+
+  public static async getKnowledgeEvolution(): Promise<{ events: KnowledgeEvolutionEvent[]; total_events: number }> {
+    return this.request("/student/evolution");
+  }
+
+  public static async getWeeklyCareerPlan(): Promise<WeeklyCareerPlanResponse> {
+    return this.request("/student/weekly-plan");
+  }
+
+  public static async toggleWeeklyCareerTask(taskId: string): Promise<{ message: string; weekly_plan: WeeklyCareerPlanResponse }> {
+    return this.request(`/student/weekly-plan/task/${encodeURIComponent(taskId)}/toggle`, {
+      method: "POST",
+    });
+  }
+
+  public static async getCareerOpportunities(): Promise<CareerOpportunitiesResponse> {
+    return this.request("/student/opportunities");
+  }
+
+  public static async getSkillDependencies(skill?: string): Promise<{ dependencies: Array<{ skill_name: string; prerequisite_name: string; relationship_type: string }> }> {
+    const q = skill ? `?skill=${encodeURIComponent(skill)}` : "";
+    return this.request(`/skills/dependencies${q}`);
+  }
+
+  public static async sendCareerCoachMessage(message: string): Promise<{
+    reply: string;
+    recommended_next_action: string;
+    skills_to_focus_on: string[];
+  }> {
+    return this.request("/career-coach/message", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  }
+
 
   // -------------------------------------------------------------------------
   // SkillBridge 3.0 — College Placement Mode

@@ -12,10 +12,16 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CareerAgentRouteImport } from './routes/career-agent'
+import { Route as CareerGoalRouteImport } from './routes/career-goal'
+import { Route as CareerOpportunitiesRouteImport } from './routes/career-opportunities'
+import { Route as CareerPlanRouteImport } from './routes/career-plan'
+import { Route as CareerRoadmapRouteImport } from './routes/career-roadmap'
+import { Route as CareerSimulatorRouteImport } from './routes/career-simulator'
 import { Route as CollegeRouteImport } from './routes/college'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as LearningRouteImport } from './routes/learning'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -40,6 +46,31 @@ const CareerAgentRoute = CareerAgentRouteImport.update({
   path: '/career-agent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CareerGoalRoute = CareerGoalRouteImport.update({
+  id: '/career-goal',
+  path: '/career-goal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareerOpportunitiesRoute = CareerOpportunitiesRouteImport.update({
+  id: '/career-opportunities',
+  path: '/career-opportunities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareerPlanRoute = CareerPlanRouteImport.update({
+  id: '/career-plan',
+  path: '/career-plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareerRoadmapRoute = CareerRoadmapRouteImport.update({
+  id: '/career-roadmap',
+  path: '/career-roadmap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareerSimulatorRoute = CareerSimulatorRouteImport.update({
+  id: '/career-simulator',
+  path: '/career-simulator',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CollegeRoute = CollegeRouteImport.update({
   id: '/college',
   path: '/college',
@@ -58,6 +89,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const JobsRoute = JobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearningRoute = LearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -106,10 +142,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/career-agent': typeof CareerAgentRoute
+  '/career-goal': typeof CareerGoalRoute
+  '/career-opportunities': typeof CareerOpportunitiesRoute
+  '/career-plan': typeof CareerPlanRoute
+  '/career-roadmap': typeof CareerRoadmapRoute
+  '/career-simulator': typeof CareerSimulatorRoute
   '/college': typeof CollegeRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -123,10 +165,16 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/career-agent': typeof CareerAgentRoute
+  '/career-goal': typeof CareerGoalRoute
+  '/career-opportunities': typeof CareerOpportunitiesRoute
+  '/career-plan': typeof CareerPlanRoute
+  '/career-roadmap': typeof CareerRoadmapRoute
+  '/career-simulator': typeof CareerSimulatorRoute
   '/college': typeof CollegeRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -141,10 +189,16 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/career-agent': typeof CareerAgentRoute
+  '/career-goal': typeof CareerGoalRoute
+  '/career-opportunities': typeof CareerOpportunitiesRoute
+  '/career-plan': typeof CareerPlanRoute
+  '/career-roadmap': typeof CareerRoadmapRoute
+  '/career-simulator': typeof CareerSimulatorRoute
   '/college': typeof CollegeRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -160,10 +214,16 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/career-agent'
+    | '/career-goal'
+    | '/career-opportunities'
+    | '/career-plan'
+    | '/career-roadmap'
+    | '/career-simulator'
     | '/college'
     | '/company'
     | '/dashboard'
     | '/jobs'
+    | '/learning'
     | '/login'
     | '/notifications'
     | '/onboarding'
@@ -177,10 +237,16 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/career-agent'
+    | '/career-goal'
+    | '/career-opportunities'
+    | '/career-plan'
+    | '/career-roadmap'
+    | '/career-simulator'
     | '/college'
     | '/company'
     | '/dashboard'
     | '/jobs'
+    | '/learning'
     | '/login'
     | '/notifications'
     | '/onboarding'
@@ -194,10 +260,16 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/career-agent'
+    | '/career-goal'
+    | '/career-opportunities'
+    | '/career-plan'
+    | '/career-roadmap'
+    | '/career-simulator'
     | '/college'
     | '/company'
     | '/dashboard'
     | '/jobs'
+    | '/learning'
     | '/login'
     | '/notifications'
     | '/onboarding'
@@ -212,10 +284,16 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   CareerAgentRoute: typeof CareerAgentRoute
+  CareerGoalRoute: typeof CareerGoalRoute
+  CareerOpportunitiesRoute: typeof CareerOpportunitiesRoute
+  CareerPlanRoute: typeof CareerPlanRoute
+  CareerRoadmapRoute: typeof CareerRoadmapRoute
+  CareerSimulatorRoute: typeof CareerSimulatorRoute
   CollegeRoute: typeof CollegeRoute
   CompanyRoute: typeof CompanyRoute
   DashboardRoute: typeof DashboardRoute
   JobsRoute: typeof JobsRoute
+  LearningRoute: typeof LearningRoute
   LoginRoute: typeof LoginRoute
   NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -249,6 +327,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CareerAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/career-goal': {
+      id: '/career-goal'
+      path: '/career-goal'
+      fullPath: '/career-goal'
+      preLoaderRoute: typeof CareerGoalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/career-opportunities': {
+      id: '/career-opportunities'
+      path: '/career-opportunities'
+      fullPath: '/career-opportunities'
+      preLoaderRoute: typeof CareerOpportunitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/career-plan': {
+      id: '/career-plan'
+      path: '/career-plan'
+      fullPath: '/career-plan'
+      preLoaderRoute: typeof CareerPlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/career-roadmap': {
+      id: '/career-roadmap'
+      path: '/career-roadmap'
+      fullPath: '/career-roadmap'
+      preLoaderRoute: typeof CareerRoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/career-simulator': {
+      id: '/career-simulator'
+      path: '/career-simulator'
+      fullPath: '/career-simulator'
+      preLoaderRoute: typeof CareerSimulatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/college': {
       id: '/college'
       path: '/college'
@@ -275,6 +388,13 @@ declare module '@tanstack/react-router' {
       path: '/jobs'
       fullPath: '/jobs'
       preLoaderRoute: typeof JobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learning': {
+      id: '/learning'
+      path: '/learning'
+      fullPath: '/learning'
+      preLoaderRoute: typeof LearningRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -340,10 +460,16 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   CareerAgentRoute: CareerAgentRoute,
+  CareerGoalRoute: CareerGoalRoute,
+  CareerOpportunitiesRoute: CareerOpportunitiesRoute,
+  CareerPlanRoute: CareerPlanRoute,
+  CareerRoadmapRoute: CareerRoadmapRoute,
+  CareerSimulatorRoute: CareerSimulatorRoute,
   CollegeRoute: CollegeRoute,
   CompanyRoute: CompanyRoute,
   DashboardRoute: DashboardRoute,
   JobsRoute: JobsRoute,
+  LearningRoute: LearningRoute,
   LoginRoute: LoginRoute,
   NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,

@@ -60,6 +60,8 @@ import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
 import { CareerSimulatorCard } from "@/components/career/career-simulator-card";
 import { SkillVerificationCenter } from "@/components/proof-of-skill/skill-verification-center";
 import { SkillEvidenceGraph } from "@/components/evidence/skill-evidence-graph";
+import { CareerEvolutionCard } from "@/components/career/career-evolution-card";
+import { CareerEvolutionHub } from "@/components/career/career-evolution-hub";
 
 const OpportunityModal = lazy(() =>
   import("@/components/opportunity-modal").then((m) => ({ default: m.OpportunityModal }))
@@ -932,6 +934,18 @@ function DashboardPage() {
             <div className="lg:col-span-2 mt-4">
               <ScrollReveal delay={280}>
                 <CareerSimulatorCard />
+              </ScrollReveal>
+            </div>
+
+            <div className="lg:col-span-2 mt-4">
+              <ScrollReveal delay={340}>
+                <CareerEvolutionCard />
+              </ScrollReveal>
+            </div>
+
+            <div className="lg:col-span-2 mt-4">
+              <ScrollReveal delay={400}>
+                <CareerEvolutionHub />
               </ScrollReveal>
             </div>
           </div>

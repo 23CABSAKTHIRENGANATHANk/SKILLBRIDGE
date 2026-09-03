@@ -151,10 +151,14 @@ export function SiteHeader() {
     ...(user?.role === "student"
       ? [
           { to: "/dashboard", label: "Dashboard" },
-          { to: "/career-agent", label: "AI Career Agent" },
+          { to: "/career-roadmap", label: "Roadmap" },
+          { to: "/learning", label: "Learning" },
+          { to: "/career-opportunities", label: "Opportunities" },
+          { to: "/career-agent", label: "AI Copilot" },
         ]
       : []),
     ...(user?.role === "recruiter" ? [{ to: "/recruiter", label: "Recruiter Dashboard" }] : []),
+
     ...(user?.role === "college_admin" || user?.role === "admin"
       ? [{ to: "/college", label: "College Placement" }]
       : []),

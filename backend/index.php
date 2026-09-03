@@ -44,6 +44,7 @@ require_once __DIR__ . '/controllers/TalentSearchController.php';
 // SkillBridge 3.0 — New services and controllers
 require_once __DIR__ . '/services/SkillEvidenceService.php';
 require_once __DIR__ . '/controllers/CollegePlacementController.php';
+require_once __DIR__ . '/controllers/CareerEvolutionController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -586,6 +587,70 @@ switch (true) {
         $trustScores = ProofOfSkillService::getStudentTrustScores($student['id']);
         jsonResponse(['trust_scores' => $trustScores, 'computed_at' => date('c')]);
         break;
+
+    // -----------------------------------------------------------------------
+    // SkillBridge 3.0 — Student Career Evolution Engine
+    // -----------------------------------------------------------------------
+    case $path === '/student/career-dashboard' && $method === 'GET':
+        CareerEvolutionController::getDashboard(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/career-goal' && $method === 'GET':
+        CareerEvolutionController::getGoal(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/career-goal' && $method === 'POST':
+        CareerEvolutionController::saveGoal(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/readiness' && $method === 'GET':
+        CareerEvolutionController::getReadiness(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/skill-gaps' && $method === 'GET':
+        CareerEvolutionController::getSkillGaps(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/next-action' && $method === 'GET':
+        CareerEvolutionController::getNextAction(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/roadmap' && $method === 'GET':
+        CareerEvolutionController::getRoadmap(AuthMiddleware::authenticate());
+        break;
+
+    case preg_match('#^/student/roadmap/step/([a-zA-Z0-9_-]+)/complete$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::completeRoadmapStep(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case $path === '/student/learning' && $method === 'GET':
+        CareerEvolutionController::getLearningResources();
+        break;
+
+    case $path === '/student/opportunities' && $method === 'GET':
+        CareerEvolutionController::getOpportunities(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/evolution' && $method === 'GET':
+        CareerEvolutionController::getEvolution(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/weekly-plan' && $method === 'GET':
+        CareerEvolutionController::getWeeklyPlan(AuthMiddleware::authenticate());
+        break;
+
+    case preg_match('#^/student/weekly-plan/task/([a-zA-Z0-9_-]+)/toggle$#', $path, $matches) && $method === 'POST':
+        CareerEvolutionController::toggleWeeklyTask(AuthMiddleware::authenticate(), $matches[1]);
+        break;
+
+    case $path === '/career-coach/message' && $method === 'POST':
+        CareerEvolutionController::chatCoach(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/skills/dependencies' && $method === 'GET':
+        CareerEvolutionController::getSkillDependencies();
+        break;
+
 
     // -----------------------------------------------------------------------
     // SkillBridge 3.0 — College Placement Mode
