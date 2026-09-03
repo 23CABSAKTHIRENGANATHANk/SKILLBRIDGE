@@ -27,6 +27,9 @@ class RateLimitMiddleware {
      * @param int $windowSeconds Duration window in seconds
      */
     public static function check(string $action, int $maxAttempts = 60, int $windowSeconds = 60): void {
+        if (getenv('APP_ENV') === 'testing') {
+            return;
+        }
         $ip = self::getClientIp();
         $key = md5("{$ip}_{$action}");
         $file = self::getStorageDir() . "/{$key}.json";

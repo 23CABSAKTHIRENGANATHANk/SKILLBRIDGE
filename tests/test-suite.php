@@ -156,7 +156,7 @@ $recReg = httpPost("{$baseUrl}/auth/register", [
     'industry' => 'Cloud Platforms'
 ]);
 $recToken = $recReg['body']['token'] ?? null;
-assertTest('Recruiter Registration', ($recReg['body']['success'] ?? false) === true);
+assertTest('Recruiter Registration', ($recReg['body']['success'] ?? false) === true, $recReg['body']['error'] ?? '');
 
 // Geocode real address
 $geoUpdate = httpPost("{$baseUrl}/companies/profile", [
