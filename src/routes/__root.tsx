@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { AuthProvider } from "@/context/auth-context";
 import { Toaster } from "@/components/ui/sonner";
+import { PresentationModeDock } from "@/components/presentation-mode-dock";
 
 import appCss from "../styles.css?url";
 
@@ -158,6 +159,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster position="top-right" richColors />
+        <PresentationModeDock />
       </AuthProvider>
     </QueryClientProvider>
   );

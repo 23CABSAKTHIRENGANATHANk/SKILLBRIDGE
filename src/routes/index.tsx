@@ -9,6 +9,7 @@ import {
   Shield,
   BarChart3,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -27,6 +28,7 @@ import { useMagnetic } from "@/hooks/use-magnetic";
 import { useParallax } from "@/hooks/use-parallax";
 import { Link } from "@tanstack/react-router";
 import { useJobsQuery, usePlatformStatsQuery } from "@/hooks/use-api";
+import { ProofOfSkillShowcase } from "@/components/showcase/proof-of-skill-showcase";
 import type { Job } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/")({
@@ -50,21 +52,38 @@ export const Route = createFileRoute("/")({
 function HeroCTA() {
   const btnRef = useMagnetic<HTMLButtonElement>(0.25);
   return (
-    <Button
-      ref={btnRef}
-      size="lg"
-      data-cta
-      className="btn-ripple group mt-8 rounded-full px-8 py-6 text-base font-bold shadow-glow transition-shadow duration-300 hover:shadow-lift"
-      asChild
-    >
-      <Link to="/jobs">
-        Explore Opportunities
-        <ArrowRight
-          className="ml-1 size-5 transition-transform duration-200 group-hover:translate-x-1"
-          aria-hidden="true"
-        />
-      </Link>
-    </Button>
+    <div className="mt-8 flex flex-wrap items-center gap-3">
+      <Button
+        ref={btnRef}
+        size="lg"
+        data-cta
+        className="btn-ripple group rounded-full px-8 py-6 text-base font-bold shadow-glow transition-shadow duration-300 hover:shadow-lift"
+        asChild
+      >
+        <Link to="/jobs">
+          Explore Opportunities
+          <ArrowRight
+            className="ml-1 size-5 transition-transform duration-200 group-hover:translate-x-1"
+            aria-hidden="true"
+          />
+        </Link>
+      </Button>
+
+      <Button
+        size="lg"
+        variant="outline"
+        className="rounded-full px-6 py-6 text-base font-semibold border-border/80 hover:bg-card/80 backdrop-blur-md"
+        asChild
+      >
+        <Link
+          to="/passport/$token"
+          params={{ token: "sb_pass_lifecycle_a2f3fac68e2b" }}
+        >
+          <ShieldCheck className="mr-1.5 size-5 text-emerald-500" />
+          Verify Live Passport
+        </Link>
+      </Button>
+    </div>
   );
 }
 
@@ -84,12 +103,16 @@ function HeroSection() {
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:pb-24 lg:pt-20">
         {/* Left: Text content */}
         <div className="max-w-xl">
-          <p
-            className="text-sm font-semibold uppercase tracking-widest text-accent"
+          <div
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary-soft/60 px-3.5 py-1 text-xs font-bold text-primary backdrop-blur-md"
             style={{ animation: "sb-fade-in 500ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both" }}
           >
-            The Career Bridge Platform
-          </p>
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
+            </span>
+            <span>SkillBridge 2.0 • AI-Verified Proof-of-Skill Platform</span>
+          </div>
 
           <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
             {["Where", "Skills", "Meet"].map((word, i) => (
@@ -477,6 +500,8 @@ function Index() {
       <main>
         <HeroSection />
         <StatsSection />
+        <SectionDivider />
+        <ProofOfSkillShowcase />
         <SectionDivider />
         <JourneySection />
         <SectionDivider />

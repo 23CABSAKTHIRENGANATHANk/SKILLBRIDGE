@@ -98,6 +98,26 @@ function LoginPage() {
     }
   };
 
+  const handleQuickLogin = async (demoEmail: string, demoPassword: string = "password123") => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setStatus("submitting");
+    try {
+      const result = await login({ email: demoEmail, password: demoPassword });
+      setStatus("success");
+      toast.success("Welcome to SkillBridge 2.0 Demo!");
+      setTimeout(() => {
+        const destination =
+          search.redirect || (result.user.role === "recruiter" ? "/recruiter" : "/dashboard");
+        navigate({ to: destination as any });
+      }, 300);
+    } catch (err: any) {
+      setStatus("error");
+      setErrorMessage(err.message || "Failed to sign in.");
+      toast.error(err.message || "Login failed");
+    }
+  };
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-12 overflow-hidden bg-background">
       {/* Ambient background blur elements */}
@@ -198,6 +218,49 @@ function LoginPage() {
                 <span className="leading-relaxed font-medium">{errorMessage}</span>
               </div>
             )}
+
+            {/* 1-Click Presentation Demo Bar */}
+            <div className="mb-5 rounded-2xl border border-primary/25 bg-primary-soft/40 p-3.5 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                  <Sparkles className="size-3.5" />
+                  <span>1-Click Presentation Demo</span>
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/80 px-2 py-0.5 rounded-full border border-border/60">
+                  Ready to Demo
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={status === "submitting"}
+                  onClick={() => handleQuickLogin("student@skillbridge.dev", "password123")}
+                  className="h-auto flex flex-col items-start p-2 rounded-xl border-border/80 hover:border-primary/50 hover:bg-primary/5 text-left transition-all"
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <GraduationCap className="size-3.5 text-primary" />
+                    <span>Student Persona</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">Arjun Kumar • MCA</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={status === "submitting"}
+                  onClick={() => handleQuickLogin("recruiter@northwind.dev", "password123")}
+                  className="h-auto flex flex-col items-start p-2 rounded-xl border-border/80 hover:border-accent/50 hover:bg-accent/5 text-left transition-all"
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Briefcase className="size-3.5 text-accent" />
+                    <span>Recruiter Persona</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">Northwind Labs</span>
+                </Button>
+              </div>
+            </div>
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
