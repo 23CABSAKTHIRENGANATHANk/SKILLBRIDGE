@@ -4,6 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../services/CareerEvolutionService.php';
+require_once __DIR__ . '/../services/DataRecommendationService.php';
+require_once __DIR__ . '/../services/CareerRecommendationService.php';
+require_once __DIR__ . '/../services/DataQualityService.php';
 require_once __DIR__ . '/../services/GeminiService.php';
 
 /**
@@ -11,6 +14,12 @@ require_once __DIR__ . '/../services/GeminiService.php';
  * Full REST API controller for SkillBridge 3.0 Career Evolution Engine.
  */
 class CareerEvolutionController {
+
+    public static function getCareerIntelligence(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        jsonResponse(DataRecommendationService::getFullCareerProgressionChain($student['id'], $role));
+    }
 
     private static function student(array $user): array {
         AuthMiddleware::requireRole($user, 'student');
@@ -175,6 +184,15 @@ class CareerEvolutionController {
     public static function getNextAction(array $user): void {
         $student = self::student($user);
         $action = CareerEvolutionService::determineNextAction($student['id']);
+        $action['action_type'] = strtoupper((string)($action['type'] ?? 'IMPROVE_PROFILE'));
+        $action['resource'] = null;
+        $action['estimated_minutes'] = match ($action['action_type']) {
+            'LEARN_SKILL' => 45,
+            'COMPLETE_ASSESSMENT' => 30,
+            'APPLY_JOBS' => 20,
+            default => 15,
+        };
+        $action['priority'] = 1;
         jsonResponse(['action' => $action]);
     }
 
@@ -260,20 +278,57 @@ class CareerEvolutionController {
     /**
      * GET /student/learning
      */
-    public static function getLearningResources(): void {
+    public static function getLearningResources(array $user): void {
+        self::student($user);
         $skill = isset($_GET['skill']) ? trim((string)$_GET['skill']) : null;
         $type = isset($_GET['type']) ? trim((string)$_GET['type']) : null;
         $resources = CareerEvolutionService::getLearningResources($skill, $type);
         jsonResponse(['resources' => $resources, 'count' => count($resources)]);
     }
 
+    public static function getRecommendedProjects(array $user): void {
+        self::student($user);
+        $projects = DataRecommendationService::getProjects($_GET['skill'] ?? null, $_GET['difficulty'] ?? null);
+        jsonResponse(['projects' => $projects, 'count' => count($projects)]);
+    }
+
+    public static function getCareers(): void {
+        $domain = isset($_GET['domain']) ? trim((string)$_GET['domain']) : null;
+        $search = isset($_GET['search']) ? trim((string)$_GET['search']) : null;
+        $careers = CareerRecommendationService::getCareers($domain, $search);
+        jsonResponse(['careers' => $careers, 'count' => count($careers)]);
+    }
+
+    public static function getCareer(string $careerId): void {
+        $career = CareerRecommendationService::getCareerDetail($careerId);
+        if (!$career) { errorResponse('Career not found.', 404); }
+        jsonResponse(['career' => $career]);
+    }
+
     /**
      * GET /skills/dependencies
      */
     public static function getSkillDependencies(): void {
-        $skill = isset($_GET['skill']) ? trim((string)$_GET['skill']) : null;
-        $dependencies = CareerEvolutionService::getSkillDependencies($skill);
-        jsonResponse(['dependencies' => $dependencies]);
+        $graph = CareerRecommendationService::getSkillDependencyGraph();
+        jsonResponse($graph);
+    }
+
+    /**
+     * GET /student/reachable-jobs
+     */
+    public static function getReachableJobs(array $user): void {
+        $student = self::student($user);
+        $role = trim((string)($_GET['role'] ?? '')) ?: null;
+        $jobs = CareerRecommendationService::getReachableJobs($student['id'], $role);
+        jsonResponse($jobs);
+    }
+
+    /**
+     * GET /system/data-quality
+     */
+    public static function getDataQuality(): void {
+        $audit = DataQualityService::runAudit();
+        jsonResponse($audit);
     }
 
     /**

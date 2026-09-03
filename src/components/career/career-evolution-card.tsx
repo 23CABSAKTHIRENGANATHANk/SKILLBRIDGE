@@ -121,12 +121,21 @@ export function CareerEvolutionCard() {
             </div>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
-              <Link to={action.cta_url as any}>
-                <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
-                  {action.cta_label || "Take Action Now"}
-                  <ArrowRight className="size-3.5 ml-1.5" />
-                </Button>
-              </Link>
+              {action.cta_url.startsWith("http") ? (
+                <a href={action.cta_url} target="_blank" rel="noreferrer">
+                  <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
+                    {action.cta_label || "Take Action Now"}
+                    <ArrowRight className="size-3.5 ml-1.5" />
+                  </Button>
+                </a>
+              ) : (
+                <Link to={action.cta_url as any}>
+                  <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
+                    {action.cta_label || "Take Action Now"}
+                    <ArrowRight className="size-3.5 ml-1.5" />
+                  </Button>
+                </Link>
+              )}
               <Link to="/career-roadmap">
                 <Button variant="outline" className="rounded-xl font-semibold text-xs">
                   View Full Roadmap

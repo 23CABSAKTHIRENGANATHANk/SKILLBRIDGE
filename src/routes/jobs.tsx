@@ -1,18 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { useState, useMemo } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { CursorDot } from "@/components/cursor-dot";
 import { JobCard, JobCardSkeleton } from "@/components/job-card";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { SkillMatchPanel } from "@/components/match-ring";
-import { OpportunityModal } from "@/components/opportunity-modal";
 import { Button } from "@/components/ui/button";
 import { useJobsQuery } from "@/hooks/use-api";
 import { BridgeLine } from "@/components/brand/logo";
 import { ErrorState } from "@/components/ui/state-views";
 import type { Job } from "@/types/skillbridge";
+
+const OpportunityModal = lazy(() =>
+  import("@/components/opportunity-modal").then((m) => ({ default: m.OpportunityModal })),
+);
 
 export const Route = createFileRoute("/jobs")({
   head: () => ({
@@ -235,12 +238,13 @@ function JobsPage() {
           </ScrollReveal>
         )}
 
-        {/* Opportunity Detail & Apply Modal */}
-        <OpportunityModal
-          job={selectedJob}
-          isOpen={!!selectedJob}
-          onClose={() => setSelectedJob(null)}
-        />
+        <Suspense fallback={null}>
+          <OpportunityModal
+            job={selectedJob}
+            isOpen={!!selectedJob}
+            onClose={() => setSelectedJob(null)}
+          />
+        </Suspense>
       </main>
 
       <BottomNav />

@@ -12,12 +12,17 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
-    tsconfigPaths(),
     nitro({
       preset:
         process.env["NITRO_PRESET"] ||
         (process.env["VERCEL"] ? "vercel" : "node-server"),
     }),
   ],
+  resolve: {
+    tsconfigPaths: true,
+  },
+  build: {
+    chunkSizeWarningLimit: 1200,
+  },
 });
 

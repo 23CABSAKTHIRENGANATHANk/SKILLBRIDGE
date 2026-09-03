@@ -11,7 +11,7 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { CursorDot } from "@/components/cursor-dot";
@@ -21,7 +21,6 @@ import { JobCard } from "@/components/job-card";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { SectionDivider } from "@/components/section-divider";
-import { OpportunityModal } from "@/components/opportunity-modal";
 import { BridgeLine } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { useMagnetic } from "@/hooks/use-magnetic";
@@ -30,6 +29,10 @@ import { Link } from "@tanstack/react-router";
 import { useJobsQuery, usePlatformStatsQuery } from "@/hooks/use-api";
 import { ProofOfSkillShowcase } from "@/components/showcase/proof-of-skill-showcase";
 import type { Job } from "@/types/skillbridge";
+
+const OpportunityModal = lazy(() =>
+  import("@/components/opportunity-modal").then((m) => ({ default: m.OpportunityModal })),
+);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -513,12 +516,13 @@ function Index() {
       <Footer />
       <BottomNav />
 
-      {/* Signature Opportunity & Apply Modal */}
-      <OpportunityModal
-        job={selectedJob}
-        isOpen={!!selectedJob}
-        onClose={() => setSelectedJob(null)}
-      />
+      <Suspense fallback={null}>
+        <OpportunityModal
+          job={selectedJob}
+          isOpen={!!selectedJob}
+          onClose={() => setSelectedJob(null)}
+        />
+      </Suspense>
     </div>
   );
 }

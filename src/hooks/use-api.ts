@@ -190,7 +190,17 @@ export function usePlatformStatsQuery() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
 
   useEffect(() => {
-    ApiClient.getPlatformStats().then(setStats);
+    let isMounted = true;
+
+    ApiClient.getPlatformStats()
+      .then((nextStats) => {
+        if (isMounted) setStats(nextStats);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return stats;

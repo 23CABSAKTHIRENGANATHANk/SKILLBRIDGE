@@ -45,6 +45,7 @@ require_once __DIR__ . '/controllers/TalentSearchController.php';
 require_once __DIR__ . '/services/SkillEvidenceService.php';
 require_once __DIR__ . '/controllers/CollegePlacementController.php';
 require_once __DIR__ . '/controllers/CareerEvolutionController.php';
+require_once __DIR__ . '/services/DataRecommendationService.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -595,6 +596,10 @@ switch (true) {
         CareerEvolutionController::getDashboard(AuthMiddleware::authenticate());
         break;
 
+    case $path === '/student/career-intelligence' && $method === 'GET':
+        CareerEvolutionController::getCareerIntelligence(AuthMiddleware::authenticate());
+        break;
+
     case $path === '/student/career-goal' && $method === 'GET':
         CareerEvolutionController::getGoal(AuthMiddleware::authenticate());
         break;
@@ -615,6 +620,14 @@ switch (true) {
         CareerEvolutionController::getNextAction(AuthMiddleware::authenticate());
         break;
 
+    case $path === '/student/career-intelligence' && $method === 'GET':
+        CareerEvolutionController::getCareerIntelligence(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/reachable-jobs' && $method === 'GET':
+        CareerEvolutionController::getReachableJobs(AuthMiddleware::authenticate());
+        break;
+
     case $path === '/student/roadmap' && $method === 'GET':
         CareerEvolutionController::getRoadmap(AuthMiddleware::authenticate());
         break;
@@ -624,7 +637,11 @@ switch (true) {
         break;
 
     case $path === '/student/learning' && $method === 'GET':
-        CareerEvolutionController::getLearningResources();
+        CareerEvolutionController::getLearningResources(AuthMiddleware::authenticate());
+        break;
+
+    case $path === '/student/projects/recommended' && $method === 'GET':
+        CareerEvolutionController::getRecommendedProjects(AuthMiddleware::authenticate());
         break;
 
     case $path === '/student/opportunities' && $method === 'GET':
@@ -649,6 +666,18 @@ switch (true) {
 
     case $path === '/skills/dependencies' && $method === 'GET':
         CareerEvolutionController::getSkillDependencies();
+        break;
+
+    case $path === '/careers' && $method === 'GET':
+        CareerEvolutionController::getCareers();
+        break;
+
+    case preg_match('#^/careers/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'GET':
+        CareerEvolutionController::getCareer($matches[1]);
+        break;
+
+    case $path === '/system/data-quality' && $method === 'GET':
+        CareerEvolutionController::getDataQuality();
         break;
 
 
