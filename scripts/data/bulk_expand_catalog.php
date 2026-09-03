@@ -200,7 +200,7 @@ class BulkCatalogExpander {
         ];
 
         // Generate variants across domains to reach 200+
-        $skillsCatalog = $db->query('SELECT name FROM skills LIMIT 220')->fetchAll(PDO::FETCH_COLUMN);
+        $skillsCatalog = $db->query('SELECT name FROM skills ORDER BY name LIMIT 220')->fetchAll(PDO::FETCH_COLUMN);
 
         $stmt = $db->prepare('
             INSERT INTO project_recommendations 
@@ -261,7 +261,7 @@ class BulkCatalogExpander {
             ['PostgreSQL Official Manual', 'documentation', 'https://www.postgresql.org/docs/', 'src_official_docs']
         ];
 
-        $skills = $db->query('SELECT name FROM skills LIMIT 200')->fetchAll(PDO::FETCH_COLUMN);
+        $skills = $db->query('SELECT name FROM skills ORDER BY name LIMIT 200')->fetchAll(PDO::FETCH_COLUMN);
 
         $stmt = $db->prepare('
             INSERT INTO learning_resources 

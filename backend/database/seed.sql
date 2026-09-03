@@ -3,21 +3,24 @@
 -- ========================================================================
 
 -- 1. Master Skills Dictionary
-INSERT INTO skills (id, name, normalized_name, category) VALUES
-('sk_react', 'React', 'react', 'Frontend'),
-('sk_ts', 'TypeScript', 'typescript', 'Programming Language'),
-('sk_php', 'PHP', 'php', 'Backend'),
-('sk_mysql', 'MySQL', 'mysql', 'Database'),
-('sk_css', 'CSS', 'css', 'Styling'),
-('sk_python', 'Python', 'python', 'Programming Language'),
-('sk_java', 'Java', 'java', 'Backend'),
-('sk_ai', 'AI', 'ai', 'Data & Machine Learning'),
-('sk_cloud', 'Cloud', 'cloud', 'DevOps & Infra'),
-('sk_aws', 'AWS', 'aws', 'Cloud Platform'),
-('sk_sql', 'SQL', 'sql', 'Database'),
-('sk_powerbi', 'Power BI', 'power bi', 'Analytics'),
-('sk_figma', 'Figma', 'figma', 'Design')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO skills (id, name, normalized_name, category, slug, description, difficulty) VALUES
+('sk_react', 'React', 'react', 'Frontend', 'react', 'Component-based UI library for web applications', 'intermediate'),
+('sk_ts', 'TypeScript', 'typescript', 'Programming Language', 'typescript', 'Typed superset of JavaScript for scalable development', 'intermediate'),
+('sk_php', 'PHP', 'php', 'Backend', 'php', 'Server-side scripting language for web backend engineering', 'intermediate'),
+('sk_mysql', 'MySQL', 'mysql', 'Database', 'mysql', 'Open-source relational database management system', 'intermediate'),
+('sk_css', 'CSS', 'css', 'Styling', 'css', 'Style sheet language used for presenting web documents', 'beginner'),
+('sk_python', 'Python', 'python', 'Programming Language', 'python', 'High-level multi-paradigm language for backend and data science', 'beginner'),
+('sk_java', 'Java', 'java', 'Backend', 'java', 'Object-oriented language for enterprise and Android development', 'intermediate'),
+('sk_ai', 'AI', 'ai', 'Data & Machine Learning', 'ai', 'Artificial Intelligence and machine learning technologies', 'advanced'),
+('sk_cloud', 'Cloud', 'cloud', 'DevOps & Infra', 'cloud', 'Cloud infrastructure and distributed computing services', 'intermediate'),
+('sk_aws', 'AWS', 'aws', 'Cloud Platform', 'aws', 'Amazon Web Services comprehensive cloud computing suite', 'intermediate'),
+('sk_sql', 'SQL', 'sql', 'Database', 'sql', 'Structured Query Language for relational database querying', 'beginner'),
+('sk_powerbi', 'Power BI', 'power bi', 'Analytics', 'power-bi', 'Interactive business intelligence and data visualization suite', 'intermediate'),
+('sk_figma', 'Figma', 'figma', 'Design', 'figma', 'Collaborative interface design and prototyping vector tool', 'beginner')
+ON CONFLICT (id) DO UPDATE SET
+    slug = EXCLUDED.slug,
+    description = EXCLUDED.description,
+    difficulty = EXCLUDED.difficulty;
 
 -- 2. Users (Bcrypt hashed password: 'password123')
 INSERT INTO users (id, email, password_hash, role) VALUES

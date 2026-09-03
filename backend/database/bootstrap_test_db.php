@@ -179,6 +179,10 @@ if (file_exists($seedFile)) {
     }
 }
 
+echo "\n[5b/6] Loading authoritative Career Intelligence catalog...\n";
+require_once __DIR__ . '/../../scripts/data/bootstrap_test_catalog.php';
+echo "  [OK] Career Intelligence catalog loaded and threshold-verified.\n";
+
 // 7. Verification of database schema, constraints and indexes
 echo "\n[6/6] Verifying schema integrity, constraints, and indexes...\n";
 $tables = $db->query("

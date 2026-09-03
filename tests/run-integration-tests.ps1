@@ -15,9 +15,21 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Database migration/bootstrap failed."
     }
+    php scripts/data/bootstrap_test_catalog.php
+    if ($LASTEXITCODE -ne 0) {
+        throw "Career Intelligence catalog bootstrap failed."
+    }
+    php tests/career-intelligence-test.php
+    if ($LASTEXITCODE -ne 0) {
+        throw "Career Intelligence integration tests failed."
+    }
     php tests/database-integration-test.php
     if ($LASTEXITCODE -ne 0) {
         throw "Database integration tests failed."
+    }
+    php tests/http-database-integration-test.php
+    if ($LASTEXITCODE -ne 0) {
+        throw "HTTP database integration tests failed."
     }
     php tests/personal-career-os-test.php
     if ($LASTEXITCODE -ne 0) {

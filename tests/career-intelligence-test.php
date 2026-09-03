@@ -8,6 +8,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../backend/config/database.php';
+Database::loadEnv();
 require_once __DIR__ . '/../backend/services/CareerRecommendationService.php';
 require_once __DIR__ . '/../backend/services/DataQualityService.php';
 require_once __DIR__ . '/../backend/services/ProofOfSkillService.php';

@@ -79,6 +79,7 @@ jobs:
             psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge_test -v ON_ERROR_STOP=1 -f "$migration"
           done
           psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge_test -v ON_ERROR_STOP=1 -f backend/database/seed.sql
+          php scripts/data/bootstrap_test_catalog.php
       - name: Configure backend test environment
         run: |
           cat > backend/.env <<'EOF'

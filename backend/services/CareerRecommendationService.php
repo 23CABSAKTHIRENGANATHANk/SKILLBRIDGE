@@ -135,8 +135,14 @@ final class CareerRecommendationService
             return [
                 'career' => null,
                 'readiness_score' => 0,
-                'tier' => 'Not Started',
-                'breakdown' => [],
+                'readiness_tier' => 'Foundational (Early Stage)',
+                'tier' => 'Foundational (Early Stage)',
+                'breakdown' => [
+                    'required_skills_coverage' => 0.0,
+                    'preferred_skills_coverage' => 0.0,
+                    'proficiency_benchmark' => 0.0,
+                    'portfolio_evidence' => 0.0
+                ],
                 'missing_required_skills' => [],
                 'missing_preferred_skills' => []
             ];

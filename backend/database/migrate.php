@@ -120,6 +120,41 @@ if ($doSeed) {
     } else {
         echo "⚠️  seed.sql not found. Skipping seeding.\n";
     }
+
+    // Seed Data Source Registry
+    $regFile = dirname(__DIR__, 2) . '/scripts/data/registry_seed.php';
+    if (file_exists($regFile)) {
+        require_once $regFile;
+        if (class_exists('RegistrySeeder')) {
+            echo "\n📚 Seeding Data Source Registry ...\n";
+            RegistrySeeder::run();
+        }
+    }
+
+    // Seed Career Intelligence Graph (100+ careers, 500+ skills, 100+ deps, 500+ resources, 200+ projects)
+    $careerSeedFile = dirname(__DIR__, 2) . '/scripts/data/seed_career_intelligence.php';
+    if (file_exists($careerSeedFile)) {
+        require_once $careerSeedFile;
+        if (class_exists('CareerIntelligenceSeeder')) {
+            echo "\n🧭 Seeding Career Intelligence Graph ...\n";
+            CareerIntelligenceSeeder::run();
+        }
+    }
+
+    // Expand Catalogs to full 500+ skills, 100+ deps, 500+ resources, 200+ projects
+    $bulkExpandFile = dirname(__DIR__, 2) . '/scripts/data/bulk_expand_catalog.php';
+    if (file_exists($bulkExpandFile)) {
+        require_once $bulkExpandFile;
+        if (class_exists('BulkCatalogExpander')) {
+            echo "\n🚀 Expanding Catalog to 500+ Skills & 200+ Projects ...\n";
+            BulkCatalogExpander::run();
+        }
+    }
+
+    $finalSkillsFile = dirname(__DIR__, 2) . '/scripts/data/add_final_skills.php';
+    if (file_exists($finalSkillsFile)) {
+        require_once $finalSkillsFile;
+    }
 }
 
 echo "\n✅ Migration complete.\n\n";
