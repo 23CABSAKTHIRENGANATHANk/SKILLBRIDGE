@@ -13,6 +13,8 @@ backend/storage/resumes/*
 !backend/storage/resumes/.gitkeep
 backend/storage/logs/*
 !backend/storage/logs/.gitkeep
+backend/storage/backups/*
+!backend/storage/backups/.gitkeep
 backend/uploads/logos/*
 !backend/uploads/logos/.gitkeep
 *.pem

@@ -110,4 +110,6 @@ jobs:
           php tests/phase2-talent-search-test.php
           php tests/phase2-security-test.php
           php tests/release-candidate-test.php
+          php tests/smoke-test.php
+          php backend/database/backup_and_restore_drill.php
           php tests/test-suite.php

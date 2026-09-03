@@ -18,6 +18,8 @@ require_once __DIR__ . '/services/Logger.php';
 require_once __DIR__ . '/services/AuditLogger.php';   // ← tamper-evident audit trail
 require_once __DIR__ . '/services/Validator.php';      // ← centralised input validation
 require_once __DIR__ . '/services/HealthService.php';
+require_once __DIR__ . '/services/MetricsService.php';
+require_once __DIR__ . '/services/AlertService.php';
 require_once __DIR__ . '/middleware/AuthMiddleware.php';
 require_once __DIR__ . '/middleware/RateLimitMiddleware.php';
 
@@ -73,6 +75,27 @@ switch (true) {
         $dbHealth = HealthService::getDatabaseHealth();
         $statusCode = ($dbHealth['status'] === 'healthy') ? 200 : 503;
         jsonResponse($dbHealth, $statusCode);
+        break;
+
+    case $path === '/metrics':
+        header('Content-Type: text/plain; version=0.0.4; charset=utf-8');
+        echo MetricsService::renderPrometheus();
+        exit;
+
+    case $path === '/admin/alerts/test' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        if ($user['role'] !== 'admin') {
+            jsonResponse(['error' => 'Forbidden: Admin access required', 'code' => 403], 403);
+            break;
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $res = AlertService::sendAlert(
+            $body['level'] ?? 'info',
+            $body['title'] ?? 'Manual Test Alert',
+            $body['message'] ?? 'This is a test alert dispatched from SkillBridge admin API.',
+            $body['context'] ?? ['dispatched_by' => $user['email']]
+        );
+        jsonResponse($res, 200);
         break;
 
     case $path === '/ping':
