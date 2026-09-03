@@ -31,13 +31,14 @@ putenv('APP_ENV=testing');
 $_ENV['APP_ENV'] = 'testing';
 $_SERVER['APP_ENV'] = 'testing';
 
+require_once __DIR__ . '/../backend/config/database.php';
+Database::loadEnv();
+
 $testUrl = getenv('TEST_DATABASE_URL') ?: ($_ENV['TEST_DATABASE_URL'] ?? '');
 if (empty($testUrl)) {
     fwrite(STDERR, "REFUSING DATABASE-MUTATING TEST: TEST_DATABASE_URL is required.\n");
     exit(2);
 }
-
-require_once __DIR__ . '/../backend/config/database.php';
 require_once __DIR__ . '/../backend/config/DatabaseSafetyGuard.php';
 require_once __DIR__ . '/../backend/services/CareerEvolutionService.php';
 require_once __DIR__ . '/../backend/services/CareerRecommendationService.php';

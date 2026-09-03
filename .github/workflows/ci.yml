@@ -91,6 +91,11 @@ jobs:
           NOMINATIM_USER_AGENT=SkillBridge-CI/1.0 ci@example.com
           EOF
       - name: Run backend API integration suite
+        env:
+          APP_ENV: testing
+          TEST_DATABASE_URL: postgresql://skillbridge_ci:skillbridge_ci_password@127.0.0.1:5432/skillbridge_test?sslmode=disable
+          DATABASE_URL: postgresql://skillbridge_ci:skillbridge_ci_password@127.0.0.1:5432/skillbridge_test?sslmode=disable
+          JWT_SECRET: ci-only-secret-that-is-longer-than-thirty-two-characters
         run: |
           set -euo pipefail
           php -S 127.0.0.1:8000 backend/index.php >/tmp/skillbridge-php.log 2>&1 &
