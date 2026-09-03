@@ -78,6 +78,7 @@ jobs:
           for migration in backend/database/migrate_*.sql; do
             psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge -v ON_ERROR_STOP=1 -f "$migration"
           done
+          psql -h 127.0.0.1 -U skillbridge_ci -d skillbridge -v ON_ERROR_STOP=1 -f backend/database/seed.sql
       - name: Configure backend test environment
         run: |
           cat > backend/.env <<'EOF'
