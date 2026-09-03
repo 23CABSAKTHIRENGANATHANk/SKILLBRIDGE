@@ -55,6 +55,39 @@ class RegistrySeeder {
             'status' => 'active'
         ],
         [
+            'id' => 'src_official_docs',
+            'source_name' => 'Official technology documentation catalog',
+            'source_type' => 'manual_import',
+            'source_url' => 'https://developer.mozilla.org/en-US/',
+            'license' => 'Provider-specific documentation terms; verify current notice per record',
+            'terms_checked' => true,
+            'collection_method' => 'static_curated',
+            'refresh_frequency' => 'monthly',
+            'status' => 'active'
+        ],
+        [
+            'id' => 'src_freecodecamp',
+            'source_name' => 'freeCodeCamp open curriculum',
+            'source_type' => 'open_dataset',
+            'source_url' => 'https://www.freecodecamp.org/learn',
+            'license' => 'Creative Commons / provider terms; verify current notice per record',
+            'terms_checked' => true,
+            'collection_method' => 'static_curated',
+            'refresh_frequency' => 'monthly',
+            'status' => 'active'
+        ],
+        [
+            'id' => 'src_youtube_edu',
+            'source_name' => 'YouTube educational channels',
+            'source_type' => 'open_api',
+            'source_url' => 'https://developers.google.com/youtube/v3',
+            'license' => 'YouTube API Services Terms and channel-specific policies',
+            'terms_checked' => true,
+            'collection_method' => 'static_curated',
+            'refresh_frequency' => 'monthly',
+            'status' => 'active'
+        ],
+        [
             'id' => 'src_arbeitnow_jobs',
             'source_name' => 'Arbeitnow Job Board API',
             'source_url' => 'https://www.arbeitnow.com/api/job-board-api',

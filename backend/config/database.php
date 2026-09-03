@@ -12,11 +12,9 @@ class Database {
 
     public static function loadEnv(): void {
         $env = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? ($_SERVER['APP_ENV'] ?? 'development'));
-        $possibleFiles = [
-            dirname(__DIR__) . ($env === 'testing' ? '/.env.testing' : '/.env'),
-            dirname(__DIR__) . '/.env',
-            dirname(dirname(__DIR__)) . '/.env',
-        ];
+        $possibleFiles = ($env === 'testing')
+            ? [dirname(__DIR__) . '/.env.testing']
+            : [dirname(__DIR__) . '/.env', dirname(dirname(__DIR__)) . '/.env'];
 
         foreach ($possibleFiles as $envFile) {
             if (file_exists($envFile)) {

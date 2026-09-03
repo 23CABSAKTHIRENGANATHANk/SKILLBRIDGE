@@ -444,7 +444,7 @@ class CareerIntelligenceSeeder {
             ['Machine Learning', 'Machine Learning Specialization', 'DeepLearning.AI / Stanford', 'course', 'intermediate', 'https://www.coursera.org/specializations/machine-learning-introduction', '12 weeks', true, 'Andrew Ng legendary ML course.', 'src_official_docs'],
             ['Machine Learning', 'Scikit-Learn Machine Learning in Python', 'Inria / Scikit-Learn', 'documentation', 'intermediate', 'https://scikit-learn.org/stable/user_guide.html', 'Self-paced', true, 'Classic predictive algorithms.', 'src_official_docs'],
             ['Deep Learning', 'PyTorch Official Tutorials & Deep Learning', 'PyTorch Team', 'documentation', 'intermediate', 'https://pytorch.org/tutorials/', 'Self-paced', true, 'Neural networks from scratch.', 'src_official_docs'],
-            ['Deep Learning', 'MIT 6.S191: Introduction to Deep Learning', 'MIT', 'course', 'advanced', 'http://introtodeeplearning.com/', '8 weeks', true, 'Rigorous deep learning university course.', 'src_freecodecamp'],
+            ['Deep Learning', 'MIT 6.S191: Introduction to Deep Learning', 'MIT', 'course', 'advanced', 'https://introtodeeplearning.com/', '8 weeks', true, 'Rigorous deep learning university course.', 'src_freecodecamp'],
 
             // System Design & Architecture
             ['System Design', 'The System Design Primer', 'Donne Martin / Open Source', 'documentation', 'intermediate', 'https://github.com/donnemartin/system-design-primer', 'Self-paced', true, 'High-scalability architecture guide.', 'src_official_docs'],
