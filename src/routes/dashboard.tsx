@@ -31,7 +31,7 @@ import {
   FolderGit2,
   Trash2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { CursorDot } from "@/components/cursor-dot";
@@ -57,12 +57,21 @@ import { InterviewTimeline } from "@/components/interview-timeline";
 import { LoadingState, EmptyState, ErrorState } from "@/components/ui/state-views";
 
 import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
-import { OpportunityModal } from "@/components/opportunity-modal";
-import { SkillAssessmentModal } from "@/components/proof-of-skill/skill-assessment-modal";
 import { CareerSimulatorCard } from "@/components/career/career-simulator-card";
-import { SkillPassportModal } from "@/components/career/skill-passport-modal";
-import { AIInterviewModal } from "@/components/interview/ai-interview-modal";
 import { SkillVerificationCenter } from "@/components/proof-of-skill/skill-verification-center";
+
+const OpportunityModal = lazy(() =>
+  import("@/components/opportunity-modal").then((m) => ({ default: m.OpportunityModal }))
+);
+const SkillAssessmentModal = lazy(() =>
+  import("@/components/proof-of-skill/skill-assessment-modal").then((m) => ({ default: m.SkillAssessmentModal }))
+);
+const SkillPassportModal = lazy(() =>
+  import("@/components/career/skill-passport-modal").then((m) => ({ default: m.SkillPassportModal }))
+);
+const AIInterviewModal = lazy(() =>
+  import("@/components/interview/ai-interview-modal").then((m) => ({ default: m.AIInterviewModal }))
+);
 import type { Job, CareerProgress } from "@/types/skillbridge";
 import { ApiClient } from "@/lib/api-client";
 
@@ -2000,37 +2009,39 @@ function DashboardPage() {
           </div>
         )}
 
-        {/* Opportunity Detail Modal */}
-        <OpportunityModal
-          job={selectedOpportunityJob}
-          isOpen={!!selectedOpportunityJob}
-          onClose={() => setSelectedOpportunityJob(null)}
-        />
+        <Suspense fallback={null}>
+          {/* Opportunity Detail Modal */}
+          <OpportunityModal
+            job={selectedOpportunityJob}
+            isOpen={!!selectedOpportunityJob}
+            onClose={() => setSelectedOpportunityJob(null)}
+          />
 
-        {/* SkillBridge 2.0: Technical Assessment Modal */}
-        <SkillAssessmentModal
-          skillName={assessmentSkill}
-          isOpen={isAssessmentOpen}
-          onClose={() => setIsAssessmentOpen(false)}
-          onAssessmentCompleted={() => {
-            void Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
-          }}
-        />
+          {/* SkillBridge 2.0: Technical Assessment Modal */}
+          <SkillAssessmentModal
+            skillName={assessmentSkill}
+            isOpen={isAssessmentOpen}
+            onClose={() => setIsAssessmentOpen(false)}
+            onAssessmentCompleted={() => {
+              void Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
+            }}
+          />
 
-        {/* SkillBridge 2.0: Skill Passport Modal */}
-        <SkillPassportModal
-          isOpen={isPassportOpen}
-          onClose={() => setIsPassportOpen(false)}
-          passportToken={passportToken}
-          profile={profile}
-        />
+          {/* SkillBridge 2.0: Skill Passport Modal */}
+          <SkillPassportModal
+            isOpen={isPassportOpen}
+            onClose={() => setIsPassportOpen(false)}
+            passportToken={passportToken}
+            profile={profile}
+          />
 
-        {/* SkillBridge 2.0: AI Pre-Screen Interview Studio Modal */}
-        <AIInterviewModal
-          isOpen={isAIInterviewOpen}
-          onClose={() => setIsAIInterviewOpen(false)}
-          targetRole={profile?.student?.program || "Full Stack Engineer"}
-        />
+          {/* SkillBridge 2.0: AI Pre-Screen Interview Studio Modal */}
+          <AIInterviewModal
+            isOpen={isAIInterviewOpen}
+            onClose={() => setIsAIInterviewOpen(false)}
+            targetRole={profile?.student?.program || "Full Stack Engineer"}
+          />
+        </Suspense>
       </main>
 
       <BottomNav />
