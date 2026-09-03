@@ -117,7 +117,7 @@ if ($job2 === null) {
     $db->exec("INSERT INTO companies (id, name, industry) VALUES ('c2', 'Vector Studio', 'UI Engineering') ON CONFLICT (id) DO NOTHING");
     $db->exec("INSERT INTO skills (id, name, normalized_name) VALUES ('sk_react', 'React', 'react'), ('sk_ts', 'TypeScript', 'typescript'), ('sk_css', 'CSS', 'css') ON CONFLICT (id) DO NOTHING");
     $db->exec("INSERT INTO jobs (id, company_id, title, summary, description, location) VALUES ('job-2', 'c2', 'Frontend Engineering Intern', 'Build modern UI components', 'Build UI', 'Bengaluru') ON CONFLICT (id) DO NOTHING");
-    $db->exec("INSERT INTO job_skills (job_id, skill_id, required) VALUES ('job-2', 'sk_react', TRUE), ('job-2', 'sk_ts', TRUE), ('job-2', 'sk_css', TRUE) ON CONFLICT DO NOTHING");
+    $db->exec("INSERT INTO job_skills (job_id, skill_id, is_mandatory) VALUES ('job-2', 'sk_react', TRUE), ('job-2', 'sk_ts', TRUE), ('job-2', 'sk_css', TRUE) ON CONFLICT DO NOTHING");
 
     $jobsRes = httpGet("{$baseUrl}/jobs", $studentToken);
     foreach ($jobsRes['body']['jobs'] ?? [] as $job) {
