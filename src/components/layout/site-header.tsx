@@ -112,6 +112,14 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isAuthenticated, fetchNotifs]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void fetchNotifs();
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [isAuthenticated, fetchNotifs]);
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -140,8 +148,16 @@ export function SiteHeader() {
   // Dynamic Navigation Links based on Auth & Role
   const navItems = [
     { to: "/jobs", label: "Explore Jobs" },
-    ...(user?.role === "student" ? [{ to: "/dashboard", label: "Student Dashboard" }] : []),
+    ...(user?.role === "student"
+      ? [
+          { to: "/dashboard", label: "Dashboard" },
+          { to: "/career-agent", label: "AI Career Agent" },
+        ]
+      : []),
     ...(user?.role === "recruiter" ? [{ to: "/recruiter", label: "Recruiter Dashboard" }] : []),
+    ...(user?.role === "college_admin" || user?.role === "admin"
+      ? [{ to: "/college", label: "College Placement" }]
+      : []),
     ...(user?.role === "admin" ? [{ to: "/admin", label: "Admin Console" }] : []),
     { to: "/company", label: "Company Profile" },
   ];

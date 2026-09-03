@@ -51,6 +51,12 @@ class AlertService {
 
         if (!empty($webhookUrl) && filter_var($webhookUrl, FILTER_VALIDATE_URL)) {
             try {
+                // Enterprise SSRF Guard: reject private IP ranges, loopback, link-local metadata endpoints
+                if (!self::isSafeWebhookUrl($webhookUrl)) {
+                    Logger::warning("Blocked unsafe webhook destination (SSRF protection): {$webhookUrl}");
+                    return ['success' => false, 'error' => 'Unsafe webhook URL'];
+                }
+
                 // Compatible with Slack/Discord incoming webhook format
                 $notificationBody = [
                     'text' => "*[SkillBridge Alert - {$alertPayload['level']}]* {$title}\n{$message}",
@@ -122,4 +128,33 @@ class AlertService {
             'details'      => $alertsFired
         ];
     }
+
+    /**
+     * SSRF Validation Guard: Validates that a webhook URL is HTTPS and does not resolve
+     * to a private, loopback, or reserved network range.
+     */
+    public static function isSafeWebhookUrl(string $url): bool {
+        $parsed = parse_url($url);
+        if (!isset($parsed['scheme'], $parsed['host'])) {
+            return false;
+        }
+
+        $scheme = strtolower($parsed['scheme']);
+        if (!in_array($scheme, ['https', 'http'], true)) {
+            return false;
+        }
+
+        $host = strtolower($parsed['host']);
+        if (in_array($host, ['localhost', '127.0.0.1', '::1', '169.254.169.254'], true)) {
+            return false;
+        }
+
+        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : gethostbyname($host);
+        if ($ip && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return false;
+        }
+
+        return true;
+    }
 }
+

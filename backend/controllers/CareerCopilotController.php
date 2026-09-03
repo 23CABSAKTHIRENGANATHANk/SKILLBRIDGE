@@ -54,15 +54,25 @@ class CareerCopilotController {
         $projectedMatches = [];
         $combinedSkillNames = array_unique(array_merge($currentSkillNames, $simSkills));
 
-        foreach ($jobs as $job) {
-            $jsStmt = $db->prepare('
-                SELECT s.name 
+        // N+1 FIX: batch-fetch ALL job skills in one query, then group by job_id in PHP
+        $jobIds = array_column($jobs, 'id');
+        $allJobSkillsMap = [];
+        if (!empty($jobIds)) {
+            $inPlaceholders = implode(',', array_fill(0, count($jobIds), '?'));
+            $jsAllStmt = $db->prepare("
+                SELECT js.job_id, s.name
                 FROM job_skills js
                 JOIN skills s ON js.skill_id = s.id
-                WHERE js.job_id = ?
-            ');
-            $jsStmt->execute([$job['id']]);
-            $jobSkills = array_column($jsStmt->fetchAll(), 'name');
+                WHERE js.job_id IN ({$inPlaceholders})
+            ");
+            $jsAllStmt->execute($jobIds);
+            foreach ($jsAllStmt->fetchAll() as $row) {
+                $allJobSkillsMap[$row['job_id']][] = $row['name'];
+            }
+        }
+
+        foreach ($jobs as $job) {
+            $jobSkills = $allJobSkillsMap[$job['id']] ?? [];
 
             $baseScore = MatchingService::calculateMatch($currentSkillNames, $jobSkills);
             $simScore = MatchingService::calculateMatch($combinedSkillNames, $jobSkills);

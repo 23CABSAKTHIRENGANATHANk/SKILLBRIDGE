@@ -52,6 +52,13 @@ export function useJobsQuery(filters?: {
     fetchJobs();
   }, [fetchJobs, user?.id]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void fetchJobs();
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [fetchJobs]);
+
   return { jobs, loading, error, refetch: fetchJobs };
 }
 
@@ -94,8 +101,8 @@ export function useStudentDashboardQuery() {
   });
   const [loading, setLoading] = useState(true);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
+  const fetchDashboard = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await ApiClient.getStudentDashboard();
       setData(res);
@@ -110,6 +117,13 @@ export function useStudentDashboardQuery() {
     setData({ pipeline: null, progress: null, applications: [] });
     fetchDashboard();
   }, [fetchDashboard, user?.id]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void fetchDashboard(false);
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [fetchDashboard]);
 
   return { ...data, loading, refetch: fetchDashboard };
 }
@@ -188,8 +202,8 @@ export function useInterviewsQuery() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInterviews = useCallback(async () => {
-    setLoading(true);
+  const fetchInterviews = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const data = await ApiClient.getInterviews();
@@ -205,6 +219,13 @@ export function useInterviewsQuery() {
     setInterviews([]);
     fetchInterviews();
   }, [fetchInterviews, user?.id]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void fetchInterviews(false);
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [fetchInterviews]);
 
   return { interviews, loading, error, refetch: fetchInterviews };
 }

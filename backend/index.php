@@ -41,6 +41,9 @@ require_once __DIR__ . '/controllers/PassportController.php';
 require_once __DIR__ . '/controllers/GitHubController.php';
 require_once __DIR__ . '/controllers/InterviewAIController.php';
 require_once __DIR__ . '/controllers/TalentSearchController.php';
+// SkillBridge 3.0 — New services and controllers
+require_once __DIR__ . '/services/SkillEvidenceService.php';
+require_once __DIR__ . '/controllers/CollegePlacementController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -65,10 +68,14 @@ RateLimitMiddleware::check('global_api', 120, 60);
 // Match routes
 switch (true) {
     // --- Health & Uptime Diagnostics ---
-    case $path === '/' || $path === '/health':
+    // /health and /api/health are both valid entry points (Phase 1 requirement)
+    case $path === '/' || $path === '/health' || $path === '/api/health':
         $health = HealthService::checkHealth();
         $statusCode = ($health['status'] === 'healthy') ? 200 : 503;
-        jsonResponse($health, $statusCode);
+        jsonResponse(array_merge($health, [
+            'version'     => '3.0.0',
+            'environment' => getenv('APP_ENV') ?: 'production',
+        ]), $statusCode);
         break;
 
     case $path === '/health/db':
@@ -548,6 +555,64 @@ switch (true) {
     case $path === '/recruiter/shortlists' && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         TalentSearchController::getShortlists($user);
+        break;
+
+    // -----------------------------------------------------------------------
+    // SkillBridge 3.0 — Skill Evidence Graph
+    // -----------------------------------------------------------------------
+    case $path === '/student/skills/evidence' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AuthMiddleware::requireRole($user, 'student');
+        $db = Database::getConnection();
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$user['user_id']]);
+        $student = $sStmt->fetch();
+        if (!$student) { errorResponse('Student profile not found.', 404); }
+        $evidenceGraph = SkillEvidenceService::getStudentEvidenceGraph($student['id']);
+        jsonResponse(['evidence_graph' => $evidenceGraph, 'total_skills' => count($evidenceGraph)]);
+        break;
+
+    // -----------------------------------------------------------------------
+    // SkillBridge 3.0 — Skill Trust Score
+    // -----------------------------------------------------------------------
+    case $path === '/student/skills/trust-score' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AuthMiddleware::requireRole($user, 'student');
+        $db = Database::getConnection();
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$user['user_id']]);
+        $student = $sStmt->fetch();
+        if (!$student) { errorResponse('Student profile not found.', 404); }
+        $trustScores = ProofOfSkillService::getStudentTrustScores($student['id']);
+        jsonResponse(['trust_scores' => $trustScores, 'computed_at' => date('c')]);
+        break;
+
+    // -----------------------------------------------------------------------
+    // SkillBridge 3.0 — College Placement Mode
+    // -----------------------------------------------------------------------
+    case $path === '/college/dashboard' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        CollegePlacementController::getDashboard($user);
+        break;
+
+    case $path === '/college/students' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        CollegePlacementController::getStudents($user);
+        break;
+
+    case $path === '/college/drives' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        CollegePlacementController::createDrive($user);
+        break;
+
+    case $path === '/college/analytics' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        CollegePlacementController::getAnalytics($user);
+        break;
+
+    case $path === '/college/students/enroll' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        CollegePlacementController::enrollStudent($user);
         break;
 
     default:

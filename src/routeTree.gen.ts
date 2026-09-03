@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CareerAgentRouteImport } from './routes/career-agent'
+import { Route as CollegeRouteImport } from './routes/college'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as JobsRouteImport } from './routes/jobs'
@@ -31,6 +33,16 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareerAgentRoute = CareerAgentRouteImport.update({
+  id: '/career-agent',
+  path: '/career-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollegeRoute = CollegeRouteImport.update({
+  id: '/college',
+  path: '/college',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompanyRoute = CompanyRouteImport.update({
@@ -93,6 +105,8 @@ const StudentSkillVerificationRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/career-agent': typeof CareerAgentRoute
+  '/college': typeof CollegeRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
@@ -108,6 +122,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/career-agent': typeof CareerAgentRoute
+  '/college': typeof CollegeRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
@@ -124,6 +140,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/career-agent': typeof CareerAgentRoute
+  '/college': typeof CollegeRoute
   '/company': typeof CompanyRoute
   '/dashboard': typeof DashboardRoute
   '/jobs': typeof JobsRoute
@@ -141,6 +159,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/career-agent'
+    | '/college'
     | '/company'
     | '/dashboard'
     | '/jobs'
@@ -156,6 +176,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/career-agent'
+    | '/college'
     | '/company'
     | '/dashboard'
     | '/jobs'
@@ -171,6 +193,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/career-agent'
+    | '/college'
     | '/company'
     | '/dashboard'
     | '/jobs'
@@ -187,6 +211,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CareerAgentRoute: typeof CareerAgentRoute
+  CollegeRoute: typeof CollegeRoute
   CompanyRoute: typeof CompanyRoute
   DashboardRoute: typeof DashboardRoute
   JobsRoute: typeof JobsRoute
@@ -214,6 +240,20 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/career-agent': {
+      id: '/career-agent'
+      path: '/career-agent'
+      fullPath: '/career-agent'
+      preLoaderRoute: typeof CareerAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/college': {
+      id: '/college'
+      path: '/college'
+      fullPath: '/college'
+      preLoaderRoute: typeof CollegeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/company': {
@@ -299,6 +339,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CareerAgentRoute: CareerAgentRoute,
+  CollegeRoute: CollegeRoute,
   CompanyRoute: CompanyRoute,
   DashboardRoute: DashboardRoute,
   JobsRoute: JobsRoute,

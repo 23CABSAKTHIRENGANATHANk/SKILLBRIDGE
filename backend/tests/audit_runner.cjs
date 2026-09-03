@@ -698,10 +698,11 @@ async function testFileUpload(
   ]);
 
   return new Promise((resolve) => {
+    const target = new URL("/api/student/resume/upload", BASE);
     const opts = {
-      hostname: "localhost",
-      port: 8000,
-      path: "/api/student/resume/upload",
+      hostname: target.hostname,
+      port: target.port || 80,
+      path: target.pathname,
       method: "POST",
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -755,10 +756,11 @@ async function testPathTraversal(token) {
   ]);
 
   return new Promise((resolve) => {
+    const target = new URL("/api/student/resume/upload", BASE);
     const opts = {
-      hostname: "localhost",
-      port: 8000,
-      path: "/api/student/resume/upload",
+      hostname: target.hostname,
+      port: target.port || 80,
+      path: target.pathname,
       method: "POST",
       headers: {
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -800,4 +802,11 @@ async function testPathTraversal(token) {
   });
 }
 
-run().catch(console.error);
+run()
+  .then(() => {
+    process.exitCode = results.some((result) => !result.pass) ? 1 : 0;
+  })
+  .catch((error) => {
+    console.error(`FATAL: ${error.message}`);
+    process.exitCode = 2;
+  });

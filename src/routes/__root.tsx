@@ -76,15 +76,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SkillBridge — Where Skills Meet Opportunity" },
+      { title: "SkillBridge 3.0 — AI-Powered Proof-of-Skill Career Infrastructure" },
       {
         name: "description",
         content:
-          "SkillBridge connects students and early-career professionals with verified job opportunities through transparent skill matching.",
+          "SkillBridge 3.0: AI-powered proof-of-skill hiring platform. Verify skills with cryptographic credentials, match candidates with explainable AI, and run college placement drives.",
       },
       { name: "author", content: "SkillBridge" },
       { name: "theme-color", content: "#14213d" },
-      { name: "apple-mobile-web-app-title", content: "SkillBridge" },
+      { name: "apple-mobile-web-app-title", content: "SkillBridge 3.0" },
+
       {
         property: "og:title",
         content: "SkillBridge — Where Skills Meet Opportunity",

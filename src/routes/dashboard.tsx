@@ -59,6 +59,7 @@ import { LoadingState, EmptyState, ErrorState } from "@/components/ui/state-view
 import { AICareerCopilot } from "@/components/ai/ai-career-copilot";
 import { CareerSimulatorCard } from "@/components/career/career-simulator-card";
 import { SkillVerificationCenter } from "@/components/proof-of-skill/skill-verification-center";
+import { SkillEvidenceGraph } from "@/components/evidence/skill-evidence-graph";
 
 const OpportunityModal = lazy(() =>
   import("@/components/opportunity-modal").then((m) => ({ default: m.OpportunityModal }))
@@ -1250,6 +1251,13 @@ function DashboardPage() {
 
             {/* Featured Projects Portfolio */}
             <div className="lg:col-span-7 space-y-6">
+              {/* SkillBridge 3.0 — Skill Evidence Graph */}
+              <ScrollReveal delay={150}>
+                <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+                  <SkillEvidenceGraph />
+                </div>
+              </ScrollReveal>
+
               <ScrollReveal delay={200}>
                 <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
                   <div className="flex items-center justify-between mb-1">

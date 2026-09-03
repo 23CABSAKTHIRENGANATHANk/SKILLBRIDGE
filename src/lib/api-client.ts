@@ -1219,4 +1219,136 @@ export class ApiClient {
   }> {
     return this.request("/student/skill-proof");
   }
+
+  // -------------------------------------------------------------------------
+  // SkillBridge 3.0 — Skill Evidence Graph
+  // -------------------------------------------------------------------------
+  public static async getSkillEvidenceGraph(): Promise<{
+    success: boolean;
+    evidence_graph: SkillEvidenceItem[];
+    total_skills: number;
+  }> {
+    return this.request("/student/skills/evidence");
+  }
+
+  // -------------------------------------------------------------------------
+  // SkillBridge 3.0 — Skill Trust Scores
+  // -------------------------------------------------------------------------
+  public static async getSkillTrustScores(): Promise<{
+    success: boolean;
+    trust_scores: SkillTrustScore[];
+    computed_at: string;
+  }> {
+    return this.request("/student/skills/trust-score");
+  }
+
+  // -------------------------------------------------------------------------
+  // SkillBridge 3.0 — College Placement Mode
+  // -------------------------------------------------------------------------
+  public static async getCollegeDashboard(): Promise<{
+    success: boolean;
+    college: { id: string; name: string };
+    total_students: number;
+    verified_students: number;
+    passported_students: number;
+    verification_rate: number;
+    active_drives: number;
+    avg_trust_score: number;
+    top_skills: Array<{ name: string; student_count: number }>;
+    application_stages: Record<string, number>;
+    placements: Record<string, number>;
+  }> {
+    return this.request("/college/dashboard");
+  }
+
+  public static async getCollegeStudents(
+    page = 1,
+    limit = 20,
+    search = ""
+  ): Promise<{
+    success: boolean;
+    students: any[];
+    total: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+  }> {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      ...(search ? { search } : {}),
+    });
+    return this.request(`/college/students?${params}`);
+  }
+
+  public static async getCollegeAnalytics(): Promise<{
+    success: boolean;
+    placement_funnel: Record<string, number>;
+    skill_distribution: Array<{
+      skill: string;
+      category: string;
+      student_count: number;
+      avg_trust: number;
+    }>;
+    trust_distribution: Record<string, number>;
+    recent_drives: any[];
+  }> {
+    return this.request("/college/analytics");
+  }
+
+  public static async createCollegeDrive(data: {
+    title: string;
+    description?: string;
+    job_id?: string;
+    drive_date?: string;
+    min_trust_score?: number;
+  }): Promise<{ success: boolean; message: string; drive_id: string }> {
+    return this.request("/college/drives", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
 }
+
+// -------------------------------------------------------------------------
+// SkillBridge 3.0 — Supplemental type exports for API responses
+// -------------------------------------------------------------------------
+export interface SkillEvidenceItem {
+  skill_id: string;
+  skill_name: string;
+  proficiency: string;
+  integrity_status: string;
+  integrity_confidence: number;
+  evidence_count: number;
+  final_confidence: number;
+  verification_level: string;
+  evidence: EvidenceEntry[];
+}
+
+export interface EvidenceEntry {
+  evidence_type: string;
+  source: string;
+  confidence: number;
+  timestamp: string | null;
+  verification_level: string;
+  integrity_status: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface SkillTrustScore {
+  skill_id: string;
+  skill_name: string;
+  trust_score: number;
+  confidence: "low" | "medium" | "high" | "very_high";
+  breakdown: TrustBreakdownItem[];
+}
+
+export interface TrustBreakdownItem {
+  factor: string;
+  weight: number;
+  score: number;
+  contribution: number;
+  present: boolean;
+  detail: string;
+}
+

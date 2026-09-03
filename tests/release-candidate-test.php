@@ -16,7 +16,7 @@ require_once __DIR__ . '/../backend/config/database.php';
 require_once __DIR__ . '/../backend/config/jwt.php';
 require_once __DIR__ . '/../backend/services/GeminiService.php';
 
-$baseUrl = 'http://localhost:8000/api';
+$baseUrl = rtrim(getenv('SKILLBRIDGE_TEST_BASE_URL') ?: 'http://localhost:8000/api', '/');
 $passed = 0;
 $failed = 0;
 

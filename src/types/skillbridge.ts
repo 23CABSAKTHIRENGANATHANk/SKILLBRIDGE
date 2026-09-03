@@ -127,7 +127,8 @@ export interface SkillProof {
   };
 }
 
-export type UserRole = "student" | "recruiter" | "admin";
+export type UserRole = "student" | "recruiter" | "admin" | "college_admin";
+
 
 export interface AuthUser {
   id: string;

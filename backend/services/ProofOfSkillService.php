@@ -401,4 +401,302 @@ class ProofOfSkillService {
 
         return $allResults;
     }
+
+    // -----------------------------------------------------------------------
+    // SKILL TRUST SCORE (SkillBridge 3.0 — explainability metric)
+    // This is SEPARATE from WEIGHTS above (which power the matching engine).
+    // Trust Score is a human-readable evidence confidence indicator only.
+    // -----------------------------------------------------------------------
+
+    /**
+     * Trust Score weights — additive explainability metric.
+     * These are NOT used in any hiring decision or matching formula.
+     */
+    public const TRUST_WEIGHTS = [
+        'skill_verification' => 30,   // 4-stage Bloom's assessment
+        'assessment'         => 20,   // Quick assessment
+        'proof_of_work'      => 15,   // GitHub Proof-of-Work
+        'project_evidence'   => 10,   // Student projects
+        'ai_interview'       => 10,   // Adaptive AI interview
+        'resume_evidence'    => 10,   // Resume extraction
+        'github_evidence'    =>  3,   // Raw GitHub language detection
+        'self_declared'      =>  2,   // Self-declaration baseline
+    ];
+
+    /**
+     * Compute Trust Score for a specific skill of a student.
+     * Every source is real DB data — no invention.
+     */
+    public static function getTrustScore(string $studentId, string $skillId): array {
+        $db = Database::getConnection();
+
+        $breakdown = [];
+        $totalWeight = 0;
+        $weightedSum = 0;
+
+        // 1. Skill Verification (30%)
+        $vStmt = $db->prepare('
+            SELECT score, verified_level, confidence, passed
+            FROM skill_verification_attempts
+            WHERE student_id = ? AND skill_id = ? AND status = \'completed\'
+            ORDER BY score DESC LIMIT 1
+        ');
+        $vStmt->execute([$studentId, $skillId]);
+        $verification = $vStmt->fetch();
+        $vScore = $verification ? (int)round((float)$verification['confidence']) : 0;
+        $breakdown['skill_verification'] = [
+            'weight'      => self::TRUST_WEIGHTS['skill_verification'],
+            'score'       => $vScore,
+            'contribution'=> (int)round($vScore * self::TRUST_WEIGHTS['skill_verification'] / 100),
+            'present'     => $verification !== false,
+            'detail'      => $verification
+                ? "Verified: {$verification['verified_level']} (score {$verification['score']}%)"
+                : 'No completed verification attempt',
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['skill_verification'];
+        $weightedSum += $vScore * self::TRUST_WEIGHTS['skill_verification'];
+
+        // 2. Quick Assessment (20%)
+        $aStmt = $db->prepare('
+            SELECT score, level FROM skill_assessments
+            WHERE student_id = ? AND skill_id = ?
+            ORDER BY score DESC LIMIT 1
+        ');
+        $aStmt->execute([$studentId, $skillId]);
+        $assessment = $aStmt->fetch();
+        $aScore = $assessment ? (int)$assessment['score'] : 0;
+        $breakdown['assessment'] = [
+            'weight'      => self::TRUST_WEIGHTS['assessment'],
+            'score'       => $aScore,
+            'contribution'=> (int)round($aScore * self::TRUST_WEIGHTS['assessment'] / 100),
+            'present'     => $assessment !== false,
+            'detail'      => $assessment
+                ? "Assessment: {$assessment['score']}% ({$assessment['level']})"
+                : 'No assessment recorded',
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['assessment'];
+        $weightedSum += $aScore * self::TRUST_WEIGHTS['assessment'];
+
+        // 3. Proof-of-Work (15%)
+        $skillNameRow = $db->prepare('SELECT normalized_name FROM skills WHERE id = ?');
+        $skillNameRow->execute([$skillId]);
+        $norm = strtolower((string)($skillNameRow->fetchColumn() ?: ''));
+        $powStmt = $db->prepare('
+            SELECT repo_name, overall_evidence_score, technologies, primary_language
+            FROM proof_of_work_repositories
+            WHERE student_id = ?
+            ORDER BY overall_evidence_score DESC
+        ');
+        $powStmt->execute([$studentId]);
+        $repos = $powStmt->fetchAll();
+        $powScore = 0;
+        $powDetail = 'No relevant repositories found';
+        $matchedRepos = 0;
+        foreach ($repos as $repo) {
+            $techs = is_string($repo['technologies']) ? json_decode($repo['technologies'], true) ?? [] : ($repo['technologies'] ?? []);
+            $pl = strtolower($repo['primary_language'] ?? '');
+            $isMatch = ($pl && (str_contains($norm, $pl) || str_contains($pl, $norm)));
+            if (!$isMatch) {
+                foreach ($techs as $t) {
+                    $tName = strtolower(is_array($t) ? ($t['name'] ?? (string)$t) : (string)$t);
+                    if ($tName && (str_contains($norm, $tName) || str_contains($tName, $norm))) {
+                        $isMatch = true;
+                        break;
+                    }
+                }
+            }
+            if ($isMatch) {
+                $matchedRepos++;
+                $powScore = max($powScore, min(100, (int)$repo['overall_evidence_score']));
+            }
+        }
+        if ($matchedRepos > 0) {
+            $powDetail = "{$matchedRepos} relevant repositor" . ($matchedRepos > 1 ? 'ies' : 'y') . " (evidence score: {$powScore}%)";
+        }
+        $breakdown['proof_of_work'] = [
+            'weight'      => self::TRUST_WEIGHTS['proof_of_work'],
+            'score'       => $powScore,
+            'contribution'=> (int)round($powScore * self::TRUST_WEIGHTS['proof_of_work'] / 100),
+            'present'     => $matchedRepos > 0,
+            'detail'      => $powDetail,
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['proof_of_work'];
+        $weightedSum += $powScore * self::TRUST_WEIGHTS['proof_of_work'];
+
+        // 4. Project Evidence (10%)
+        $peStmt = $db->prepare('
+            SELECT confidence FROM skill_evidence
+            WHERE student_id = ? AND skill_id = ? AND source = \'project_evidence\'
+            LIMIT 1
+        ');
+        $peStmt->execute([$studentId, $skillId]);
+        $pe = $peStmt->fetch();
+        $peScore = $pe ? (int)$pe['confidence'] : 0;
+        $breakdown['project_evidence'] = [
+            'weight'      => self::TRUST_WEIGHTS['project_evidence'],
+            'score'       => $peScore,
+            'contribution'=> (int)round($peScore * self::TRUST_WEIGHTS['project_evidence'] / 100),
+            'present'     => $pe !== false,
+            'detail'      => $pe ? "Project evidence confidence: {$peScore}%" : 'No project evidence recorded',
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['project_evidence'];
+        $weightedSum += $peScore * self::TRUST_WEIGHTS['project_evidence'];
+
+        // 5. AI Interview (10%)
+        $aiStmt = $db->prepare('
+            SELECT overall_score, target_role
+            FROM ai_interview_sessions_v2
+            WHERE student_id = ? AND status = \'completed\' AND overall_score IS NOT NULL
+            ORDER BY overall_score DESC LIMIT 1
+        ');
+        $aiStmt->execute([$studentId]);
+        $interview = $aiStmt->fetch();
+        $aiScore = $interview ? (int)round((float)$interview['overall_score']) : 0;
+        $breakdown['ai_interview'] = [
+            'weight'      => self::TRUST_WEIGHTS['ai_interview'],
+            'score'       => $aiScore,
+            'contribution'=> (int)round($aiScore * self::TRUST_WEIGHTS['ai_interview'] / 100),
+            'present'     => $interview !== false,
+            'detail'      => $interview
+                ? "AI Interview for '{$interview['target_role']}': {$aiScore}%"
+                : 'No completed AI interview',
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['ai_interview'];
+        $weightedSum += $aiScore * self::TRUST_WEIGHTS['ai_interview'];
+
+        // 6. Resume Evidence (10%)
+        $reStmt = $db->prepare('
+            SELECT confidence FROM skill_evidence
+            WHERE student_id = ? AND skill_id = ? AND source = \'resume_evidence\'
+            LIMIT 1
+        ');
+        $reStmt->execute([$studentId, $skillId]);
+        $re = $reStmt->fetch();
+        $reScore = $re ? (int)$re['confidence'] : 0;
+        $breakdown['resume_evidence'] = [
+            'weight'      => self::TRUST_WEIGHTS['resume_evidence'],
+            'score'       => $reScore,
+            'contribution'=> (int)round($reScore * self::TRUST_WEIGHTS['resume_evidence'] / 100),
+            'present'     => $re !== false,
+            'detail'      => $re ? "Resume evidence confidence: {$reScore}%" : 'Not detected in resume',
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['resume_evidence'];
+        $weightedSum += $reScore * self::TRUST_WEIGHTS['resume_evidence'];
+
+        // 7. GitHub language detection (3%)
+        $ghStmt = $db->prepare('SELECT languages, detected_skills FROM student_github_profiles WHERE student_id = ? LIMIT 1');
+        $ghStmt->execute([$studentId]);
+        $gh = $ghStmt->fetch();
+        $ghScore = 0;
+        $ghDetail = 'No GitHub profile connected';
+        if ($gh) {
+            $langs = is_string($gh['languages']) ? json_decode($gh['languages'], true) ?? [] : ($gh['languages'] ?? []);
+            $det   = is_string($gh['detected_skills']) ? json_decode($gh['detected_skills'], true) ?? [] : ($gh['detected_skills'] ?? []);
+            foreach (array_merge($langs, $det) as $item) {
+                $name = strtolower(is_array($item) ? ($item['name'] ?? (string)$item) : (string)$item);
+                if ($name && (str_contains($norm, $name) || str_contains($name, $norm))) {
+                    $ghScore = 70;
+                    $ghDetail = "Language/skill '{$name}' detected in GitHub profile";
+                    break;
+                }
+            }
+            if ($ghScore === 0) {
+                $ghDetail = 'GitHub connected but skill not detected in languages';
+            }
+        }
+        $breakdown['github_evidence'] = [
+            'weight'      => self::TRUST_WEIGHTS['github_evidence'],
+            'score'       => $ghScore,
+            'contribution'=> (int)round($ghScore * self::TRUST_WEIGHTS['github_evidence'] / 100),
+            'present'     => $ghScore > 0,
+            'detail'      => $ghDetail,
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['github_evidence'];
+        $weightedSum += $ghScore * self::TRUST_WEIGHTS['github_evidence'];
+
+        // 8. Self-declaration (2%)
+        $sdStmt = $db->prepare('SELECT proficiency FROM student_skills WHERE student_id = ? AND skill_id = ?');
+        $sdStmt->execute([$studentId, $skillId]);
+        $sdRow = $sdStmt->fetch();
+        $sdScore = $sdRow ? 50 : 0; // Base presence score for self-declaration
+        $breakdown['self_declared'] = [
+            'weight'      => self::TRUST_WEIGHTS['self_declared'],
+            'score'       => $sdScore,
+            'contribution'=> (int)round($sdScore * self::TRUST_WEIGHTS['self_declared'] / 100),
+            'present'     => $sdRow !== false,
+            'detail'      => $sdRow ? "Self-declared as {$sdRow['proficiency']}" : 'Not in profile',
+        ];
+        $totalWeight += self::TRUST_WEIGHTS['self_declared'];
+        $weightedSum += $sdScore * self::TRUST_WEIGHTS['self_declared'];
+
+        // Final trust score
+        $trustScore = $totalWeight > 0 ? (int)round($weightedSum / $totalWeight) : 0;
+        $confidence = match(true) {
+            $trustScore >= 80 => 'very_high',
+            $trustScore >= 60 => 'high',
+            $trustScore >= 40 => 'medium',
+            default           => 'low',
+        };
+
+        return [
+            'trust_score' => $trustScore,
+            'confidence'  => $confidence,
+            'breakdown'   => array_values(
+                array_map(fn($key, $val) => array_merge(['factor' => $key], $val), array_keys($breakdown), $breakdown)
+            ),
+        ];
+    }
+
+    /**
+     * Get Trust Scores for ALL skills of a student at once.
+     * Persists results to skill_trust_scores for fast re-reads.
+     */
+    public static function getStudentTrustScores(string $studentId): array {
+        $db = Database::getConnection();
+
+        // Fetch all student skills
+        $skillStmt = $db->prepare('
+            SELECT s.id AS skill_id, s.name AS skill_name
+            FROM student_skills sk
+            JOIN skills s ON sk.skill_id = s.id
+            WHERE sk.student_id = ?
+            ORDER BY s.name ASC
+        ');
+        $skillStmt->execute([$studentId]);
+        $skills = $skillStmt->fetchAll();
+
+        $results = [];
+        foreach ($skills as $skill) {
+            $ts = self::getTrustScore($studentId, $skill['skill_id']);
+            $results[] = array_merge(
+                ['skill_id' => $skill['skill_id'], 'skill_name' => $skill['skill_name']],
+                $ts
+            );
+
+            // Persist to skill_trust_scores (upsert)
+            try {
+                $upsert = $db->prepare('
+                    INSERT INTO skill_trust_scores (student_id, skill_id, trust_score, confidence, breakdown, computed_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT (student_id, skill_id) DO UPDATE
+                        SET trust_score  = EXCLUDED.trust_score,
+                            confidence   = EXCLUDED.confidence,
+                            breakdown    = EXCLUDED.breakdown,
+                            computed_at  = CURRENT_TIMESTAMP
+                ');
+                $upsert->execute([
+                    $studentId,
+                    $skill['skill_id'],
+                    $ts['trust_score'],
+                    $ts['confidence'],
+                    json_encode($ts['breakdown']),
+                ]);
+            } catch (\Throwable) {
+                // Non-fatal: table may not exist yet in older deployments
+            }
+        }
+
+        return $results;
+    }
 }
+
