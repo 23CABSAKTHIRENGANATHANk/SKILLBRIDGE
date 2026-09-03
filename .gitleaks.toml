@@ -1,0 +1,13 @@
+# Gitleaks Configuration for SkillBridge
+[extend]
+# Extends default gitleaks rules
+
+[allowlist]
+description = "Allowlist for test fixtures, test scripts, and documentation"
+paths = [
+    '''backend/tests/.*''',
+    '''tests/.*''',
+    '''backend/openapi\.yaml''',
+    '''backend/docs/.*''',
+    '''\.github/workflows/.*''',
+]

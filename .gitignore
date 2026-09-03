@@ -6,13 +6,17 @@ backend/.env.*
 !.env.example
 !backend/.env.example
 
-# Local storage and private uploads
+# Local storage, cryptographic keys, and private uploads
+backend/storage/keys/*
+!backend/storage/keys/.gitkeep
 backend/storage/resumes/*
 !backend/storage/resumes/.gitkeep
 backend/storage/logs/*
 !backend/storage/logs/.gitkeep
 backend/uploads/logos/*
 !backend/uploads/logos/.gitkeep
+*.pem
+*.key
 
 # Logs
 logs

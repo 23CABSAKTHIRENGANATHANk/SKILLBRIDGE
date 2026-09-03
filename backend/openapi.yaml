@@ -367,7 +367,7 @@ paths:
             application/json:
               example:
                 success: true
-                token: "eyJhbGciOiJIUzI1NiJ9..."
+                token: "jwt_access_token_example"
                 refresh_token: "rft_..."
                 user:
                   id: u_abc123

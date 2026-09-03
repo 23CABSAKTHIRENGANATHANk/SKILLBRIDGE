@@ -294,9 +294,18 @@ async function run() {
     j1.status === 200,
   );
 
-  // 3.2 Expired JWT (static known-expired token)
-  const expiredToken =
-    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoidV90ZXN0IiwiZW1haWwiOiJ0ZXN0QHRlc3QuY29tIiwicm9sZSI6InN0dWRlbnQiLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MTYwMDAwMzYwMH0.invalid_signature";
+  // 3.2 Expired JWT (dynamically constructed known-expired token)
+  const expiredHdr = Buffer.from(JSON.stringify({ typ: "JWT", alg: "HS256" })).toString("base64url");
+  const expiredPayload = Buffer.from(
+    JSON.stringify({
+      user_id: "u_test",
+      email: "test@test.com",
+      role: "student",
+      iat: 1600000000,
+      exp: 1600003600,
+    }),
+  ).toString("base64url");
+  const expiredToken = `${expiredHdr}.${expiredPayload}.invalid_signature`;
   const j2 = await req("GET", "/api/auth/me", null, expiredToken);
   log(
     "JWT",

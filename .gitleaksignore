@@ -1,0 +1,4 @@
+# Gitleaks ignore list for historical test mock commits
+9f7f82e50927ca737c7e22ad95a41d67ddaad8f5:backend/tests/audit_runner.cjs:jwt:299
+9f7f82e50927ea737c7e22ad95a41d67ddaad8f5:backend/tests/audit_runner.cjs:jwt:299
+backend/tests/audit_runner.cjs:jwt:299
