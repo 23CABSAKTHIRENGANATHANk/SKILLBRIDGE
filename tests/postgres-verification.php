@@ -58,8 +58,13 @@ try {
     }
     assertPg('Foreign Key Constraint strictly enforced on invalid parent reference', $fkBlocked);
 
+    // Setup self-contained fixtures for constraint tests
+    $db->prepare("INSERT INTO users (id, email, password_hash, role) VALUES ('u_pg_test', 'pg_test@skillbridge.dev', 'hash', 'student') ON CONFLICT (id) DO NOTHING")->execute();
+    $db->prepare("INSERT INTO students (id, user_id, name, college, program) VALUES ('s_pg_test', 'u_pg_test', 'PG Test Student', 'College', 'Program') ON CONFLICT (id) DO NOTHING")->execute();
+    $db->prepare("INSERT INTO skills (id, name, normalized_name) VALUES ('sk_pg_test', 'PG Test Skill', 'pg test skill') ON CONFLICT (id) DO NOTHING")->execute();
+
     // 4. Verify Identity Column Auto-increment
-    $insSkillStmt = $db->prepare("INSERT INTO student_skills (student_id, skill_id, proficiency) VALUES ('s1', 'sk_ai', 'expert') ON CONFLICT (student_id, skill_id) DO UPDATE SET proficiency = 'expert' RETURNING id");
+    $insSkillStmt = $db->prepare("INSERT INTO student_skills (student_id, skill_id, proficiency) VALUES ('s_pg_test', 'sk_pg_test', 'expert') ON CONFLICT (student_id, skill_id) DO UPDATE SET proficiency = 'expert' RETURNING id");
     $insSkillStmt->execute();
     $generatedId = $insSkillStmt->fetchColumn();
     assertPg('Identity column auto-generated ID', is_numeric($generatedId) && (int)$generatedId > 0);
@@ -67,11 +72,17 @@ try {
     // 5. Verify Unique Composite Constraint (uq_student_skill)
     $dupHandled = false;
     try {
-        $db->exec("INSERT INTO student_skills (student_id, skill_id) VALUES ('s1', 'sk_react')");
+        $db->exec("INSERT INTO student_skills (student_id, skill_id) VALUES ('s_pg_test', 'sk_pg_test')");
     } catch (PDOException $e) {
         $dupHandled = true;
     }
     assertPg('Composite Unique Constraint (uq_student_skill) blocks duplicates', $dupHandled);
+
+    // Clean up student_skills fixture
+    $db->exec("DELETE FROM student_skills WHERE student_id = 's_pg_test'");
+    $db->exec("DELETE FROM students WHERE id = 's_pg_test'");
+    $db->exec("DELETE FROM users WHERE id = 'u_pg_test'");
+    $db->exec("DELETE FROM skills WHERE id = 'sk_pg_test'");
 
     // 6. Verify Transaction Support
     $db->beginTransaction();
