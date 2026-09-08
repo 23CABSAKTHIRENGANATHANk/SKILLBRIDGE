@@ -82,7 +82,7 @@ try {
 
     if (!$exists) {
         echo "  [ACTION] Creating isolated test database '{$testDbName}'...\n";
-        $adminPdo->exec("CREATE DATABASE \"{$testDbName}\" ENCODING 'UTF8'");
+        $adminPdo->exec("CREATE DATABASE \"{$testDbName}\" WITH TEMPLATE template0 ENCODING 'UTF8'");
         echo "  [OK] Database '{$testDbName}' created successfully.\n";
     } else {
         echo "  [OK] Database '{$testDbName}' ready.\n";

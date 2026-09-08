@@ -1,0 +1,1 @@
+C:/Users/sakth/scoop/apps/postgresql/current/bin/postgres.exe "-D" "tmp/pgdata" "-p" "55432" "-h" "127.0.0.1"
