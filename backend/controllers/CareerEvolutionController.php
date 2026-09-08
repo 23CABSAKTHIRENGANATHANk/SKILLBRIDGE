@@ -324,8 +324,22 @@ class CareerEvolutionController {
      */
     public static function getOpportunities(array $user): void {
         $student = self::student($user);
-        $data = CareerEvolutionService::getCareerOpportunities($student['id']);
-        jsonResponse($data);
+        try {
+            $data = CareerEvolutionService::getCareerOpportunities($student['id']);
+            jsonResponse($data);
+        } catch (\Throwable $e) {
+            error_log('Opportunities retrieval error: ' . $e->getMessage());
+            jsonResponse([
+                'ready_now'     => [],
+                'almost_ready'  => [],
+                'future_target' => [],
+                'counts'        => [
+                    'ready_now'     => 0,
+                    'almost_ready'  => 0,
+                    'future_target' => 0,
+                ]
+            ]);
+        }
     }
 
     /**
@@ -333,8 +347,16 @@ class CareerEvolutionController {
      */
     public static function getEvolution(array $user): void {
         $student = self::student($user);
-        $data = CareerEvolutionService::getKnowledgeEvolution($student['id']);
-        jsonResponse($data);
+        try {
+            $data = CareerEvolutionService::getKnowledgeEvolution($student['id']);
+            jsonResponse($data);
+        } catch (\Throwable $e) {
+            error_log('Evolution retrieval error: ' . $e->getMessage());
+            jsonResponse([
+                'events'       => [],
+                'total_events' => 0
+            ]);
+        }
     }
 
     /**

@@ -216,7 +216,7 @@ switch (true) {
         StudentController::deleteSkill($user);
         break;
 
-    case $path === '/student/skill-proof' && $method === 'GET':
+    case ($path === '/student/skill-proof' || $path === '/student/skills') && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         StudentController::getSkillProof($user);
         break;
@@ -731,11 +731,11 @@ switch (true) {
         CareerEvolutionController::completeProject(AuthMiddleware::authenticate(), $matches[1]);
         break;
 
-    case $path === '/student/opportunities' && $method === 'GET':
+    case ($path === '/student/opportunities' || $path === '/student/career-opportunities' || $path === '/career-opportunities' || $path === '/opportunities') && $method === 'GET':
         CareerEvolutionController::getOpportunities(AuthMiddleware::authenticate());
         break;
 
-    case $path === '/student/evolution' && $method === 'GET':
+    case ($path === '/student/evolution' || $path === '/student/career-evolution' || $path === '/evolution') && $method === 'GET':
         CareerEvolutionController::getEvolution(AuthMiddleware::authenticate());
         break;
 
