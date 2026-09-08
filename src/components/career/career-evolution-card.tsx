@@ -16,13 +16,35 @@ import { Link } from "@tanstack/react-router";
 import { ApiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { CareerCoachModal } from "./career-coach-modal";
+import { SkillAssessmentModal } from "@/components/proof-of-skill/skill-assessment-modal";
 import type { NextBestAction, CareerGoal } from "@/types/skillbridge";
 
-export function CareerEvolutionCard() {
+interface CareerEvolutionCardProps {
+  onStartAssessment?: (skillName: string) => void;
+}
+
+export function CareerEvolutionCard({ onStartAssessment }: CareerEvolutionCardProps) {
   const [goal, setGoal] = useState<CareerGoal | null>(null);
   const [action, setAction] = useState<NextBestAction | null>(null);
   const [loading, setLoading] = useState(true);
   const [isCoachOpen, setIsCoachOpen] = useState(false);
+  const [isAssessmentOpen, setIsAssessmentOpen] = useState(false);
+  const [assessmentSkill, setAssessmentSkill] = useState<string | null>(null);
+
+  const fetchAction = () => {
+    Promise.allSettled([
+      ApiClient.getCareerGoal(),
+      ApiClient.getNextCareerAction(),
+    ]).then(([gRes, aRes]) => {
+      if (gRes.status === "fulfilled" && gRes.value.goal) {
+        setGoal(gRes.value.goal);
+      }
+      if (aRes.status === "fulfilled" && aRes.value.action) {
+        setAction(aRes.value.action);
+      }
+      setLoading(false);
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -43,6 +65,7 @@ export function CareerEvolutionCard() {
       active = false;
     };
   }, []);
+
 
   if (loading) {
     return (
@@ -121,21 +144,53 @@ export function CareerEvolutionCard() {
             </div>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
-              {action.cta_url.startsWith("http") ? (
-                <a href={action.cta_url} target="_blank" rel="noreferrer">
-                  <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
-                    {action.cta_label || "Take Action Now"}
-                    <ArrowRight className="size-3.5 ml-1.5" />
-                  </Button>
-                </a>
-              ) : (
-                <Link to={action.cta_url as any}>
-                  <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
-                    {action.cta_label || "Take Action Now"}
-                    <ArrowRight className="size-3.5 ml-1.5" />
-                  </Button>
-                </Link>
-              )}
+              {(() => {
+                const isAssessmentAction =
+                  action.type === "complete_assessment" ||
+                  Boolean(action.skill && action.title?.toLowerCase().includes("assessment")) ||
+                  Boolean(action.cta_label?.toLowerCase().includes("assessment"));
+
+                const targetSkill = action.skill || "React";
+
+                if (isAssessmentAction) {
+                  return (
+                    <Button
+                      onClick={() => {
+                        if (onStartAssessment) {
+                          onStartAssessment(targetSkill);
+                        } else {
+                          setAssessmentSkill(targetSkill);
+                          setIsAssessmentOpen(true);
+                        }
+                      }}
+                      className="rounded-xl font-bold text-xs px-5 shadow-sm bg-primary hover:bg-primary/90 text-primary-foreground"
+                    >
+                      {action.cta_label || `Start ${targetSkill} Assessment`}
+                      <ArrowRight className="size-3.5 ml-1.5" />
+                    </Button>
+                  );
+                }
+
+                if (action.cta_url.startsWith("http")) {
+                  return (
+                    <a href={action.cta_url} target="_blank" rel="noreferrer">
+                      <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
+                        {action.cta_label || "Take Action Now"}
+                        <ArrowRight className="size-3.5 ml-1.5" />
+                      </Button>
+                    </a>
+                  );
+                }
+
+                return (
+                  <Link to={action.cta_url as any}>
+                    <Button className="rounded-xl font-bold text-xs px-5 shadow-sm">
+                      {action.cta_label || "Take Action Now"}
+                      <ArrowRight className="size-3.5 ml-1.5" />
+                    </Button>
+                  </Link>
+                );
+              })()}
               <Link to="/career-roadmap">
                 <Button variant="outline" className="rounded-xl font-semibold text-xs">
                   View Full Roadmap
@@ -202,6 +257,17 @@ export function CareerEvolutionCard() {
         onOpenChange={setIsCoachOpen}
         targetRole={goal?.target_role || "Software Developer"}
       />
+
+      {/* Technical Skill Assessment Modal (Standalone fallback support) */}
+      <SkillAssessmentModal
+        skillName={assessmentSkill}
+        isOpen={isAssessmentOpen}
+        onClose={() => setIsAssessmentOpen(false)}
+        onAssessmentCompleted={() => {
+          fetchAction();
+        }}
+      />
     </>
   );
 }
+

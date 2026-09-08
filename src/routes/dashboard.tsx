@@ -1508,9 +1508,10 @@ function DashboardPage() {
 
             <div className="lg:col-span-2 mt-4">
               <ScrollReveal delay={340}>
-                <CareerEvolutionCard />
+                <CareerEvolutionCard onStartAssessment={handleOpenAssessment} />
               </ScrollReveal>
             </div>
+
 
             <div className="lg:col-span-2 mt-4">
               <ScrollReveal delay={400}>
