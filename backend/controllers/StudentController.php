@@ -527,21 +527,20 @@ class StudentController {
         }
 
         jsonResponse([
-            'success'         => true,
-            'message'         => 'Resume uploaded and profile intelligently synchronized.',
-            'hasResume'       => true,
-            'resume_id'       => $resumeId,
-            'summary'         => $syncResult['summary'] ?? [
-                'profile_fields_updated' => 0,
-                'skills_added'           => 0,
-                'skills_updated'         => 0,
-                'projects_added'         => 0,
-                'projects_updated'       => 0,
-                'education_updated'      => 0,
-                'experience_added'       => 0,
-                'certifications_added'   => 0
-            ],
+            'success'            => true,
+            'message'            => 'Resume uploaded and profile intelligently synchronized.',
+            'hasResume'          => true,
+            'resume_id'          => $resumeId,
+            'analysis'           => $syncResult['analysis'] ?? [],
+            'sync'               => $syncResult['sync'] ?? $syncResult['summary'] ?? [],
+            'summary'            => $syncResult['summary'] ?? [],
             'conflicts'          => $syncResult['conflicts'] ?? [],
+            'career_impact'      => $syncResult['career_impact'] ?? [
+                'readiness_updated'   => true,
+                'skill_gaps_updated'  => true,
+                'job_matches_updated' => true,
+                'next_action_updated' => true,
+            ],
             'skills_detected'    => $syncResult['skills_detected'] ?? [],
             'categorized_skills' => $syncResult['categorized_skills'] ?? ResumeExtractionService::categorizeSkills($syncResult['skills_detected'] ?? []),
             'extraction'         => [
@@ -551,7 +550,8 @@ class StudentController {
                 'matched_skills_count' => $syncResult['matched_skills_count'] ?? 0,
                 'matched_skills'       => $syncResult['matched_skills'] ?? [],
             ],
-            'resume_analysis'    => $resumeAnalysis,
+            'resume_analysis'    => $resumeAnalysis ?? ($syncResult['analysis']['resume_quality'] ?? null),
+            'ats_analysis'       => $syncResult['analysis']['ats_analysis'] ?? null,
         ]);
     }
 

@@ -309,6 +309,22 @@ class ResumeExtractionService {
      * Normalize a single raw skill name against Master Taxonomy and registered database catalog.
      * Prevents duplicate skills and ensures canonical naming (e.g. "React.js" -> "React", "NodeJS" -> "Node.js").
      */
+    /**
+     * Spoken Natural Languages blacklist - must never be treated as technical skills
+     */
+    public const NATURAL_LANGUAGES = [
+        'english', 'tamil', 'hindi', 'spanish', 'french', 'german',
+        'telugu', 'kannada', 'malayalam', 'bengali', 'marathi', 'punjabi',
+        'gujarati', 'urdu', 'italian', 'russian', 'chinese', 'mandarin',
+        'cantonese', 'japanese', 'korean', 'arabic', 'portuguese', 'dutch',
+        'swedish', 'turkish', 'vietnamese', 'polish', 'latin', 'sanskrit'
+    ];
+
+    /**
+     * Normalize a single raw skill name against Master Taxonomy and registered database catalog.
+     * Prevents duplicate skills and ensures canonical naming (e.g. "React.js" -> "React", "NodeJS" -> "Node.js").
+     * Separates matched canonical skills from unmatched/unknown skills without polluting the master dictionary.
+     */
     public static function normalizeSkill(string $rawSkill): ?array {
         $clean = trim($rawSkill);
         if (strlen($clean) < 2) {
@@ -317,33 +333,64 @@ class ResumeExtractionService {
 
         $lower = strtolower($clean);
 
-        // 1. Check taxonomy aliases
+        // 1. Natural Language Filter (English, Tamil, Hindi, etc. must never be technical skills)
+        if (in_array($lower, self::NATURAL_LANGUAGES, true)) {
+            return null;
+        }
+
+        // 2. Check taxonomy aliases
         foreach (self::MASTER_TAXONOMY as $tax) {
             $taxNorm = strtolower(trim($tax['name']));
             if ($taxNorm === $lower) {
-                return ['name' => $tax['name'], 'normalized_name' => $taxNorm, 'category' => $tax['category']];
+                return [
+                    'name'            => $tax['name'],
+                    'normalized_name' => $taxNorm,
+                    'category'        => $tax['category'],
+                    'match_status'    => 'matched',
+                    'confidence'      => 0.98
+                ];
             }
             foreach ($tax['aliases'] ?? [] as $alias) {
                 if (strtolower(trim($alias)) === $lower) {
-                    return ['name' => $tax['name'], 'normalized_name' => $taxNorm, 'category' => $tax['category']];
+                    return [
+                        'name'            => $tax['name'],
+                        'normalized_name' => $taxNorm,
+                        'category'        => $tax['category'],
+                        'match_status'    => 'matched',
+                        'confidence'      => 0.95
+                    ];
                 }
             }
         }
 
-        // 2. Check Database directly
-        $db = Database::getConnection();
-        $stmt = $db->prepare('SELECT id, name, normalized_name, category FROM skills WHERE normalized_name = ? OR LOWER(name) = ? LIMIT 1');
-        $stmt->execute([$lower, $lower]);
-        $row = $stmt->fetch();
-        if ($row) {
-            return ['id' => $row['id'], 'name' => $row['name'], 'normalized_name' => $row['normalized_name'], 'category' => $row['category']];
+        // 3. Check Database directly
+        try {
+            $db = Database::getConnection();
+            $stmt = $db->prepare('SELECT id, name, normalized_name, category FROM skills WHERE normalized_name = ? OR LOWER(name) = ? LIMIT 1');
+            $stmt->execute([$lower, $lower]);
+            $row = $stmt->fetch();
+            if ($row) {
+                return [
+                    'id'              => $row['id'],
+                    'name'            => $row['name'],
+                    'normalized_name' => $row['normalized_name'],
+                    'category'        => $row['category'],
+                    'match_status'    => 'matched',
+                    'confidence'      => 0.92
+                ];
+            }
+        } catch (\Throwable $e) {
+            // DB fallback
         }
 
-        // 3. Fallback for valid domain terms
+        // 4. Unknown skill: do NOT auto-create master skill to prevent pollution.
+        // Return as unmatched for taxonomy review.
         return [
-            'name' => ucwords($clean),
+            'name'            => ucwords($clean),
             'normalized_name' => $lower,
-            'category' => 'Technical'
+            'category'        => 'Uncategorized',
+            'match_status'    => 'unmatched',
+            'confidence'      => 0.45
         ];
     }
 
@@ -387,7 +434,7 @@ class ResumeExtractionService {
             if (empty($name)) continue;
 
             $lower = strtolower(trim($name));
-            $cat = is_array($skill) && !empty($skill['category']) && $skill['category'] !== 'Technical'
+            $cat = is_array($skill) && !empty($skill['category']) && $skill['category'] !== 'Technical' && $skill['category'] !== 'Uncategorized'
                 ? $skill['category']
                 : ($categoryMap[$lower] ?? 'Other');
 
@@ -407,7 +454,7 @@ class ResumeExtractionService {
     }
 
     /**
-     * Match text against master skills & taxonomy. Auto-registers detected skills.
+     * Match text against master skills & taxonomy.
      */
     public static function matchSkillsInText(string $text): array {
         if (empty($text)) {
@@ -432,6 +479,7 @@ class ResumeExtractionService {
         foreach ($dbSkills as $s) {
             $norm = strtolower(trim($s['normalized_name'] ?? $s['name']));
             if (strlen($norm) < 2) continue;
+            if (in_array($norm, self::NATURAL_LANGUAGES, true)) continue;
 
             if (self::matchTermInText($norm, $lowerText) && !isset($matchedKeys[$norm])) {
                 $matched[] = $s;
@@ -439,13 +487,7 @@ class ResumeExtractionService {
             }
         }
 
-        // 2. Comprehensive Taxonomy scan & auto-registration
-        $insSkillStmt = $db->prepare('
-            INSERT INTO skills (id, name, normalized_name, category)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT (normalized_name) DO NOTHING
-        ');
-
+        // 2. Comprehensive Taxonomy scan
         foreach (self::MASTER_TAXONOMY as $taxSkill) {
             $taxNorm = strtolower(trim($taxSkill['name']));
             if (isset($matchedKeys[$taxNorm])) {
@@ -468,6 +510,11 @@ class ResumeExtractionService {
                 } else {
                     $skillId = 'sk_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $taxSkill['name']));
                     try {
+                        $insSkillStmt = $db->prepare('
+                            INSERT INTO skills (id, name, normalized_name, category)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT (normalized_name) DO NOTHING
+                        ');
                         $insSkillStmt->execute([
                             $skillId,
                             $taxSkill['name'],
@@ -496,7 +543,7 @@ class ResumeExtractionService {
     /**
      * Complete Resume Auto-Sync Engine:
      * Extract, Normalize, Detect Conflicts, Intelligently Merge Profile, Projects,
-     * Education, Experience, Certifications, and Evidence without downgrading verified skills.
+     * Education, Experience, Internships, Certifications, and Evidence without downgrading verified skills.
      */
     public static function processResumeAutoSync(string $studentId, string $storageKey, ?string $resumeId = null): array {
         $db = Database::getConnection();
@@ -507,8 +554,8 @@ class ResumeExtractionService {
 
         if (!$filePath || !is_file($filePath)) {
             return [
-                'success' => false,
-                'error' => 'Resume file not found in secure storage.',
+                'success'    => false,
+                'error'      => 'Resume file not found in secure storage.',
                 'error_code' => 'INVALID_FILE'
             ];
         }
@@ -522,8 +569,8 @@ class ResumeExtractionService {
 
         if (!$student) {
             return [
-                'success' => false,
-                'error' => 'Student record not found.',
+                'success'    => false,
+                'error'      => 'Student record not found.',
                 'error_code' => 'STUDENT_NOT_FOUND'
             ];
         }
@@ -532,8 +579,8 @@ class ResumeExtractionService {
         $textResult = self::extractTextFromFile($storageKey);
         if (!$textResult['success'] || empty($textResult['text'])) {
             return [
-                'success' => false,
-                'error' => $textResult['error'] ?? 'No extractable text layer found in resume.',
+                'success'    => false,
+                'error'      => $textResult['error'] ?? 'No extractable text layer found in resume.',
                 'error_code' => 'EXTRACTION_FAILED'
             ];
         }
@@ -547,19 +594,68 @@ class ResumeExtractionService {
             'college' => $student['college'] ?? '',
         ]);
 
-        // 5. Match and Normalize Skills
-        $matchedTaxonomySkills = self::matchSkillsInText($resumeText);
-        $extractedRawSkills = $structuredData['skills'] ?? [];
+        // Attach resume metadata
+        $structuredData['resume_metadata'] = [
+            'content_hash'    => $contentHash,
+            'storage_key'     => $storageKey,
+            'format'          => $textResult['format'],
+            'word_count'      => $textResult['word_count'],
+            'processed_at'    => date('c'),
+            'pipeline_version'=> '3.0'
+        ];
 
-        $allSkillNames = array_map(fn($s) => $s['name'], $matchedTaxonomySkills);
-        foreach ($extractedRawSkills as $rawSkill) {
-            $norm = self::normalizeSkill($rawSkill);
-            if ($norm && !in_array($norm['name'], $allSkillNames, true)) {
-                $allSkillNames[] = $norm['name'];
+        // 5. Match and Normalize Skills & Unknown Skills Isolation
+        $matchedTaxonomySkills = self::matchSkillsInText($resumeText);
+        $extractedRawSkills = $structuredData['raw_skills'] ?? [];
+        if (empty($extractedRawSkills) && !empty($structuredData['skills'])) {
+            foreach ($structuredData['skills'] as $skObj) {
+                if (is_array($skObj) && !empty($skObj['name'])) {
+                    $extractedRawSkills[] = $skObj['name'];
+                } elseif (is_string($skObj)) {
+                    $extractedRawSkills[] = $skObj;
+                }
             }
         }
 
-        // Auto-register any newly discovered skills in DB
+        $allSkillNorms = [];
+        $unmatchedSkills = [];
+
+        foreach ($matchedTaxonomySkills as $s) {
+            $norm = strtolower(trim($s['normalized_name'] ?? $s['name']));
+            $allSkillNorms[$norm] = [
+                'id'           => $s['id'] ?? null,
+                'name'         => $s['name'],
+                'category'     => $s['category'] ?? 'Technical',
+                'match_status' => 'matched',
+                'confidence'   => 0.98
+            ];
+        }
+
+        foreach ($extractedRawSkills as $rawSkill) {
+            $norm = self::normalizeSkill($rawSkill);
+            if (!$norm) continue;
+
+            if ($norm['match_status'] === 'matched') {
+                $normKey = $norm['normalized_name'];
+                if (!isset($allSkillNorms[$normKey])) {
+                    $allSkillNorms[$normKey] = [
+                        'id'           => $norm['id'] ?? null,
+                        'name'         => $norm['name'],
+                        'category'     => $norm['category'],
+                        'match_status' => 'matched',
+                        'confidence'   => $norm['confidence'] ?? 0.95
+                    ];
+                }
+            } else {
+                $unmatchedSkills[] = [
+                    'name'         => $norm['name'],
+                    'match_status' => 'unmatched',
+                    'confidence'   => $norm['confidence'] ?? 0.45
+                ];
+            }
+        }
+
+        // Register matched canonical skills in DB if not already present
         $insSkillStmt = $db->prepare('
             INSERT INTO skills (id, name, normalized_name, category)
             VALUES (?, ?, ?, ?)
@@ -569,23 +665,19 @@ class ResumeExtractionService {
         $finalMatchedSkills = [];
         $finalSkillIds = [];
 
-        foreach ($allSkillNames as $skName) {
-            $norm = self::normalizeSkill($skName);
-            if (!$norm) continue;
-
-            $normName = $norm['normalized_name'];
+        foreach ($allSkillNorms as $normKey => $skInfo) {
             $fetchStmt = $db->prepare('SELECT id, name, normalized_name, category FROM skills WHERE normalized_name = ? LIMIT 1');
-            $fetchStmt->execute([$normName]);
+            $fetchStmt->execute([$normKey]);
             $dbRow = $fetchStmt->fetch(\PDO::FETCH_ASSOC);
 
             if (!$dbRow) {
-                $newId = 'sk_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $norm['name']));
+                $newId = 'sk_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $skInfo['name']));
                 try {
-                    $insSkillStmt->execute([$newId, $norm['name'], $normName, $norm['category'] ?? 'Technical']);
+                    $insSkillStmt->execute([$newId, $skInfo['name'], $normKey, $skInfo['category'] ?? 'Technical']);
                 } catch (\Throwable $e) {
                     // Ignore duplicate
                 }
-                $fetchStmt->execute([$normName]);
+                $fetchStmt->execute([$normKey]);
                 $dbRow = $fetchStmt->fetch(\PDO::FETCH_ASSOC);
             }
 
@@ -599,13 +691,16 @@ class ResumeExtractionService {
         $db->beginTransaction();
 
         $summary = [
+            'profile_updated'        => 0,
             'profile_fields_updated' => 0,
             'skills_added'           => 0,
             'skills_updated'         => 0,
             'projects_added'         => 0,
             'projects_updated'       => 0,
+            'education_added'        => 0,
             'education_updated'      => 0,
             'experience_added'       => 0,
+            'experience_updated'     => 0,
             'certifications_added'   => 0
         ];
 
@@ -613,9 +708,9 @@ class ResumeExtractionService {
         $skillsDetected = [];
 
         try {
-            // A. Contact / Identity Conflict Detection (Phone)
+            // A. Contact / Identity Conflict Detection (Phone, Location, Social Links)
             $existingPhone = trim((string)($student['phone'] ?? ''));
-            $resumePhone = trim((string)($structuredData['personal']['phone'] ?? ''));
+            $resumePhone = trim((string)($structuredData['personal_information']['phone'] ?? $structuredData['personal']['phone'] ?? ''));
 
             $cleanExistingPhone = preg_replace('/\D/', '', $existingPhone);
             $cleanResumePhone = preg_replace('/\D/', '', $resumePhone);
@@ -623,11 +718,12 @@ class ResumeExtractionService {
             if (!empty($cleanExistingPhone) && !empty($cleanResumePhone) && $cleanExistingPhone !== $cleanResumePhone) {
                 $conflictId = 'conf_' . bin2hex(random_bytes(8));
                 $conflicts[] = [
-                    'id'             => $conflictId,
-                    'field'          => 'phone',
-                    'existing_value' => $existingPhone,
-                    'resume_value'   => $resumePhone,
-                    'status'         => 'requires_review'
+                    'id'              => $conflictId,
+                    'field'           => 'phone',
+                    'existing_value'  => $existingPhone,
+                    'resume_value'    => $resumePhone,
+                    'requires_review' => true,
+                    'status'          => 'requires_review'
                 ];
 
                 $insConf = $db->prepare('
@@ -637,15 +733,57 @@ class ResumeExtractionService {
                 $insConf->execute([$conflictId, $studentId, $resumeId, 'phone', $existingPhone, $resumePhone]);
             }
 
-            // B. Profile Fields Intelligent Merge (Fill missing, never destroy existing manually entered data)
+            // Conflict check for GitHub link
+            $existingGithub = trim((string)($student['github_url'] ?? ''));
+            $resumeGithub = trim((string)($structuredData['social_links']['github'] ?? $structuredData['links']['github'] ?? ''));
+            if (!empty($existingGithub) && !empty($resumeGithub) && strtolower($existingGithub) !== strtolower($resumeGithub)) {
+                $conflictId = 'conf_' . bin2hex(random_bytes(8));
+                $conflicts[] = [
+                    'id'              => $conflictId,
+                    'field'           => 'github',
+                    'existing_value'  => $existingGithub,
+                    'resume_value'    => $resumeGithub,
+                    'requires_review' => true,
+                    'status'          => 'requires_review'
+                ];
+                $insConf = $db->prepare('
+                    INSERT INTO resume_conflicts (id, student_id, resume_id, field, existing_value, resume_value, status)
+                    VALUES (?, ?, ?, ?, ?, ?, \'requires_review\')
+                ');
+                $insConf->execute([$conflictId, $studentId, $resumeId, 'github', $existingGithub, $resumeGithub]);
+            }
+
+            // Conflict check for LinkedIn link
+            $existingLinkedin = trim((string)($student['linkedin_url'] ?? ''));
+            $resumeLinkedin = trim((string)($structuredData['social_links']['linkedin'] ?? $structuredData['links']['linkedin'] ?? ''));
+            if (!empty($existingLinkedin) && !empty($resumeLinkedin) && strtolower($existingLinkedin) !== strtolower($resumeLinkedin)) {
+                $conflictId = 'conf_' . bin2hex(random_bytes(8));
+                $conflicts[] = [
+                    'id'              => $conflictId,
+                    'field'           => 'linkedin',
+                    'existing_value'  => $existingLinkedin,
+                    'resume_value'    => $resumeLinkedin,
+                    'requires_review' => true,
+                    'status'          => 'requires_review'
+                ];
+                $insConf = $db->prepare('
+                    INSERT INTO resume_conflicts (id, student_id, resume_id, field, existing_value, resume_value, status)
+                    VALUES (?, ?, ?, ?, ?, ?, \'requires_review\')
+                ');
+                $insConf->execute([$conflictId, $studentId, $resumeId, 'linkedin', $existingLinkedin, $resumeLinkedin]);
+            }
+
+            // B. Profile Fields Intelligent Merge (Fill missing, never overwrite existing verified/manual data)
             $profileUpdates = [];
             $updateParams = [];
 
             // Location
-            if (empty($student['location']) && !empty($structuredData['personal']['location'])) {
+            $resumeLoc = $structuredData['personal_information']['location'] ?? $structuredData['personal']['location'] ?? '';
+            if (empty($student['location']) && !empty($resumeLoc)) {
                 $profileUpdates[] = 'location = ?';
-                $updateParams[] = $structuredData['personal']['location'];
+                $updateParams[] = $resumeLoc;
                 $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
             }
 
             // Phone (only set if student currently has NO phone registered)
@@ -653,34 +791,41 @@ class ResumeExtractionService {
                 $profileUpdates[] = 'phone = ?';
                 $updateParams[] = $resumePhone;
                 $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
             }
 
             // Bio / Summary
-            if (empty($student['bio']) && !empty($structuredData['personal']['summary'])) {
+            $resumeSum = $structuredData['personal_information']['professional_summary'] ?? $structuredData['personal']['summary'] ?? '';
+            if (empty($student['bio']) && !empty($resumeSum)) {
                 $profileUpdates[] = 'bio = ?';
-                $updateParams[] = $structuredData['personal']['summary'];
+                $updateParams[] = $resumeSum;
                 $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
             }
 
             // Links: GitHub
-            if (empty($student['github_url']) && !empty($structuredData['links']['github'])) {
+            if (empty($existingGithub) && !empty($resumeGithub)) {
                 $profileUpdates[] = 'github_url = ?';
-                $updateParams[] = $structuredData['links']['github'];
+                $updateParams[] = $resumeGithub;
                 $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
             }
 
             // Links: LinkedIn
-            if (empty($student['linkedin_url']) && !empty($structuredData['links']['linkedin'])) {
+            if (empty($existingLinkedin) && !empty($resumeLinkedin)) {
                 $profileUpdates[] = 'linkedin_url = ?';
-                $updateParams[] = $structuredData['links']['linkedin'];
+                $updateParams[] = $resumeLinkedin;
                 $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
             }
 
             // Links: Portfolio
-            if (empty($student['portfolio_url']) && !empty($structuredData['links']['portfolio'])) {
+            $resumePort = trim((string)($structuredData['social_links']['portfolio'] ?? $structuredData['links']['portfolio'] ?? ''));
+            if (empty($student['portfolio_url']) && !empty($resumePort)) {
                 $profileUpdates[] = 'portfolio_url = ?';
-                $updateParams[] = $structuredData['links']['portfolio'];
+                $updateParams[] = $resumePort;
                 $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
             }
 
             if (!empty($profileUpdates)) {
@@ -692,17 +837,17 @@ class ResumeExtractionService {
             }
 
             // C. Skill Synchronization & Evidence
-            // Fetch existing student skills to determine new vs existing and protect verification
-            $ssStmt = $db->prepare('SELECT skill_id, proficiency FROM student_skills WHERE student_id = ?');
+            // Fetch existing student skills to protect existing verified status
+            $ssStmt = $db->prepare('SELECT skill_id, proficiency, verified FROM student_skills WHERE student_id = ?');
             $ssStmt->execute([$studentId]);
             $existingStudentSkills = [];
             foreach ($ssStmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
-                $existingStudentSkills[$row['skill_id']] = $row['proficiency'];
+                $existingStudentSkills[$row['skill_id']] = $row;
             }
 
             $insStudentSkill = $db->prepare('
-                INSERT INTO student_skills (student_id, skill_id, proficiency)
-                VALUES (?, ?, \'intermediate\')
+                INSERT INTO student_skills (student_id, skill_id, proficiency, verified)
+                VALUES (?, ?, \'intermediate\', FALSE)
                 ON CONFLICT (student_id, skill_id) DO NOTHING
             ');
 
@@ -727,25 +872,31 @@ class ResumeExtractionService {
                     $summary['skills_added']++;
                 }
 
-                // Create / update skill evidence (20% proof factor, does NOT automatically mark verified)
+                // Register skill evidence ledger:
+                // Mandatory Rule: Resume claim != verified. Verification remains false unless proof-of-skill exists.
                 $evId = 'ev_res_' . bin2hex(random_bytes(6));
                 $meta = json_encode([
-                    'storage_key'  => $storageKey,
-                    'format'       => $textResult['format'],
-                    'detected_at'  => date('c'),
-                    'source_label' => 'Extracted from uploaded resume'
+                    'storage_key'         => $storageKey,
+                    'format'              => $textResult['format'],
+                    'detected_at'         => date('c'),
+                    'source_label'        => 'Extracted from uploaded resume',
+                    'verification_status' => 'NOT_VERIFIED',
+                    'claimed_proficiency' => 'Claimed in Resume'
                 ]);
                 $insEvidence->execute([$evId, $studentId, $sId, 75.0, $meta]);
 
                 $skillsDetected[] = [
-                    'id'       => $sId,
-                    'name'     => $sk['name'],
-                    'category' => $sk['category'],
-                    'status'   => 'evidence_available'
+                    'id'                  => $sId,
+                    'name'                => $sk['name'],
+                    'category'            => $sk['category'],
+                    'status'              => 'evidence_available',
+                    'verification_status' => 'NOT_VERIFIED',
+                    'confidence'          => 0.75,
+                    'source'              => 'resume'
                 ];
             }
 
-            // D. Projects Auto-Sync
+            // D. Projects Auto-Sync & Deduplication
             $pStmt = $db->prepare('SELECT id, title, project_url, github_url, description, tech_stack FROM student_projects WHERE student_id = ?');
             $pStmt->execute([$studentId]);
             $existingProjects = $pStmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -785,10 +936,10 @@ class ResumeExtractionService {
 
                 if ($matchedProjId) {
                     $upProject->execute([
-                        $proj['description'],
-                        $proj['technologies'],
-                        $proj['github_url'],
-                        $proj['live_url'],
+                        $proj['description'] ?? '',
+                        $proj['technologies'] ?? '',
+                        $proj['github_url'] ?? '',
+                        $proj['live_url'] ?? '',
                         $matchedProjId
                     ]);
                     $summary['projects_updated']++;
@@ -798,16 +949,16 @@ class ResumeExtractionService {
                         $newPId,
                         $studentId,
                         $pName,
-                        $proj['description'],
-                        $proj['technologies'],
-                        $proj['live_url'],
-                        $proj['github_url']
+                        $proj['description'] ?? '',
+                        $proj['technologies'] ?? '',
+                        $proj['live_url'] ?? '',
+                        $proj['github_url'] ?? ''
                     ]);
                     $summary['projects_added']++;
                 }
             }
 
-            // E. Education Auto-Sync
+            // E. Education Auto-Sync & Deduplication
             $eduStmt = $db->prepare('SELECT id, institution, degree, field FROM student_education WHERE student_id = ?');
             $eduStmt->execute([$studentId]);
             $existingEducation = $eduStmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -837,15 +988,16 @@ class ResumeExtractionService {
                         $studentId,
                         $inst,
                         $edu['degree'] ?: ($student['program'] ?? ''),
-                        $edu['field'] ?: 'Computer Science',
-                        $edu['start_year'] ?? '',
-                        $edu['graduation_year'] ?? '',
-                        $edu['grade'] ?? ''
+                        $edu['field_of_study'] ?? $edu['field'] ?? 'Computer Science',
+                        $edu['start_year'] ?? $edu['start_date'] ?? '',
+                        $edu['graduation_year'] ?? $edu['end_date'] ?? '',
+                        $edu['grade'] ?? $edu['cgpa'] ?? ''
                     ]);
+                    $summary['education_added']++;
                     $summary['education_updated']++;
                 }
 
-                // Update students table college/program if empty
+                // Update student college/program if empty
                 if (empty($student['college']) && !empty($inst)) {
                     $db->prepare('UPDATE students SET college = ? WHERE id = ?')->execute([$inst, $studentId]);
                 }
@@ -857,7 +1009,7 @@ class ResumeExtractionService {
                 }
             }
 
-            // F. Experience Auto-Sync
+            // F. Experience & Internships Auto-Sync & Deduplication
             $expStmt = $db->prepare('SELECT id, company, job_title FROM student_experience WHERE student_id = ?');
             $expStmt->execute([$studentId]);
             $existingExperience = $expStmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -867,6 +1019,7 @@ class ResumeExtractionService {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ');
 
+            // 1. Full-time / Part-time / Contract Experience
             foreach ($structuredData['experience'] as $exp) {
                 $comp = trim($exp['company']);
                 if (empty($comp)) continue;
@@ -902,7 +1055,41 @@ class ResumeExtractionService {
                 }
             }
 
-            // G. Certifications Auto-Sync
+            // 2. Internships (mapped cleanly to student_experience with employment_type = 'Internship')
+            if (!empty($structuredData['internships'])) {
+                foreach ($structuredData['internships'] as $intern) {
+                    $comp = trim($intern['company'] ?? '');
+                    if (empty($comp)) continue;
+
+                    $isInternMatch = false;
+                    $normComp = strtolower($comp);
+                    foreach ($existingExperience as $ee) {
+                        if (strtolower($ee['company']) === $normComp) {
+                            $isInternMatch = true;
+                            break;
+                        }
+                    }
+
+                    if (!$isInternMatch) {
+                        $expId = 'exp_int_' . bin2hex(random_bytes(6));
+                        $techStr = implode(', ', $intern['skills_used'] ?? []);
+                        $insExp->execute([
+                            $expId,
+                            $studentId,
+                            $comp,
+                            $intern['role'] ?: 'Intern',
+                            'Internship',
+                            $intern['start_date'] ?? '',
+                            $intern['end_date'] ?? '',
+                            $intern['description'] ?? '',
+                            $techStr
+                        ]);
+                        $summary['experience_added']++;
+                    }
+                }
+            }
+
+            // G. Certifications Auto-Sync & Deduplication
             $certStmt = $db->prepare('SELECT id, title, issuer FROM student_certificates WHERE student_id = ?');
             $certStmt->execute([$studentId]);
             $existingCertificates = $certStmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -980,7 +1167,13 @@ class ResumeExtractionService {
         }
 
         // B. Trigger Career Evolution / Readiness Recalculation
-        $careerGoal = null;
+        $careerImpact = [
+            'readiness_updated'  => false,
+            'skill_gaps_updated' => false,
+            'job_matches_updated'=> false,
+            'next_action_updated'=> false
+        ];
+
         try {
             $careerGoal = CareerEvolutionService::getCareerGoal($studentId);
             if ($careerGoal && !empty($careerGoal['target_role'])) {
@@ -992,6 +1185,10 @@ class ResumeExtractionService {
                     $readiness['readiness_tier'] ?? 'Developing',
                     $readiness
                 );
+                $careerImpact['readiness_updated'] = true;
+                $careerImpact['skill_gaps_updated'] = true;
+                $careerImpact['job_matches_updated'] = true;
+                $careerImpact['next_action_updated'] = true;
             }
         } catch (\Throwable $e) {
             error_log('Career intelligence recalculation error: ' . $e->getMessage());
@@ -1003,8 +1200,26 @@ class ResumeExtractionService {
             'success'              => true,
             'resume_id'            => $resumeId,
             'content_hash'         => $contentHash,
+            'analysis'             => [
+                'profile'        => $structuredData['personal_information'] ?? $structuredData['personal'] ?? [],
+                'skills'         => $structuredData['skills'] ?? [],
+                'unmatched_skills'=> $unmatchedSkills,
+                'projects'       => $structuredData['projects'] ?? [],
+                'education'      => $structuredData['education'] ?? [],
+                'experience'     => $structuredData['experience'] ?? [],
+                'internships'    => $structuredData['internships'] ?? [],
+                'certifications' => $structuredData['certifications'] ?? [],
+                'achievements'   => $structuredData['achievements'] ?? [],
+                'languages'      => $structuredData['languages'] ?? [],
+                'courses'        => $structuredData['courses'] ?? [],
+                'links'          => $structuredData['social_links'] ?? $structuredData['links'] ?? [],
+                'resume_quality' => $structuredData['resume_quality'] ?? [],
+                'ats_analysis'   => $structuredData['ats_analysis'] ?? []
+            ],
+            'sync'                 => $summary,
             'summary'              => $summary,
             'conflicts'            => $conflicts,
+            'career_impact'        => $careerImpact,
             'skills_detected'      => $skillsDetected,
             'categorized_skills'   => $categorizedSkills,
             'structured_data'      => $structuredData,
