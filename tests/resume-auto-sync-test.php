@@ -66,7 +66,29 @@ try {
     assertTest("Normalizes 'JS' to 'JavaScript'", ($norm5['name'] ?? '') === 'JavaScript');
 
     $norm6 = ResumeExtractionService::normalizeSkill('Django REST Framework');
-    assertTest("Normalizes 'Django REST Framework' to 'Django'", ($norm6['name'] ?? '') === 'Django');
+    assertTest("Normalizes 'Django REST Framework' to 'Django REST Framework'", ($norm6['name'] ?? '') === 'Django REST Framework');
+
+    $norm7 = ResumeExtractionService::normalizeSkill('ThreeJS');
+    assertTest("Normalizes 'ThreeJS' to 'Three.js'", ($norm7['name'] ?? '') === 'Three.js');
+
+    $norm8 = ResumeExtractionService::normalizeSkill('mediapipe');
+    assertTest("Normalizes 'mediapipe' to 'MediaPipe'", ($norm8['name'] ?? '') === 'MediaPipe');
+
+    $norm9 = ResumeExtractionService::normalizeSkill('google antigravity');
+    assertTest("Normalizes 'google antigravity' to 'Antigravity'", ($norm9['name'] ?? '') === 'Antigravity');
+
+    $norm10 = ResumeExtractionService::normalizeSkill('drf');
+    assertTest("Normalizes 'drf' to 'Django REST Framework'", ($norm10['name'] ?? '') === 'Django REST Framework');
+
+    $categorizedTest = ResumeExtractionService::categorizeSkills(['Python', 'Three.js', 'FastAPI', 'PostgreSQL', 'MediaPipe', 'Vercel', 'Google Gemini', 'REST APIs']);
+    assertTest("Categorizes Python under Languages", !empty($categorizedTest['Languages']));
+    assertTest("Categorizes Three.js under Frontend", !empty($categorizedTest['Frontend']));
+    assertTest("Categorizes FastAPI under Backend", !empty($categorizedTest['Backend']));
+    assertTest("Categorizes PostgreSQL under Databases", !empty($categorizedTest['Databases']));
+    assertTest("Categorizes MediaPipe under AI & Computer Vision", !empty($categorizedTest['AI & Computer Vision']));
+    assertTest("Categorizes Vercel under Cloud & Tools", !empty($categorizedTest['Cloud & Tools']));
+    assertTest("Categorizes Google Gemini under AI Development Tools", !empty($categorizedTest['AI Development Tools']));
+    assertTest("Categorizes REST APIs under Other", !empty($categorizedTest['Other']));
 
 
     // ------------------------------------------------------------------------

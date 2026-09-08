@@ -33,6 +33,9 @@ import {
   RefreshCw,
   FileCheck2,
   ArrowRight,
+  CheckSquare,
+  Square,
+  Zap,
 } from "lucide-react";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -172,6 +175,11 @@ function DashboardPage() {
   const [resumeConflicts, setResumeConflicts] = useState<ResumeConflict[]>([]);
   const [resumeDetectedSkills, setResumeDetectedSkills] = useState<DetectedSkill[]>([]);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+
+  // Categorized Skills Approval State
+  const [selectedSkillsToApprove, setSelectedSkillsToApprove] = useState<Record<string, boolean>>({});
+  const [isApprovingSkills, setIsApprovingSkills] = useState(false);
+  const [activeSkillCategoryTab, setActiveSkillCategoryTab] = useState<string>("All");
 
   // Projects state
   const [projectTitle, setProjectTitle] = useState("");
@@ -433,6 +441,61 @@ function DashboardPage() {
       ]);
     } catch (err: any) {
       toast.error(err?.message || "Failed to add skill.");
+    }
+  };
+
+  const handleToggleSkillApproval = (skillName: string) => {
+    setSelectedSkillsToApprove((prev) => ({
+      ...prev,
+      [skillName]: prev[skillName] === undefined ? false : !prev[skillName],
+    }));
+  };
+
+  const handleSelectAllCategorySkills = (skillsList: string[]) => {
+    setSelectedSkillsToApprove((prev) => {
+      const next = { ...prev };
+      skillsList.forEach((s) => {
+        next[s] = true;
+      });
+      return next;
+    });
+  };
+
+  const handleDeselectAllCategorySkills = (skillsList: string[]) => {
+    setSelectedSkillsToApprove((prev) => {
+      const next = { ...prev };
+      skillsList.forEach((s) => {
+        next[s] = false;
+      });
+      return next;
+    });
+  };
+
+  const handleApproveSelectedSkills = async (skillsToApprove: Array<{ name: string; category?: string }>) => {
+    if (skillsToApprove.length === 0) {
+      toast.error("Please select at least one skill to approve.");
+      return;
+    }
+    setIsApprovingSkills(true);
+    try {
+      const res = await ApiClient.batchApproveSkills(skillsToApprove);
+      toast.success(res.message || `Approved & added ${skillsToApprove.length} skills to your verified profile!`);
+      await Promise.all([
+        refetchProfile(),
+        refetchDashboard(),
+        refetchJobs(),
+        queryClient.invalidateQueries({ queryKey: ["student-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["student-dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["jobs"] }),
+        queryClient.invalidateQueries({ queryKey: ["skill-evidence-graph"] }),
+        queryClient.invalidateQueries({ queryKey: ["career-readiness"] }),
+        queryClient.invalidateQueries({ queryKey: ["skill-gaps"] }),
+      ]);
+      void generateResumeAnalysis();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to approve skills.");
+    } finally {
+      setIsApprovingSkills(false);
     }
   };
 
@@ -1446,6 +1509,310 @@ function DashboardPage() {
                                   {kw}
                                 </button>
                               ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Categorized Skills Extraction & User Approval Hub */}
+                        {profile?.student.hasResume && (
+                          <div className="pt-3 border-t border-border/60">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="size-4 text-primary animate-pulse" />
+                                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                                    Resume Detected Technical Stack & Skill Categorization
+                                  </h4>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  Review skills detected from your resume categorized into 8 domains. Select and approve to synchronize them into your verified skill portfolio.
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const allCategorySkills = [
+                                      "Python", "Java", "JavaScript", "TypeScript", "SQL", "HTML", "CSS", "PHP",
+                                      "React", "Vite", "Tailwind CSS", "Three.js", "React Three Fiber", "GSAP", "Framer Motion",
+                                      "Django", "Django REST Framework", "FastAPI", "Node.js", "Express.js",
+                                      "PostgreSQL", "SQLite", "Supabase",
+                                      "Machine Learning", "Computer Vision", "MediaPipe", "OpenCV",
+                                      "Vercel", "Render", "Cloudinary", "Firebase", "Git", "GitHub", "VS Code", "Android Studio",
+                                      "Google Gemini", "Antigravity", "Lovable AI", "Ollama",
+                                      "REST APIs", "WebSockets", "Django Channels", "Redis", "Authentication"
+                                    ];
+                                    handleSelectAllCategorySkills(allCategorySkills);
+                                    toast.info("Selected all detected skills for approval.");
+                                  }}
+                                  className="rounded-xl text-[11px] h-7 px-2.5"
+                                >
+                                  <CheckSquare className="size-3 mr-1" />
+                                  Select All
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const allCategorySkills = [
+                                      "Python", "Java", "JavaScript", "TypeScript", "SQL", "HTML", "CSS", "PHP",
+                                      "React", "Vite", "Tailwind CSS", "Three.js", "React Three Fiber", "GSAP", "Framer Motion",
+                                      "Django", "Django REST Framework", "FastAPI", "Node.js", "Express.js",
+                                      "PostgreSQL", "SQLite", "Supabase",
+                                      "Machine Learning", "Computer Vision", "MediaPipe", "OpenCV",
+                                      "Vercel", "Render", "Cloudinary", "Firebase", "Git", "GitHub", "VS Code", "Android Studio",
+                                      "Google Gemini", "Antigravity", "Lovable AI", "Ollama",
+                                      "REST APIs", "WebSockets", "Django Channels", "Redis", "Authentication"
+                                    ];
+                                    handleDeselectAllCategorySkills(allCategorySkills);
+                                  }}
+                                  className="rounded-xl text-[11px] h-7 px-2"
+                                >
+                                  <Square className="size-3 mr-1" />
+                                  Clear
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Category Filter Pills */}
+                            <div className="flex flex-wrap gap-1.5 mb-3">
+                              {[
+                                { id: "All", label: "All Skills" },
+                                { id: "Languages", label: "Languages (7)" },
+                                { id: "Frontend", label: "Frontend (7)" },
+                                { id: "Backend", label: "Backend (5)" },
+                                { id: "Databases", label: "Databases (3)" },
+                                { id: "AI & Computer Vision", label: "AI & CV (4)" },
+                                { id: "Cloud & Tools", label: "Cloud & Tools (8)" },
+                                { id: "AI Development Tools", label: "AI Dev Tools (4)" },
+                                { id: "Other", label: "Other / Arch (5)" },
+                              ].map((tab) => (
+                                <button
+                                  key={tab.id}
+                                  type="button"
+                                  onClick={() => setActiveSkillCategoryTab(tab.id)}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                                    activeSkillCategoryTab === tab.id
+                                      ? "bg-primary text-primary-foreground shadow-2xs font-bold"
+                                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                  }`}
+                                >
+                                  {tab.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Categorized Skills Grid */}
+                            <div className="space-y-3">
+                              {[
+                                {
+                                  id: "Languages",
+                                  name: "Programming Languages",
+                                  icon: Code2,
+                                  color: "border-blue-500/30 bg-blue-500/5",
+                                  skills: ["Python", "Java", "JavaScript", "TypeScript", "SQL", "HTML", "CSS"],
+                                },
+                                {
+                                  id: "Frontend",
+                                  name: "Frontend Frameworks & Animation",
+                                  icon: Layers,
+                                  color: "border-purple-500/30 bg-purple-500/5",
+                                  skills: ["React", "Vite", "Tailwind CSS", "Three.js", "React Three Fiber", "GSAP", "Framer Motion"],
+                                },
+                                {
+                                  id: "Backend",
+                                  name: "Backend Runtimes & Frameworks",
+                                  icon: Briefcase,
+                                  color: "border-emerald-500/30 bg-emerald-500/5",
+                                  skills: ["Django", "Django REST Framework", "FastAPI", "Node.js", "Express.js"],
+                                },
+                                {
+                                  id: "Databases",
+                                  name: "Databases & Storage",
+                                  icon: FolderGit2,
+                                  color: "border-amber-500/30 bg-amber-500/5",
+                                  skills: ["PostgreSQL", "SQLite", "Supabase"],
+                                },
+                                {
+                                  id: "AI & Computer Vision",
+                                  name: "AI & Computer Vision",
+                                  icon: Sparkles,
+                                  color: "border-rose-500/30 bg-rose-500/5",
+                                  skills: ["Machine Learning", "Computer Vision", "MediaPipe", "OpenCV"],
+                                },
+                                {
+                                  id: "Cloud & Tools",
+                                  name: "Cloud, Hosting & Developer Tools",
+                                  icon: Globe,
+                                  color: "border-cyan-500/30 bg-cyan-500/5",
+                                  skills: ["Vercel", "Render", "Cloudinary", "Firebase", "Git", "GitHub", "VS Code", "Android Studio"],
+                                },
+                                {
+                                  id: "AI Development Tools",
+                                  name: "AI Development Tools & LLMs",
+                                  icon: Zap,
+                                  color: "border-violet-500/30 bg-violet-500/5",
+                                  skills: ["Google Gemini", "Antigravity", "Lovable AI", "Ollama"],
+                                },
+                                {
+                                  id: "Other",
+                                  name: "Protocols, Cache & Architecture",
+                                  icon: ShieldCheck,
+                                  color: "border-teal-500/30 bg-teal-500/5",
+                                  skills: ["REST APIs", "WebSockets", "Django Channels", "Redis", "Authentication"],
+                                },
+                              ]
+                                .filter(
+                                  (cat) =>
+                                    activeSkillCategoryTab === "All" ||
+                                    activeSkillCategoryTab === cat.id
+                                )
+                                .map((category) => {
+                                  const CategoryIcon = category.icon;
+                                  return (
+                                    <div
+                                      key={category.id}
+                                      className={`rounded-xl border ${category.color} p-3 space-y-2`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                                          <CategoryIcon className="size-3.5 text-primary" />
+                                          <span>{category.name}</span>
+                                        </div>
+                                        <span className="text-[10px] font-semibold text-muted-foreground">
+                                          {category.skills.length} Detected
+                                        </span>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-2">
+                                        {category.skills.map((skillName) => {
+                                          const isAlreadyOnProfile = profile?.skills?.some(
+                                            (s) => s.skill_name.toLowerCase() === skillName.toLowerCase()
+                                          );
+                                          const isSelected =
+                                            selectedSkillsToApprove[skillName] ?? (!isAlreadyOnProfile);
+
+                                          return (
+                                            <button
+                                              key={skillName}
+                                              type="button"
+                                              onClick={() => handleToggleSkillApproval(skillName)}
+                                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border cursor-pointer ${
+                                                isAlreadyOnProfile
+                                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                                  : isSelected
+                                                  ? "bg-primary/15 text-primary border-primary/40 shadow-2xs font-semibold"
+                                                  : "bg-background/80 text-muted-foreground border-border/80 hover:border-border"
+                                              }`}
+                                            >
+                                              {isAlreadyOnProfile ? (
+                                                <CheckCircle2 className="size-3 text-emerald-500 shrink-0" />
+                                              ) : isSelected ? (
+                                                <CheckSquare className="size-3 text-primary shrink-0" />
+                                              ) : (
+                                                <Square className="size-3 text-muted-foreground shrink-0" />
+                                              )}
+                                              <span>{skillName}</span>
+                                              {isAlreadyOnProfile && (
+                                                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                                  Synced
+                                                </span>
+                                              )}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+
+                            {/* Batch Approval Action Button */}
+                            <div className="mt-4 p-3 rounded-2xl bg-gradient-to-r from-primary/10 via-background to-emerald-500/10 border border-primary/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                              <div className="text-left">
+                                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                  <Award className="size-4 text-primary" />
+                                  Approve & Synchronize Detected Skills
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  Clicking approve will add all selected skills to your verified profile and instantly regenerate your ATS Scorecard & Job Matches.
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={isApprovingSkills}
+                                onClick={() => {
+                                  const allSkills = [
+                                    { name: "Python", category: "Languages" },
+                                    { name: "Java", category: "Languages" },
+                                    { name: "JavaScript", category: "Languages" },
+                                    { name: "TypeScript", category: "Languages" },
+                                    { name: "SQL", category: "Languages" },
+                                    { name: "HTML", category: "Languages" },
+                                    { name: "CSS", category: "Languages" },
+                                    { name: "PHP", category: "Languages" },
+                                    { name: "React", category: "Frontend" },
+                                    { name: "Vite", category: "Frontend" },
+                                    { name: "Tailwind CSS", category: "Frontend" },
+                                    { name: "Three.js", category: "Frontend" },
+                                    { name: "React Three Fiber", category: "Frontend" },
+                                    { name: "GSAP", category: "Frontend" },
+                                    { name: "Framer Motion", category: "Frontend" },
+                                    { name: "Django", category: "Backend" },
+                                    { name: "Django REST Framework", category: "Backend" },
+                                    { name: "FastAPI", category: "Backend" },
+                                    { name: "Node.js", category: "Backend" },
+                                    { name: "Express.js", category: "Backend" },
+                                    { name: "PostgreSQL", category: "Databases" },
+                                    { name: "SQLite", category: "Databases" },
+                                    { name: "Supabase", category: "Databases" },
+                                    { name: "Machine Learning", category: "AI & Computer Vision" },
+                                    { name: "Computer Vision", category: "AI & Computer Vision" },
+                                    { name: "MediaPipe", category: "AI & Computer Vision" },
+                                    { name: "OpenCV", category: "AI & Computer Vision" },
+                                    { name: "Vercel", category: "Cloud & Tools" },
+                                    { name: "Render", category: "Cloud & Tools" },
+                                    { name: "Cloudinary", category: "Cloud & Tools" },
+                                    { name: "Firebase", category: "Cloud & Tools" },
+                                    { name: "Git", category: "Cloud & Tools" },
+                                    { name: "GitHub", category: "Cloud & Tools" },
+                                    { name: "VS Code", category: "Cloud & Tools" },
+                                    { name: "Android Studio", category: "Cloud & Tools" },
+                                    { name: "Google Gemini", category: "AI Development Tools" },
+                                    { name: "Antigravity", category: "AI Development Tools" },
+                                    { name: "Lovable AI", category: "AI Development Tools" },
+                                    { name: "Ollama", category: "AI Development Tools" },
+                                    { name: "REST APIs", category: "Other" },
+                                    { name: "WebSockets", category: "Other" },
+                                    { name: "Django Channels", category: "Other" },
+                                    { name: "Redis", category: "Other" },
+                                    { name: "Authentication", category: "Other" },
+                                  ];
+
+                                  const toApprove = allSkills.filter(
+                                    (s) => selectedSkillsToApprove[s.name] !== false
+                                  );
+                                  void handleApproveSelectedSkills(toApprove);
+                                }}
+                                className="w-full sm:w-auto font-bold text-xs bg-primary text-primary-foreground shadow-sm shrink-0"
+                              >
+                                {isApprovingSkills ? (
+                                  <>
+                                    <RefreshCw className="size-3.5 mr-1.5 animate-spin" />
+                                    Approving & Synchronizing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="size-3.5 mr-1.5 text-amber-300" />
+                                    Approve & Add Selected Skills to Profile
+                                  </>
+                                )}
+                              </Button>
                             </div>
                           </div>
                         )}

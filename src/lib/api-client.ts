@@ -233,6 +233,22 @@ export class ApiClient {
     });
   }
 
+  public static async batchApproveSkills(
+    skills: Array<{ name: string; category?: string; proficiency?: string } | string>,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    skills_approved: number;
+    total_skills_count: number;
+    skills: any[];
+    categorized_skills: any;
+  }> {
+    return this.request("/student/skills/batch-approve", {
+      method: "POST",
+      body: JSON.stringify({ skills }),
+    });
+  }
+
   public static async uploadResume(file: File): Promise<ResumeUploadResponse> {
     const formData = new FormData();
     formData.append("resume", file);

@@ -726,30 +726,59 @@ PROMPT;
     }
 
     private static function fallbackResumeSummary(string $name, string $program, array $skills, string $resumeText = ''): array {
-        $topSkills = implode(', ', array_slice($skills, 0, 3));
         $skillCount = count($skills);
         $wordCount = str_word_count($resumeText);
 
+        // Group skills into canonical 8 categories
+        $categorized = class_exists('ResumeExtractionService')
+            ? ResumeExtractionService::categorizeSkills($skills)
+            : [
+                'Languages'            => [],
+                'Frontend'             => [],
+                'Backend'              => [],
+                'Databases'            => [],
+                'AI & Computer Vision' => [],
+                'Cloud & Tools'        => [],
+                'AI Development Tools' => [],
+                'Other'                => [],
+            ];
+
         // Compute deterministic ATS score based on skills completeness & resume density
-        $baseScore = 72;
-        if ($skillCount >= 1) $baseScore += 5;
-        if ($skillCount >= 3) $baseScore += 6;
-        if ($skillCount >= 5) $baseScore += 5;
-        if ($wordCount > 30)  $baseScore += 4;
-        if ($wordCount > 100) $baseScore += 4;
-        $atsScore = min(95, max(68, $baseScore));
+        $baseScore = 75;
+        if ($skillCount >= 1)  $baseScore += 4;
+        if ($skillCount >= 5)  $baseScore += 5;
+        if ($skillCount >= 10) $baseScore += 5;
+        if ($skillCount >= 15) $baseScore += 4;
+        if ($wordCount > 30)   $baseScore += 3;
+        if ($wordCount > 100)  $baseScore += 3;
+        $atsScore = min(98, max(72, $baseScore));
 
-        $formattingScore = min(96, 80 + ($wordCount > 50 ? 10 : 0));
-        $keywordScore = min(95, 75 + min(20, $skillCount * 4));
-        $impactScore = min(92, 70 + ($wordCount > 100 ? 15 : 5));
+        $formattingScore = min(96, 82 + ($wordCount > 50 ? 10 : 0));
+        $keywordScore = min(98, 76 + min(22, $skillCount * 2));
+        $impactScore = min(95, 75 + ($wordCount > 100 ? 15 : 5));
 
-        $allRecommendedKeywords = ['Docker', 'REST API', 'PostgreSQL', 'Git', 'CI/CD', 'Unit Testing', 'TypeScript', 'AWS'];
+        // Generate diverse key strengths across detected categories
+        $selectedStrengths = [];
+        foreach ($categorized as $cat => $catSkills) {
+            if (!empty($catSkills)) {
+                $names = array_map(fn($s) => is_array($s) ? ($s['name'] ?? '') : (string)$s, array_slice($catSkills, 0, 3));
+                $selectedStrengths[] = "{$cat}: " . implode(', ', array_filter($names));
+            }
+        }
+        if (empty($selectedStrengths)) {
+            $selectedStrengths = !empty($skills) ? array_slice($skills, 0, 5) : ["Strong academic foundation in {$program}", "Technical problem solving", "Modern software engineering"];
+        }
+
+        $allRecommendedKeywords = ['Docker', 'Kubernetes', 'CI/CD', 'AWS', 'System Design', 'Microservices', 'GraphQL', 'Unit Testing'];
         $suggestedKeywords = array_values(array_diff($allRecommendedKeywords, $skills));
+
+        $topSkills = implode(', ', array_slice($skills, 0, 4));
 
         return [
             'headline'              => !empty($topSkills) ? "{$program} Specialist | " . implode(' • ', array_slice($skills, 0, 3)) : "{$program} Student & Aspiring Tech Professional",
             'summary'               => "I am a motivated {$program} student with hands-on experience in " . (!empty($topSkills) ? $topSkills : "modern software engineering") . ". I thrive in collaborative environments and enjoy solving complex technical challenges. I am actively seeking opportunities to apply my skills in a professional setting.",
-            'key_strengths'         => !empty($skills) ? array_slice($skills, 0, 4) : ["Strong academic foundation in {$program}", "Technical problem solving", "Modern software practices"],
+            'key_strengths'         => array_slice($selectedStrengths, 0, 6),
+            'categorized_skills'    => $categorized,
             'improvement_tips'      => [
                 "Add quantifiable achievements (e.g. 'Reduced load time by 40%')",
                 "Include public GitHub project links to demonstrate proof-of-work",
@@ -761,7 +790,7 @@ PROMPT;
             'impact_score'          => $impactScore,
             'matched_skills_count'  => $skillCount,
             'suggested_keywords'    => array_slice($suggestedKeywords, 0, 4),
-            'experience_level'      => $skillCount > 3 ? 'Junior' : 'Fresher',
+            'experience_level'      => $skillCount > 5 ? 'Junior' : 'Fresher',
         ];
     }
 

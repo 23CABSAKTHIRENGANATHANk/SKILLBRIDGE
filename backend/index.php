@@ -206,6 +206,11 @@ switch (true) {
         StudentController::addSkill($user);
         break;
 
+    case $path === '/student/skills/batch-approve' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        StudentController::batchApproveSkills($user);
+        break;
+
     case $path === '/student/skills' && $method === 'DELETE':
         $user = AuthMiddleware::authenticate();
         StudentController::deleteSkill($user);

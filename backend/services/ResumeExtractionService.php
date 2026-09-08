@@ -24,93 +24,113 @@ class ResumeExtractionService {
      * Pre-defined Master Engineering & Tech Skills Taxonomy with common aliases
      */
     public const MASTER_TAXONOMY = [
-        // Programming Languages
-        ['name' => 'Python', 'category' => 'Language', 'aliases' => ['python', 'python3', 'py']],
-        ['name' => 'Java', 'category' => 'Language', 'aliases' => ['java', 'core java', 'j2ee']],
-        ['name' => 'JavaScript', 'category' => 'Language', 'aliases' => ['javascript', 'js', 'ecmascript', 'es6', 'vanilla js']],
-        ['name' => 'TypeScript', 'category' => 'Language', 'aliases' => ['typescript', 'ts']],
-        ['name' => 'PHP', 'category' => 'Language', 'aliases' => ['php', 'php8', 'php7', 'modern php']],
-        ['name' => 'C++', 'category' => 'Language', 'aliases' => ['c++', 'cpp']],
-        ['name' => 'C', 'category' => 'Language', 'aliases' => ['c language', 'c programming']],
-        ['name' => 'C#', 'category' => 'Language', 'aliases' => ['c#', 'csharp', '.net', 'dotnet']],
-        ['name' => 'Go', 'category' => 'Language', 'aliases' => ['golang', 'go language', 'go']],
-        ['name' => 'Rust', 'category' => 'Language', 'aliases' => ['rust', 'rustlang']],
-        ['name' => 'Ruby', 'category' => 'Language', 'aliases' => ['ruby', 'ruby on rails', 'rails']],
-        ['name' => 'Kotlin', 'category' => 'Language', 'aliases' => ['kotlin']],
-        ['name' => 'Swift', 'category' => 'Language', 'aliases' => ['swift', 'swiftui']],
-        ['name' => 'SQL', 'category' => 'Database', 'aliases' => ['sql', 'structured query language']],
-        ['name' => 'HTML5', 'category' => 'Frontend', 'aliases' => ['html', 'html5']],
-        ['name' => 'CSS3', 'category' => 'Frontend', 'aliases' => ['css', 'css3']],
-        ['name' => 'Dart', 'category' => 'Mobile', 'aliases' => ['dart', 'flutter']],
-        ['name' => 'Scala', 'category' => 'Language', 'aliases' => ['scala']],
-        ['name' => 'R', 'category' => 'Data Science', 'aliases' => ['r programming', 'r language']],
-        ['name' => 'Bash', 'category' => 'DevOps', 'aliases' => ['bash', 'shell script', 'shell scripting', 'powershell']],
+        // 1. Programming Languages
+        ['name' => 'Python', 'category' => 'Languages', 'aliases' => ['python', 'python3', 'py']],
+        ['name' => 'Java', 'category' => 'Languages', 'aliases' => ['java', 'core java', 'j2ee']],
+        ['name' => 'JavaScript', 'category' => 'Languages', 'aliases' => ['javascript', 'js', 'ecmascript', 'es6', 'vanilla js']],
+        ['name' => 'TypeScript', 'category' => 'Languages', 'aliases' => ['typescript', 'ts']],
+        ['name' => 'SQL', 'category' => 'Languages', 'aliases' => ['sql', 'structured query language']],
+        ['name' => 'HTML', 'category' => 'Languages', 'aliases' => ['html', 'html5', 'html 5']],
+        ['name' => 'CSS', 'category' => 'Languages', 'aliases' => ['css', 'css3', 'css 3']],
+        ['name' => 'PHP', 'category' => 'Languages', 'aliases' => ['php', 'php8', 'php7', 'modern php']],
+        ['name' => 'C++', 'category' => 'Languages', 'aliases' => ['c++', 'cpp']],
+        ['name' => 'C', 'category' => 'Languages', 'aliases' => ['c language', 'c programming']],
+        ['name' => 'C#', 'category' => 'Languages', 'aliases' => ['c#', 'csharp', '.net', 'dotnet']],
+        ['name' => 'Go', 'category' => 'Languages', 'aliases' => ['golang', 'go language', 'go']],
+        ['name' => 'Rust', 'category' => 'Languages', 'aliases' => ['rust', 'rustlang']],
+        ['name' => 'Ruby', 'category' => 'Languages', 'aliases' => ['ruby', 'ruby on rails', 'rails']],
+        ['name' => 'Kotlin', 'category' => 'Languages', 'aliases' => ['kotlin']],
+        ['name' => 'Swift', 'category' => 'Languages', 'aliases' => ['swift', 'swiftui']],
+        ['name' => 'Dart', 'category' => 'Languages', 'aliases' => ['dart', 'flutter']],
+        ['name' => 'Scala', 'category' => 'Languages', 'aliases' => ['scala']],
+        ['name' => 'R', 'category' => 'Languages', 'aliases' => ['r programming', 'r language']],
+        ['name' => 'Bash', 'category' => 'Languages', 'aliases' => ['bash', 'shell script', 'shell scripting', 'powershell']],
 
-        // Frontend Frameworks & Libraries
+        // 2. Frontend Frameworks & Libraries
         ['name' => 'React', 'category' => 'Frontend', 'aliases' => ['react', 'react.js', 'reactjs']],
+        ['name' => 'Vite', 'category' => 'Frontend', 'aliases' => ['vite', 'vite.js', 'vitejs']],
+        ['name' => 'Tailwind CSS', 'category' => 'Frontend', 'aliases' => ['tailwind', 'tailwind css', 'tailwindcss']],
+        ['name' => 'Three.js', 'category' => 'Frontend', 'aliases' => ['three.js', 'threejs', 'three js', '3d web']],
+        ['name' => 'React Three Fiber', 'category' => 'Frontend', 'aliases' => ['react three fiber', 'r3f', 'react-three-fiber', '@react-three/fiber']],
+        ['name' => 'GSAP', 'category' => 'Frontend', 'aliases' => ['gsap', 'greensock', 'gsap animation', 'greensock animation']],
+        ['name' => 'Framer Motion', 'category' => 'Frontend', 'aliases' => ['framer motion', 'framer-motion', 'framer']],
         ['name' => 'Next.js', 'category' => 'Frontend', 'aliases' => ['next.js', 'nextjs', 'next']],
         ['name' => 'Vue.js', 'category' => 'Frontend', 'aliases' => ['vue', 'vue.js', 'vuejs']],
         ['name' => 'Angular', 'category' => 'Frontend', 'aliases' => ['angular', 'angularjs', 'angular.js']],
-        ['name' => 'Tailwind CSS', 'category' => 'Frontend', 'aliases' => ['tailwind', 'tailwind css', 'tailwindcss']],
         ['name' => 'Bootstrap', 'category' => 'Frontend', 'aliases' => ['bootstrap', 'bootstrap5']],
         ['name' => 'Redux', 'category' => 'Frontend', 'aliases' => ['redux', 'redux toolkit', 'rtk']],
         ['name' => 'Sass', 'category' => 'Frontend', 'aliases' => ['sass', 'scss']],
-        ['name' => 'Vite', 'category' => 'Frontend', 'aliases' => ['vite', 'vite.js']],
 
-        // Backend Frameworks
+        // 3. Backend Frameworks & Runtimes
+        ['name' => 'Django', 'category' => 'Backend', 'aliases' => ['django', 'django framework']],
+        ['name' => 'Django REST Framework', 'category' => 'Backend', 'aliases' => ['django rest framework', 'drf', 'djangorestframework']],
+        ['name' => 'FastAPI', 'category' => 'Backend', 'aliases' => ['fastapi', 'fast api']],
         ['name' => 'Node.js', 'category' => 'Backend', 'aliases' => ['node.js', 'nodejs', 'node']],
         ['name' => 'Express.js', 'category' => 'Backend', 'aliases' => ['express', 'express.js', 'expressjs']],
-        ['name' => 'Django', 'category' => 'Backend', 'aliases' => ['django', 'django rest framework', 'drf']],
-        ['name' => 'Flask', 'category' => 'Backend', 'aliases' => ['flask']],
-        ['name' => 'FastAPI', 'category' => 'Backend', 'aliases' => ['fastapi']],
         ['name' => 'Spring Boot', 'category' => 'Backend', 'aliases' => ['spring boot', 'springboot', 'spring framework', 'spring']],
+        ['name' => 'Flask', 'category' => 'Backend', 'aliases' => ['flask']],
         ['name' => 'Laravel', 'category' => 'Backend', 'aliases' => ['laravel']],
         ['name' => 'NestJS', 'category' => 'Backend', 'aliases' => ['nestjs', 'nest.js']],
 
-        // Databases & Storage
-        ['name' => 'PostgreSQL', 'category' => 'Database', 'aliases' => ['postgresql', 'postgres', 'psql']],
-        ['name' => 'MySQL', 'category' => 'Database', 'aliases' => ['mysql']],
-        ['name' => 'MongoDB', 'category' => 'Database', 'aliases' => ['mongodb', 'mongo', 'mongoose']],
-        ['name' => 'Redis', 'category' => 'Database', 'aliases' => ['redis']],
-        ['name' => 'SQLite', 'category' => 'Database', 'aliases' => ['sqlite', 'sqlite3']],
-        ['name' => 'Firebase', 'category' => 'Cloud', 'aliases' => ['firebase', 'firestore']],
-        ['name' => 'Supabase', 'category' => 'Cloud', 'aliases' => ['supabase']],
-        ['name' => 'Elasticsearch', 'category' => 'Database', 'aliases' => ['elasticsearch', 'elastic']],
+        // 4. Databases & Storage
+        ['name' => 'PostgreSQL', 'category' => 'Databases', 'aliases' => ['postgresql', 'postgres', 'psql']],
+        ['name' => 'SQLite', 'category' => 'Databases', 'aliases' => ['sqlite', 'sqlite3']],
+        ['name' => 'Supabase', 'category' => 'Databases', 'aliases' => ['supabase']],
+        ['name' => 'MySQL', 'category' => 'Databases', 'aliases' => ['mysql']],
+        ['name' => 'MongoDB', 'category' => 'Databases', 'aliases' => ['mongodb', 'mongo', 'mongoose']],
+        ['name' => 'Elasticsearch', 'category' => 'Databases', 'aliases' => ['elasticsearch', 'elastic']],
 
-        // Cloud & DevOps
-        ['name' => 'AWS', 'category' => 'Cloud', 'aliases' => ['aws', 'amazon web services', 'ec2', 's3', 'lambda']],
-        ['name' => 'Google Cloud', 'category' => 'Cloud', 'aliases' => ['gcp', 'google cloud', 'google cloud platform']],
-        ['name' => 'Microsoft Azure', 'category' => 'Cloud', 'aliases' => ['azure', 'microsoft azure']],
-        ['name' => 'Docker', 'category' => 'DevOps', 'aliases' => ['docker', 'docker compose', 'containerization']],
-        ['name' => 'Kubernetes', 'category' => 'DevOps', 'aliases' => ['kubernetes', 'k8s']],
-        ['name' => 'Git', 'category' => 'DevOps', 'aliases' => ['git', 'version control']],
-        ['name' => 'GitHub', 'category' => 'DevOps', 'aliases' => ['github', 'github actions']],
-        ['name' => 'CI/CD', 'category' => 'DevOps', 'aliases' => ['ci/cd', 'cicd', 'continuous integration', 'continuous deployment', 'jenkins']],
-        ['name' => 'Linux', 'category' => 'DevOps', 'aliases' => ['linux', 'ubuntu', 'debian', 'centos']],
-        ['name' => 'Nginx', 'category' => 'DevOps', 'aliases' => ['nginx']],
-        ['name' => 'Vercel', 'category' => 'Cloud', 'aliases' => ['vercel']],
+        // 5. AI & Computer Vision
+        ['name' => 'Machine Learning', 'category' => 'AI & Computer Vision', 'aliases' => ['machine learning', 'ml', 'deep learning']],
+        ['name' => 'Computer Vision', 'category' => 'AI & Computer Vision', 'aliases' => ['computer vision', 'cv', 'image processing', 'object detection']],
+        ['name' => 'MediaPipe', 'category' => 'AI & Computer Vision', 'aliases' => ['mediapipe', 'google mediapipe']],
+        ['name' => 'OpenCV', 'category' => 'AI & Computer Vision', 'aliases' => ['opencv', 'cv2', 'open cv']],
+        ['name' => 'Artificial Intelligence', 'category' => 'AI & Computer Vision', 'aliases' => ['artificial intelligence', 'ai', 'genai', 'generative ai']],
+        ['name' => 'TensorFlow', 'category' => 'AI & Computer Vision', 'aliases' => ['tensorflow', 'tf']],
+        ['name' => 'PyTorch', 'category' => 'AI & Computer Vision', 'aliases' => ['pytorch', 'torch']],
+        ['name' => 'Pandas', 'category' => 'AI & Computer Vision', 'aliases' => ['pandas']],
+        ['name' => 'NumPy', 'category' => 'AI & Computer Vision', 'aliases' => ['numpy']],
+        ['name' => 'Scikit-Learn', 'category' => 'AI & Computer Vision', 'aliases' => ['scikit-learn', 'sklearn']],
+        ['name' => 'Natural Language Processing', 'category' => 'AI & Computer Vision', 'aliases' => ['nlp', 'natural language processing']],
 
-        // AI / ML & Data Science
-        ['name' => 'Machine Learning', 'category' => 'AI/ML', 'aliases' => ['machine learning', 'ml', 'deep learning']],
-        ['name' => 'Artificial Intelligence', 'category' => 'AI/ML', 'aliases' => ['artificial intelligence', 'ai', 'genai', 'generative ai', 'llm']],
-        ['name' => 'TensorFlow', 'category' => 'AI/ML', 'aliases' => ['tensorflow', 'tf']],
-        ['name' => 'PyTorch', 'category' => 'AI/ML', 'aliases' => ['pytorch', 'torch']],
-        ['name' => 'Pandas', 'category' => 'Data Science', 'aliases' => ['pandas']],
-        ['name' => 'NumPy', 'category' => 'Data Science', 'aliases' => ['numpy']],
-        ['name' => 'Scikit-Learn', 'category' => 'AI/ML', 'aliases' => ['scikit-learn', 'sklearn']],
-        ['name' => 'Computer Vision', 'category' => 'AI/ML', 'aliases' => ['computer vision', 'opencv', 'image processing']],
-        ['name' => 'Natural Language Processing', 'category' => 'AI/ML', 'aliases' => ['nlp', 'natural language processing']],
+        // 6. Cloud & Tools
+        ['name' => 'Vercel', 'category' => 'Cloud & Tools', 'aliases' => ['vercel']],
+        ['name' => 'Render', 'category' => 'Cloud & Tools', 'aliases' => ['render', 'render.com']],
+        ['name' => 'Cloudinary', 'category' => 'Cloud & Tools', 'aliases' => ['cloudinary']],
+        ['name' => 'Firebase', 'category' => 'Cloud & Tools', 'aliases' => ['firebase', 'firestore']],
+        ['name' => 'Git', 'category' => 'Cloud & Tools', 'aliases' => ['git', 'version control']],
+        ['name' => 'GitHub', 'category' => 'Cloud & Tools', 'aliases' => ['github', 'github actions']],
+        ['name' => 'VS Code', 'category' => 'Cloud & Tools', 'aliases' => ['vs code', 'vscode', 'visual studio code']],
+        ['name' => 'Android Studio', 'category' => 'Cloud & Tools', 'aliases' => ['android studio']],
+        ['name' => 'AWS', 'category' => 'Cloud & Tools', 'aliases' => ['aws', 'amazon web services', 'ec2', 's3', 'lambda']],
+        ['name' => 'Google Cloud', 'category' => 'Cloud & Tools', 'aliases' => ['gcp', 'google cloud', 'google cloud platform']],
+        ['name' => 'Microsoft Azure', 'category' => 'Cloud & Tools', 'aliases' => ['azure', 'microsoft azure']],
+        ['name' => 'Docker', 'category' => 'Cloud & Tools', 'aliases' => ['docker', 'docker compose', 'containerization']],
+        ['name' => 'Kubernetes', 'category' => 'Cloud & Tools', 'aliases' => ['kubernetes', 'k8s']],
+        ['name' => 'CI/CD', 'category' => 'Cloud & Tools', 'aliases' => ['ci/cd', 'cicd', 'continuous integration', 'continuous deployment', 'jenkins']],
+        ['name' => 'Linux', 'category' => 'Cloud & Tools', 'aliases' => ['linux', 'ubuntu', 'debian', 'centos']],
+        ['name' => 'Nginx', 'category' => 'Cloud & Tools', 'aliases' => ['nginx']],
 
-        // Architecture & Core CS
-        ['name' => 'REST API', 'category' => 'Core CS', 'aliases' => ['rest api', 'rest apis', 'restful api', 'restful apis', 'rest']],
-        ['name' => 'GraphQL', 'category' => 'Core CS', 'aliases' => ['graphql']],
-        ['name' => 'Data Structures', 'category' => 'Core CS', 'aliases' => ['data structures', 'dsa']],
-        ['name' => 'Algorithms', 'category' => 'Core CS', 'aliases' => ['algorithms', 'problem solving']],
-        ['name' => 'Object-Oriented Programming', 'category' => 'Core CS', 'aliases' => ['oop', 'object-oriented programming', 'object oriented']],
-        ['name' => 'System Design', 'category' => 'Core CS', 'aliases' => ['system design', 'distributed systems', 'microservices']],
-        ['name' => 'Unit Testing', 'category' => 'Testing', 'aliases' => ['unit testing', 'jest', 'phpunit', 'pytest', 'testing']],
-        ['name' => 'WebSockets', 'category' => 'Core CS', 'aliases' => ['websockets', 'websocket', 'socket.io']],
-        ['name' => 'Figma', 'category' => 'UI/UX', 'aliases' => ['figma', 'ui/ux', 'ui design', 'ux design']],
+        // 7. AI Development Tools
+        ['name' => 'Google Gemini', 'category' => 'AI Development Tools', 'aliases' => ['google gemini', 'gemini', 'gemini api', 'gemini 3.7', 'gemini flash']],
+        ['name' => 'Antigravity', 'category' => 'AI Development Tools', 'aliases' => ['antigravity', 'google antigravity', 'agy', 'antigravity ide']],
+        ['name' => 'Lovable AI', 'category' => 'AI Development Tools', 'aliases' => ['lovable ai', 'lovable', 'lovable.dev']],
+        ['name' => 'Ollama', 'category' => 'AI Development Tools', 'aliases' => ['ollama', 'local llm']],
+        ['name' => 'LangChain', 'category' => 'AI Development Tools', 'aliases' => ['langchain', 'lang chain']],
+
+        // 8. Other / Architecture & Protocols
+        ['name' => 'REST APIs', 'category' => 'Other', 'aliases' => ['rest apis', 'rest api', 'restful api', 'restful apis', 'rest']],
+        ['name' => 'WebSockets', 'category' => 'Other', 'aliases' => ['websockets', 'websocket', 'socket.io']],
+        ['name' => 'Django Channels', 'category' => 'Other', 'aliases' => ['django channels', 'channels']],
+        ['name' => 'Redis', 'category' => 'Other', 'aliases' => ['redis', 'redis cache', 'in-memory cache']],
+        ['name' => 'Authentication', 'category' => 'Other', 'aliases' => ['authentication', 'auth', 'jwt', 'oauth', 'oauth2', 'rbac']],
+        ['name' => 'GraphQL', 'category' => 'Other', 'aliases' => ['graphql']],
+        ['name' => 'Data Structures', 'category' => 'Other', 'aliases' => ['data structures', 'dsa']],
+        ['name' => 'Algorithms', 'category' => 'Other', 'aliases' => ['algorithms', 'problem solving']],
+        ['name' => 'Object-Oriented Programming', 'category' => 'Other', 'aliases' => ['oop', 'object-oriented programming', 'object oriented']],
+        ['name' => 'System Design', 'category' => 'Other', 'aliases' => ['system design', 'distributed systems', 'microservices']],
+        ['name' => 'Unit Testing', 'category' => 'Other', 'aliases' => ['unit testing', 'jest', 'phpunit', 'pytest', 'testing']],
+        ['name' => 'Figma', 'category' => 'Other', 'aliases' => ['figma', 'ui/ux', 'ui design', 'ux design']],
     ];
 
     /**
@@ -328,6 +348,65 @@ class ResumeExtractionService {
     }
 
     /**
+     * Check if a skill alias/term matches text with symbol-safe boundaries.
+     */
+    public static function matchTermInText(string $term, string $lowerText): bool {
+        $cleanTerm = strtolower(trim($term));
+        if (strlen($cleanTerm) < 1) return false;
+
+        $escaped = preg_quote($cleanTerm, '/');
+        $pattern = '/(?:^|[\s,;:()\\[\\]\\/{}<>"\'\\*&|!+`~])' . $escaped . '(?=$|[\s,;:()\\[\\]\\/{}<>"\'\\*&|!+`~.])/i';
+        return (bool)preg_match($pattern, $lowerText);
+    }
+
+    /**
+     * Group an array of skills or skill names into the 8 canonical SkillBridge categories.
+     */
+    public static function categorizeSkills(array $skills): array {
+        $categories = [
+            'Languages'            => [],
+            'Frontend'             => [],
+            'Backend'              => [],
+            'Databases'            => [],
+            'AI & Computer Vision' => [],
+            'Cloud & Tools'        => [],
+            'AI Development Tools' => [],
+            'Other'                => [],
+        ];
+
+        $categoryMap = [];
+        foreach (self::MASTER_TAXONOMY as $tax) {
+            $categoryMap[strtolower(trim($tax['name']))] = $tax['category'];
+            foreach ($tax['aliases'] ?? [] as $alias) {
+                $categoryMap[strtolower(trim($alias))] = $tax['category'];
+            }
+        }
+
+        foreach ($skills as $skill) {
+            $name = is_array($skill) ? ($skill['name'] ?? '') : (string)$skill;
+            if (empty($name)) continue;
+
+            $lower = strtolower(trim($name));
+            $cat = is_array($skill) && !empty($skill['category']) && $skill['category'] !== 'Technical'
+                ? $skill['category']
+                : ($categoryMap[$lower] ?? 'Other');
+
+            if (!isset($categories[$cat])) {
+                if ($cat === 'Language') $cat = 'Languages';
+                elseif ($cat === 'Database') $cat = 'Databases';
+                elseif ($cat === 'AI/ML' || $cat === 'Data Science') $cat = 'AI & Computer Vision';
+                elseif ($cat === 'Cloud' || $cat === 'DevOps') $cat = 'Cloud & Tools';
+                elseif ($cat === 'Core CS' || $cat === 'Testing' || $cat === 'UI/UX') $cat = 'Other';
+                else $cat = 'Other';
+            }
+
+            $categories[$cat][] = is_array($skill) ? $skill : ['name' => $name, 'category' => $cat];
+        }
+
+        return $categories;
+    }
+
+    /**
      * Match text against master skills & taxonomy. Auto-registers detected skills.
      */
     public static function matchSkillsInText(string $text): array {
@@ -354,8 +433,7 @@ class ResumeExtractionService {
             $norm = strtolower(trim($s['normalized_name'] ?? $s['name']));
             if (strlen($norm) < 2) continue;
 
-            $pattern = '/\b' . preg_quote($norm, '/') . '\b/i';
-            if (preg_match($pattern, $lowerText) && !isset($matchedKeys[$norm])) {
+            if (self::matchTermInText($norm, $lowerText) && !isset($matchedKeys[$norm])) {
                 $matched[] = $s;
                 $matchedKeys[$norm] = true;
             }
@@ -377,10 +455,7 @@ class ResumeExtractionService {
             $isMatch = false;
             $aliases = array_merge([$taxSkill['name']], $taxSkill['aliases'] ?? []);
             foreach ($aliases as $alias) {
-                $aliasNorm = strtolower(trim($alias));
-                if (strlen($aliasNorm) < 2) continue;
-                $pat = '/\b' . preg_quote($aliasNorm, '/') . '\b/i';
-                if (preg_match($pat, $lowerText)) {
+                if (self::matchTermInText($alias, $lowerText)) {
                     $isMatch = true;
                     break;
                 }
@@ -397,7 +472,7 @@ class ResumeExtractionService {
                             $skillId,
                             $taxSkill['name'],
                             $taxNorm,
-                            $taxSkill['category'] ?? 'Technical'
+                            $taxSkill['category'] ?? 'Other'
                         ]);
                     } catch (\Throwable $e) {
                         // ignore duplicate
@@ -922,6 +997,8 @@ class ResumeExtractionService {
             error_log('Career intelligence recalculation error: ' . $e->getMessage());
         }
 
+        $categorizedSkills = self::categorizeSkills($skillsDetected);
+
         return [
             'success'              => true,
             'resume_id'            => $resumeId,
@@ -929,6 +1006,7 @@ class ResumeExtractionService {
             'summary'              => $summary,
             'conflicts'            => $conflicts,
             'skills_detected'      => $skillsDetected,
+            'categorized_skills'   => $categorizedSkills,
             'structured_data'      => $structuredData,
             'format'               => $textResult['format'],
             'word_count'           => $textResult['word_count'],

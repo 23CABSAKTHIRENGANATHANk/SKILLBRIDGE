@@ -57,8 +57,22 @@ class StudentController {
             ['id' => 'certificates', 'label' => 'Certificates', 'complete' => $hasCertificates]
         ];
 
-        $completedCount = count(array_filter($steps, fn($s) => $s['complete']));
-        $percent = (int)round(($completedCount / count($steps)) * 100);
+        // Group current skills into canonical categories
+        $categorizedSkills = ResumeExtractionService::categorizeSkills($skills);
+
+        // Also fetch detected resume skills if resume exists
+        $detectedResumeSkills = [];
+        $categorizedDetectedSkills = null;
+        if (!empty($student['resume_storage_key'])) {
+            try {
+                $ext = ResumeExtractionService::extractTextFromFile($student['resume_storage_key']);
+                if (!empty($ext['text'])) {
+                    $matched = ResumeExtractionService::matchSkillsInText($ext['text']);
+                    $detectedResumeSkills = $matched;
+                    $categorizedDetectedSkills = ResumeExtractionService::categorizeSkills($matched);
+                }
+            } catch (\Throwable $e) {}
+        }
 
         jsonResponse([
             'success' => true,
@@ -71,10 +85,13 @@ class StudentController {
                 'experience' => $student['experience'],
                 'hasResume' => !empty($student['resume_storage_key'])
             ],
-            'skills'        => $skills,
-            'skill_proof'   => ProofOfSkillService::getStudentSkillsWithProof($student['id']),
-            'projects'      => $projects,
-            'certificates'  => $certificates,
+            'skills'                      => $skills,
+            'categorized_skills'          => $categorizedSkills,
+            'detected_resume_skills'      => $detectedResumeSkills,
+            'categorized_detected_skills' => $categorizedDetectedSkills,
+            'skill_proof'                 => ProofOfSkillService::getStudentSkillsWithProof($student['id']),
+            'projects'                    => $projects,
+            'certificates'                => $certificates,
             'progress' => [
                 'percent' => $percent,
                 'steps'   => $steps
@@ -272,6 +289,153 @@ class StudentController {
     }
 
     /**
+     * Batch approve and add detected resume skills to student profile
+     */
+    public static function batchApproveSkills(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $sStmt = $db->prepare('SELECT id, program, college, resume_storage_key FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $rawSkills = $input['skills'] ?? [];
+        if (empty($rawSkills) && !empty($student['resume_storage_key'])) {
+            // Auto-detect all from stored resume if no list passed
+            $extracted = ResumeExtractionService::matchSkillsInText(
+                ResumeExtractionService::extractTextFromFile($student['resume_storage_key'])['text'] ?? ''
+            );
+            $rawSkills = $extracted;
+        }
+
+        if (empty($rawSkills)) {
+            errorResponse('No skills provided to approve.', 400);
+        }
+
+        $insSkill = $db->prepare('
+            INSERT INTO skills (id, name, normalized_name, category)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (normalized_name) DO NOTHING
+        ');
+
+        $insStudentSkill = $db->prepare('
+            INSERT INTO student_skills (student_id, skill_id, proficiency)
+            VALUES (?, ?, ?)
+            ON CONFLICT (student_id, skill_id) DO NOTHING
+        ');
+
+        $insEvidence = $db->prepare('
+            INSERT INTO skill_evidence (
+                id, student_id, skill_id, source, confidence, metadata, verified_at
+            ) VALUES (?, ?, ?, \'resume_evidence\', 75.0, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (student_id, skill_id, source)
+            DO UPDATE SET confidence = EXCLUDED.confidence,
+                          metadata = EXCLUDED.metadata,
+                          verified_at = CURRENT_TIMESTAMP
+        ');
+
+        $addedCount = 0;
+        $approvedSkillDetails = [];
+
+        foreach ($rawSkills as $item) {
+            $rawName = is_array($item) ? ($item['name'] ?? '') : (string)$item;
+            $rawCat = is_array($item) ? ($item['category'] ?? 'Other') : 'Other';
+            $prof = is_array($item) ? ($item['proficiency'] ?? 'intermediate') : 'intermediate';
+
+            $norm = ResumeExtractionService::normalizeSkill($rawName);
+            if (!$norm) continue;
+
+            $normName = $norm['normalized_name'];
+            $canonicalName = $norm['name'];
+            $category = !empty($norm['category']) && $norm['category'] !== 'Technical' ? $norm['category'] : $rawCat;
+
+            // Fetch or insert into skills catalog
+            $fStmt = $db->prepare('SELECT id, name, normalized_name, category FROM skills WHERE normalized_name = ? LIMIT 1');
+            $fStmt->execute([$normName]);
+            $dbSkill = $fStmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$dbSkill) {
+                $newId = 'sk_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $canonicalName));
+                try {
+                    $insSkill->execute([$newId, $canonicalName, $normName, $category]);
+                } catch (\Throwable $e) {}
+                $fStmt->execute([$normName]);
+                $dbSkill = $fStmt->fetch(\PDO::FETCH_ASSOC);
+            }
+
+            if (!$dbSkill) continue;
+
+            $sId = $dbSkill['id'];
+
+            // Insert student skill & evidence
+            $insStudentSkill->execute([$student['id'], $sId, $prof]);
+
+            $evId = 'ev_res_appr_' . bin2hex(random_bytes(6));
+            $meta = json_encode([
+                'source_label'    => 'Approved by student from detected resume skills',
+                'approved_at'     => date('c'),
+                'approved_by_user'=> $currentUser['email'] ?? $currentUser['user_id']
+            ]);
+            $insEvidence->execute([$evId, $student['id'], $sId, $meta]);
+
+            try {
+                SkillIntegrityService::auditStudentSkill($student['id'], $sId);
+            } catch (\Throwable $e) {}
+
+            $addedCount++;
+            $approvedSkillDetails[] = [
+                'id'       => $sId,
+                'name'     => $dbSkill['name'],
+                'category' => $dbSkill['category']
+            ];
+        }
+
+        // Trigger Career Evolution / Readiness Recalculation
+        try {
+            $careerGoal = CareerEvolutionService::getCareerGoal($student['id']);
+            if ($careerGoal && !empty($careerGoal['target_role'])) {
+                $readiness = CareerEvolutionService::calculateReadiness($student['id'], $careerGoal['target_role']);
+                CareerEvolutionService::recordReadinessSnapshot(
+                    $student['id'],
+                    $careerGoal['target_role'],
+                    (int)($readiness['readiness_score'] ?? 0),
+                    $readiness['readiness_tier'] ?? 'Developing',
+                    $readiness
+                );
+            }
+        } catch (\Throwable $e) {
+            error_log('Career evolution sync error: ' . $e->getMessage());
+        }
+
+        // Fetch all current student skills
+        $allStmt = $db->prepare('
+            SELECT sk.id, sk.name, sk.category, ss.proficiency
+            FROM student_skills ss
+            JOIN skills sk ON ss.skill_id = sk.id
+            WHERE ss.student_id = ?
+            ORDER BY sk.name ASC
+        ');
+        $allStmt->execute([$student['id']]);
+        $allSkills = $allStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $categorized = ResumeExtractionService::categorizeSkills($allSkills);
+
+        jsonResponse([
+            'success'            => true,
+            'message'            => "{$addedCount} skills approved and synchronized to your verified profile!",
+            'skills_approved'    => $addedCount,
+            'total_skills_count' => count($allSkills),
+            'skills'             => $allSkills,
+            'categorized_skills' => $categorized
+        ]);
+    }
+
+    /**
      * Return deterministic proof and confidence breakdown for the current student.
      */
     public static function getSkillProof(array $currentUser): void {
@@ -366,16 +530,17 @@ class StudentController {
                 'experience_added'       => 0,
                 'certifications_added'   => 0
             ],
-            'conflicts'       => $syncResult['conflicts'] ?? [],
-            'skills_detected' => $syncResult['skills_detected'] ?? [],
-            'extraction'      => [
+            'conflicts'          => $syncResult['conflicts'] ?? [],
+            'skills_detected'    => $syncResult['skills_detected'] ?? [],
+            'categorized_skills' => $syncResult['categorized_skills'] ?? ResumeExtractionService::categorizeSkills($syncResult['skills_detected'] ?? []),
+            'extraction'         => [
                 'success'              => $syncResult['success'] ?? true,
                 'format'               => $syncResult['format'] ?? 'pdf',
                 'word_count'           => $syncResult['word_count'] ?? 0,
                 'matched_skills_count' => $syncResult['matched_skills_count'] ?? 0,
                 'matched_skills'       => $syncResult['matched_skills'] ?? [],
             ],
-            'resume_analysis' => $resumeAnalysis,
+            'resume_analysis'    => $resumeAnalysis,
         ]);
     }
 

@@ -159,6 +159,19 @@ export interface AIResumeAnalysis {
   matched_skills_count?: number;
   suggested_keywords?: string[];
   experience_level: "Fresher" | "Junior" | "Mid" | string;
+  categorized_skills?: CategorizedSkills;
+}
+
+export interface CategorizedSkills {
+  Languages?: Array<{ name: string; category?: string } | string>;
+  Frontend?: Array<{ name: string; category?: string } | string>;
+  Backend?: Array<{ name: string; category?: string } | string>;
+  Databases?: Array<{ name: string; category?: string } | string>;
+  "AI & Computer Vision"?: Array<{ name: string; category?: string } | string>;
+  "Cloud & Tools"?: Array<{ name: string; category?: string } | string>;
+  "AI Development Tools"?: Array<{ name: string; category?: string } | string>;
+  Other?: Array<{ name: string; category?: string } | string>;
+  [categoryName: string]: any;
 }
 
 export interface ResumeSyncSummary {
@@ -182,10 +195,10 @@ export interface ResumeConflict {
 }
 
 export interface DetectedSkill {
-  id: string;
+  id?: string;
   name: string;
   category?: string;
-  status: string;
+  status?: string;
 }
 
 export interface ResumeUploadResponse {
@@ -196,6 +209,7 @@ export interface ResumeUploadResponse {
   summary?: ResumeSyncSummary;
   conflicts?: ResumeConflict[];
   skills_detected?: DetectedSkill[];
+  categorized_skills?: CategorizedSkills;
   extraction?: {
     success: boolean;
     format: string;
