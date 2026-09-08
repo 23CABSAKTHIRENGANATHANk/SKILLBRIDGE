@@ -47,7 +47,7 @@ import type {
 
 
 const API_BASE_URL = import.meta.env["VITE_API_URL"] || "/api";
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export class ApiClient {
   private static isRefreshing = false;

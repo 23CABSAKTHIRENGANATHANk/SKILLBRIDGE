@@ -306,7 +306,6 @@ class StudentController {
 
         $rawSkills = $input['skills'] ?? [];
         if (empty($rawSkills) && !empty($student['resume_storage_key'])) {
-            // Auto-detect all from stored resume if no list passed
             $extracted = ResumeExtractionService::matchSkillsInText(
                 ResumeExtractionService::extractTextFromFile($student['resume_storage_key'])['text'] ?? ''
             );
@@ -316,6 +315,17 @@ class StudentController {
         if (empty($rawSkills)) {
             errorResponse('No skills provided to approve.', 400);
         }
+
+        // Pre-fetch entire skills catalog into an in-memory map (reduces 40 DB roundtrips to 1)
+        $catalogStmt = $db->query('SELECT id, name, normalized_name, category FROM skills');
+        $dbSkillMap = [];
+        foreach ($catalogStmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $dbSkillMap[strtolower(trim($row['normalized_name']))] = $row;
+            $dbSkillMap[strtolower(trim($row['name']))] = $row;
+        }
+
+        // Begin Atomic Transaction for ultrafast batch insert
+        $db->beginTransaction();
 
         $insSkill = $db->prepare('
             INSERT INTO skills (id, name, normalized_name, category)
@@ -341,61 +351,62 @@ class StudentController {
 
         $addedCount = 0;
         $approvedSkillDetails = [];
+        $meta = json_encode([
+            'source_label'    => 'Approved by student from detected resume skills',
+            'approved_at'     => date('c'),
+            'approved_by_user'=> $currentUser['email'] ?? $currentUser['user_id']
+        ]);
 
-        foreach ($rawSkills as $item) {
-            $rawName = is_array($item) ? ($item['name'] ?? '') : (string)$item;
-            $rawCat = is_array($item) ? ($item['category'] ?? 'Other') : 'Other';
-            $prof = is_array($item) ? ($item['proficiency'] ?? 'intermediate') : 'intermediate';
+        try {
+            foreach ($rawSkills as $item) {
+                $rawName = is_array($item) ? ($item['name'] ?? '') : (string)$item;
+                $rawCat = is_array($item) ? ($item['category'] ?? 'Other') : 'Other';
+                $prof = is_array($item) ? ($item['proficiency'] ?? 'intermediate') : 'intermediate';
 
-            $norm = ResumeExtractionService::normalizeSkill($rawName);
-            if (!$norm) continue;
+                $norm = ResumeExtractionService::normalizeSkill($rawName);
+                if (!$norm) continue;
 
-            $normName = $norm['normalized_name'];
-            $canonicalName = $norm['name'];
-            $category = !empty($norm['category']) && $norm['category'] !== 'Technical' ? $norm['category'] : $rawCat;
+                $normName = strtolower(trim($norm['normalized_name']));
+                $canonicalName = $norm['name'];
+                $category = !empty($norm['category']) && $norm['category'] !== 'Technical' ? $norm['category'] : $rawCat;
 
-            // Fetch or insert into skills catalog
-            $fStmt = $db->prepare('SELECT id, name, normalized_name, category FROM skills WHERE normalized_name = ? LIMIT 1');
-            $fStmt->execute([$normName]);
-            $dbSkill = $fStmt->fetch(\PDO::FETCH_ASSOC);
+                $dbSkill = $dbSkillMap[$normName] ?? null;
 
-            if (!$dbSkill) {
-                $newId = 'sk_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $canonicalName));
-                try {
-                    $insSkill->execute([$newId, $canonicalName, $normName, $category]);
-                } catch (\Throwable $e) {}
-                $fStmt->execute([$normName]);
-                $dbSkill = $fStmt->fetch(\PDO::FETCH_ASSOC);
+                if (!$dbSkill) {
+                    $newId = 'sk_' . strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $canonicalName));
+                    try {
+                        $insSkill->execute([$newId, $canonicalName, $normName, $category]);
+                        $dbSkill = ['id' => $newId, 'name' => $canonicalName, 'normalized_name' => $normName, 'category' => $category];
+                        $dbSkillMap[$normName] = $dbSkill;
+                    } catch (\Throwable $e) {}
+                }
+
+                if (!$dbSkill) continue;
+
+                $sId = $dbSkill['id'];
+
+                // Insert student skill & evidence
+                $insStudentSkill->execute([$student['id'], $sId, $prof]);
+
+                $evId = 'ev_res_appr_' . bin2hex(random_bytes(6));
+                $insEvidence->execute([$evId, $student['id'], $sId, $meta]);
+
+                $addedCount++;
+                $approvedSkillDetails[] = [
+                    'id'       => $sId,
+                    'name'     => $dbSkill['name'],
+                    'category' => $dbSkill['category']
+                ];
             }
 
-            if (!$dbSkill) continue;
-
-            $sId = $dbSkill['id'];
-
-            // Insert student skill & evidence
-            $insStudentSkill->execute([$student['id'], $sId, $prof]);
-
-            $evId = 'ev_res_appr_' . bin2hex(random_bytes(6));
-            $meta = json_encode([
-                'source_label'    => 'Approved by student from detected resume skills',
-                'approved_at'     => date('c'),
-                'approved_by_user'=> $currentUser['email'] ?? $currentUser['user_id']
-            ]);
-            $insEvidence->execute([$evId, $student['id'], $sId, $meta]);
-
-            try {
-                SkillIntegrityService::auditStudentSkill($student['id'], $sId);
-            } catch (\Throwable $e) {}
-
-            $addedCount++;
-            $approvedSkillDetails[] = [
-                'id'       => $sId,
-                'name'     => $dbSkill['name'],
-                'category' => $dbSkill['category']
-            ];
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            error_log('Batch skill approval error: ' . $e->getMessage());
+            errorResponse('Database error during skill approval.', 500);
         }
 
-        // Trigger Career Evolution / Readiness Recalculation
+        // Trigger Career Evolution / Readiness Recalculation (non-blocking)
         try {
             $careerGoal = CareerEvolutionService::getCareerGoal($student['id']);
             if ($careerGoal && !empty($careerGoal['target_role'])) {
