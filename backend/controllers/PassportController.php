@@ -218,14 +218,24 @@ class PassportController {
             errorResponse('Passport not found or private.', 404);
         }
 
-        $baseUrl = getenv('APP_URL') ?: 'https://skillbridge.dev';
+        $baseUrl = getenv('APP_URL');
+        if (!$baseUrl || $baseUrl === 'https://skillbridge.dev') {
+            if (!empty($_SERVER['HTTP_ORIGIN'])) {
+                $baseUrl = $_SERVER['HTTP_ORIGIN'];
+            } elseif (!empty($_SERVER['HTTP_HOST'])) {
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+                $baseUrl = $protocol . $_SERVER['HTTP_HOST'];
+            } else {
+                $baseUrl = 'https://skillbridge.dev';
+            }
+        }
         $publicUrl = rtrim($baseUrl, '/') . "/passport/{$token}";
 
         jsonResponse([
             'success' => true,
             'passport_token' => $token,
             'verification_url' => $publicUrl,
-            'qr_code_svg_url' => "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" . urlencode($publicUrl)
+            'qr_code_svg_url' => "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($publicUrl)
         ]);
     }
 

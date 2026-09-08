@@ -72,16 +72,43 @@ function PublicPassportPage() {
     }
   };
 
-  const handleOpenQr = async () => {
+  const publicVerifyUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/passport/${token}`
+    : `https://skillbridge.dev/passport/${token}`;
+
+  const handleOpenQr = () => {
     if (!token) return;
-    setQrModalOpen(true);
+    // Instant client-side QR — no API round-trip needed
     if (!qrData) {
-      try {
-        const res = await ApiClient.getPassportQr(token);
-        setQrData(res);
-      } catch {
-        toast.error("Could not generate QR code.");
-      }
+      setQrData({
+        passport_token: token,
+        verification_url: publicVerifyUrl,
+        qr_code_svg_url: `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=10&data=${encodeURIComponent(publicVerifyUrl)}`,
+      });
+    }
+    setQrModalOpen(true);
+    // Silently refresh from server for correct base URL
+    ApiClient.getPassportQr(token)
+      .then((res) => { if (res?.qr_code_svg_url) setQrData(res); })
+      .catch(() => {/* client fallback already active */});
+  };
+
+  const handleDownloadQr = async () => {
+    if (!qrData?.qr_code_svg_url) return;
+    try {
+      const response = await fetch(qrData.qr_code_svg_url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `skillbridge-passport-${token?.substring(0, 10) || 'qr'}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('QR Code downloaded!');
+    } catch {
+      window.open(qrData.qr_code_svg_url, '_blank');
     }
   };
 
@@ -351,28 +378,57 @@ function PublicPassportPage() {
 
       {/* QR Code Verification Modal */}
       <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
-        <DialogContent className="max-w-sm rounded-3xl border border-border/80 bg-card p-6 text-center space-y-4 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl font-bold">QR Verification</DialogTitle>
+        <DialogContent className="max-w-xs rounded-3xl border border-border/80 bg-card p-6 text-center shadow-2xl">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="font-display text-lg font-bold text-foreground">
+              Passport QR Badge
+            </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Scan with any mobile device to verify cryptographic authenticity on-chain/ledger authority.
+              Scan with any camera to cryptographically verify this RS256 Skill Passport.
             </DialogDescription>
           </DialogHeader>
 
-          {qrData ? (
-            <div className="space-y-4 py-2 flex flex-col items-center">
-              <div className="p-3 bg-white rounded-2xl shadow-md inline-block">
-                <img src={qrData.qr_code_svg_url} alt="Verification QR Code" className="size-48" />
-              </div>
-              <p className="text-[11px] font-mono text-muted-foreground break-all">
-                {qrData.verification_url}
-              </p>
+          <div className="space-y-4 py-2">
+            <div className="p-4 bg-white rounded-2xl shadow-md inline-block mx-auto border border-border/20">
+              {qrData ? (
+                <img
+                  src={qrData.qr_code_svg_url}
+                  alt="Skill Passport Verification QR"
+                  className="size-52 object-contain"
+                  loading="eager"
+                />
+              ) : (
+                <div className="size-52 flex items-center justify-center text-xs text-muted-foreground animate-pulse">
+                  Generating QR...
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="py-8 text-xs text-muted-foreground animate-pulse">
-              Generating cryptographic QR badge...
+
+            <p className="text-[10px] font-mono text-muted-foreground bg-background border border-border rounded-lg px-2.5 py-1.5 break-all text-left">
+              {qrData?.verification_url || publicVerifyUrl}
+            </p>
+
+            <div className="flex items-center gap-2 justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadQr}
+                className="rounded-xl text-xs font-bold gap-1.5 flex-1 border-border"
+              >
+                ⬇ Download
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(qrData?.verification_url || publicVerifyUrl);
+                  toast.success('Link copied!');
+                }}
+                className="rounded-xl text-xs font-bold gap-1.5 flex-1"
+              >
+                Copy Link
+              </Button>
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
