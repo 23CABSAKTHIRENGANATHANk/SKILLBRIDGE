@@ -1167,28 +1167,70 @@ class ResumeExtractionService {
         }
 
         // B. Trigger Career Evolution / Readiness Recalculation
+        // B. Trigger Career Evolution & Real-Time Job Matching
         $careerImpact = [
             'readiness_updated'  => false,
             'skill_gaps_updated' => false,
             'job_matches_updated'=> false,
-            'next_action_updated'=> false
+            'next_action_updated'=> false,
+            'target_role'        => 'Full Stack Developer',
+            'readiness_score'    => 0,
+            'readiness_tier'     => 'Developing',
+            'job_opportunities'  => []
         ];
 
         try {
             $careerGoal = CareerEvolutionService::getCareerGoal($studentId);
-            if ($careerGoal && !empty($careerGoal['target_role'])) {
-                $readiness = CareerEvolutionService::calculateReadiness($studentId, $careerGoal['target_role']);
-                CareerEvolutionService::recordReadinessSnapshot(
+            $targetRole = $careerGoal['target_role'] ?? null;
+
+            if (empty($targetRole)) {
+                // Infer or default target role
+                $targetRole = 'Full Stack Developer';
+                if (!empty($structuredData['experience'][0]['job_title'])) {
+                    $targetRole = $structuredData['experience'][0]['job_title'];
+                }
+                $db->prepare('
+                    INSERT INTO career_goals (id, student_id, target_role, career_domain, experience_level, target_timeline_weeks)
+                    VALUES (?, ?, ?, \'Engineering\', \'entry_level\', 12)
+                    ON CONFLICT (student_id) DO UPDATE SET target_role = EXCLUDED.target_role, updated_at = CURRENT_TIMESTAMP
+                ')->execute(['cg_' . bin2hex(random_bytes(8)), $studentId, $targetRole]);
+            }
+
+            $readiness = CareerEvolutionService::calculateReadiness($studentId, $targetRole);
+            CareerEvolutionService::recordReadinessSnapshot(
+                $studentId,
+                $targetRole,
+                (int)($readiness['readiness_score'] ?? 0),
+                $readiness['readiness_tier'] ?? 'Developing',
+                $readiness
+            );
+
+            // Compute immediate active job opportunities
+            $jobOpps = CareerEvolutionService::getCareerOpportunities($studentId);
+
+            $careerImpact['readiness_updated']   = true;
+            $careerImpact['skill_gaps_updated']  = true;
+            $careerImpact['job_matches_updated'] = true;
+            $careerImpact['next_action_updated'] = true;
+            $careerImpact['target_role']        = $targetRole;
+            $careerImpact['readiness_score']    = (int)($readiness['readiness_score'] ?? 0);
+            $careerImpact['readiness_tier']     = $readiness['readiness_tier'] ?? 'Developing';
+            $careerImpact['job_opportunities']  = $jobOpps;
+
+            // Log knowledge evolution milestone
+            try {
+                $db->prepare('
+                    INSERT INTO knowledge_evolution_events (id, student_id, event_type, title, description, metadata, event_date)
+                    VALUES (?, ?, \'resume_uploaded\', ?, ?, ?, CURRENT_TIMESTAMP)
+                ')->execute([
+                    'kee_' . bin2hex(random_bytes(8)),
                     $studentId,
-                    $careerGoal['target_role'],
-                    (int)($readiness['readiness_score'] ?? 0),
-                    $readiness['readiness_tier'] ?? 'Developing',
-                    $readiness
-                );
-                $careerImpact['readiness_updated'] = true;
-                $careerImpact['skill_gaps_updated'] = true;
-                $careerImpact['job_matches_updated'] = true;
-                $careerImpact['next_action_updated'] = true;
+                    'Resume Analyzed & Profile Synced',
+                    'Synchronized ' . count($skillsDetected) . ' skills, ' . ($summary['projects_added'] ?? 0) . ' projects, and ' . ($summary['education_added'] ?? 0) . ' education records.',
+                    json_encode(['resume_id' => $resumeId, 'skills_count' => count($skillsDetected), 'target_role' => $targetRole])
+                ]);
+            } catch (\Throwable $e) {
+                // Non-blocking milestone record
             }
         } catch (\Throwable $e) {
             error_log('Career intelligence recalculation error: ' . $e->getMessage());
@@ -1220,6 +1262,7 @@ class ResumeExtractionService {
             'summary'              => $summary,
             'conflicts'            => $conflicts,
             'career_impact'        => $careerImpact,
+            'job_matching'         => $careerImpact['job_opportunities'] ?? [],
             'skills_detected'      => $skillsDetected,
             'categorized_skills'   => $categorizedSkills,
             'structured_data'      => $structuredData,
@@ -1229,6 +1272,7 @@ class ResumeExtractionService {
             'matched_skills'       => array_column($skillsDetected, 'name')
         ];
     }
+
 
     /**
      * Legacy adapter for processResumeEvidence
