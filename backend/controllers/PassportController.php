@@ -228,4 +228,16 @@ class PassportController {
             'qr_code_svg_url' => "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" . urlencode($publicUrl)
         ]);
     }
+
+    /**
+     * Public RFC 7517 JWKS Endpoint
+     * GET /.well-known/jwks.json
+     */
+    public static function getJwks(): void {
+        $jwks = PassportCryptoService::getJwks();
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($jwks, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
 }
+

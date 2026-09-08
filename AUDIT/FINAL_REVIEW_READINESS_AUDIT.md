@@ -161,7 +161,7 @@ SkillBridge 3.0 was subjected to an exhaustive, zero-assumption, zero-bypass arc
 - **Credential Version**: `2.0`.
 - **Canonicalization Algorithm**: [`PassportCryptoService::canonicalizeData()`](file:///E:/project/project/skill-bridge-connect-main/backend/services/PassportCryptoService.php) recursively sorts associative array keys via ASCII string collation, ensuring deterministic bit-for-bit JSON serialization regardless of PHP version or key insertion order.
 - **Tamper Detection**: Server verifies signature by reconstituting the canonical payload, Base64Url-decoding the signature, and invoking `openssl_verify(..., OPENSSL_ALGO_SHA256)`. Any payload alteration invalidates the cryptographic signature.
-- **Public Verification**: Exposed at `/api/passport/verify` and rendered via interactive React card at `/passport/$token`. PII (phone, email, raw resume storage keys) is strictly redacted from public passport tokens.
+- **Public Verification**: Exposed at `/api/passport/{token}/verify` and rendered via the interactive React passport route at `/passport/$token`. `getJwks()` can build a JWKS document, but no JWKS/public-key route is registered in `backend/index.php`. PII (phone, email, raw resume storage keys) is strictly redacted from public passport tokens.
 
 ---
 

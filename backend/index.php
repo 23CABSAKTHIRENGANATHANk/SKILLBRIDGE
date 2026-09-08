@@ -569,6 +569,11 @@ switch (true) {
         PassportController::getPassportQr($matches[1]);
         break;
 
+    case ($path === '/.well-known/jwks.json' || $path === '/passport/jwks') && $method === 'GET':
+        PassportController::getJwks();
+        break;
+
+
     // --- Phase 2: Recruiter Talent Search 2.0 & Precision Match Engine ---
     case $path === '/recruiter/talent-search' && $method === 'GET':
         $user = AuthMiddleware::authenticate();

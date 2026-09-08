@@ -60,7 +60,7 @@ backend/
    - Implements multi-factor recommendation score: Gap Coverage (30%) + Prerequisite Readiness (25%) + Career Alignment (20%) + Difficulty Proximity (10%) + Resource Quality (10%) + Freshness (5%).
    - Partitions jobs into 4 reachable tiers: Ready Now (score >= 80%), Nearly Ready (60-79%), Skill Gap (40-59%), Future Target (< 40%).
 3. **`PassportCryptoService.php`**:
-   - Signs skill passports with SHA-256 HMAC utilizing server secret.
+   - Signs skill credentials with RSA-2048 using OpenSSL SHA-256 (`RS256`), loading a private PEM key from environment variables or protected local storage.
    - Encodes zero-PII public payload allowing instant third-party employer verification without account creation.
 4. **`FileUploadService.php`**:
    - Validates upload MIME types against magic bytes (`%PDF-` for PDF, image headers for logos).

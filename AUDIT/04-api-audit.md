@@ -34,7 +34,7 @@
 | `POST` | `/api/assessment/submit` | Bearer | `student` | `attempt_id`, `answers` | JSON map of question_id -> option_id | `skill_assessments` | 200, 400, 401, 403 | `database-integration-test.php` (Sec 6) | **PASS** |
 | `GET` | `/api/student/skill-integrity` | Bearer | `student` | None | Active token | `skill_integrity_audits` | 200, 401 | `database-integration-test.php` (Sec 7) | **PASS** |
 | `POST` | `/api/student/passport` | Bearer | `student` | None | Verified skills >= 1 | `skill_passports` | 201, 400, 401 | `phase2-passport-test.php` | **PASS** |
-| `GET` | `/api/passport/{token}` | None | Public | Route token | Cryptographic HMAC validation | `skill_passports` | 200, 404 | `phase2-passport-test.php` | **PASS** |
+| `GET` | `/api/passport/{token}` | None | Public | Route token | Cryptographic RSA-2048/SHA-256 validation and revocation check | `skill_credentials`, `student_passports` | 200, 404 | Source inspection; focused test rerun pending | **PARTIAL** |
 
 ---
 

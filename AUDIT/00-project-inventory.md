@@ -98,7 +98,7 @@ skill-bridge-connect-main/
 6. `InterviewController.php`: Interview scheduling (video/technical/behavioral), student interview listings, status updates.
 7. `NotificationController.php`: Real-time notification retrieval, unread counts, mark-as-read, delete.
 8. `AssessmentController.php`: Multi-choice and code assessment generation, attempt creation, answer submission, automated scoring.
-9. `SkillVerificationController.php` / `PassportController.php`: Cryptographic Skill Passport tokens, HMAC signing, zero-PII public lookup, QR code generation.
+9. `SkillVerificationController.php` / `PassportController.php`: Cryptographic Skill Passport credentials, RSA-2048/SHA-256 signing, zero-PII public lookup, QR code generation.
 10. `CareerEvolutionController.php`: Central Personal Career OS hub: dashboard aggregator, goals, readiness, skill gaps, next best action, roadmaps, weekly plans.
 11. `CareerCopilotController.php`: "What-If" career growth simulation, AI skill gap analysis, agent recommendations.
 12. `CollegePlacementController.php`: College portal, cohort readiness aggregation, placement drives, student enrollment.
@@ -117,7 +117,7 @@ skill-bridge-connect-main/
 6. `SkillEvidenceService.php`: Multi-factor evidence collection and verification state management.
 7. `SkillIntegrityService.php`: Automated integrity audit engine detecting claimed vs proven skill mismatches.
 8. `SkillVerificationService.php`: Assessment attempt lifecycle, timed questions, score evaluation.
-9. `PassportCryptoService.php`: SHA-256 HMAC cryptographic token generation and verification.
+9. `PassportCryptoService.php`: RSA-2048 signing and SHA-256 signature verification via OpenSSL.
 10. `MatchingService.php` / `PrecisionMatchService.php`: Deterministic candidate-to-job matching algorithm.
 11. `GeminiService.php`: Gemini 3.7 Flash API client with XML delimiter prompt injection defenses and deterministic offline fallbacks.
 12. `ResumeExtractionService.php`: Secure PDF text extraction, structured resume parsing.

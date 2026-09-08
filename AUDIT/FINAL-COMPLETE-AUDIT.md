@@ -49,7 +49,7 @@ The audit confirms that SkillBridge 3.0 is a highly mature, secure, scalable, an
 | 5 | **UI/UX & Design System** | 10 | **9.7** | Modern glassmorphism aesthetic, thoughtful micro-interactions, responsive |
 | 6 | **Authentication & Security** | 10 | **9.9** | Bcrypt hashing, HS256 JWT, refresh rotation, 100% IDOR isolation |
 | 7 | **AI System & Intelligence** | 10 | **9.6** | Gemini 3.7 Flash, XML delimiter prompt protection, deterministic offline fallbacks |
-| 8 | **Proof-of-Skill Architecture**| 10 | **9.8** | 4-tier proof hierarchy, anti-tampering quiz lifecycle, HMAC passports |
+| 8 | **Proof-of-Skill Architecture**| 10 | **9.8** | 4-tier proof hierarchy, anti-tampering quiz lifecycle, RSA-2048/SHA-256 passports |
 | 9 | **Personal Career OS** | 5 | **4.9** | Deterministic readiness formula, Kahn's DAG acyclicity, roadmaps, weekly plans |
 | 10 | **Recruiter ATS & Matching** | 5 | **4.9** | Deterministic skill match score, company tenant isolation, candidate pipeline |
 | 11 | **Testing & QA Automation** | 5 | **4.9** | 100% Green across all 10 suites; real PostgreSQL 16 container testing |

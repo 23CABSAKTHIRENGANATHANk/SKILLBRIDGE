@@ -211,7 +211,7 @@ RESUME;
     }
 
     private function testPhase8_CryptographicSkillPassport(): void {
-        echo "\n--- Phase 8: Cryptographic Skill Passport Verification ---\n";
+        echo "\n--- Phase 8: Cryptographic Skill Passport Verification (RS256 & JWKS) ---\n";
 
         $passportData = [
             'student_id'   => 'std_e2e_999',
@@ -220,17 +220,29 @@ RESUME;
             'skills'       => ['React', 'TypeScript', 'Node.js']
         ];
 
-        $signature = hash_hmac('sha256', json_encode($passportData), 'skillbridge_master_secret');
-        $this->assert(strlen($signature) === 64, 'SHA-256 HMAC signature generated');
+        // 1. Sign canonical payload using RS256 (Asymmetric OpenSSL)
+        $sigResult = PassportCryptoService::signPayload($passportData);
+        $this->assert(!empty($sigResult['signature']), 'RS256 cryptographic signature generated');
+        $this->assert($sigResult['algorithm'] === 'RS256', 'Algorithm is strictly RS256');
+        $this->assert(!empty($sigResult['key_id']), 'Key ID attached to signature envelope');
 
-        $valid = hash_equals($signature, hash_hmac('sha256', json_encode($passportData), 'skillbridge_master_secret'));
-        $this->assert($valid === true, 'Passport signature successfully verified');
+        // 2. Verify authentic signature
+        $valid = PassportCryptoService::verifySignature($passportData, $sigResult['signature']);
+        $this->assert($valid === true, 'Asymmetric RS256 signature successfully verified via public key');
 
+        // 3. Tamper detection
         $tamperedPayload = $passportData;
         $tamperedPayload['skills'][] = 'FabricatedSkill';
-        $invalid = hash_equals($signature, hash_hmac('sha256', json_encode($tamperedPayload), 'skillbridge_master_secret'));
+        $invalid = PassportCryptoService::verifySignature($tamperedPayload, $sigResult['signature']);
         $this->assert($invalid === false, 'Tampered passport credential detected and rejected');
+
+        // 4. Public JWKS Verification
+        $jwks = PassportCryptoService::getJwks();
+        $this->assert(isset($jwks['keys']) && is_array($jwks['keys']), 'JWKS keys array present');
+        $this->assert(!empty($jwks['keys'][0]['n']) && !empty($jwks['keys'][0]['e']), 'JWKS contains RSA modulus (n) and exponent (e)');
+        $this->assert($jwks['keys'][0]['kty'] === 'RSA', 'JWKS key type is RSA');
     }
+
 
     private function testPhase9_PrecisionJobMatchmakingAndReadiness(): void {
         echo "\n--- Phase 9: Precision Job Matchmaking & 3-Tier Opportunity Engine ---\n";

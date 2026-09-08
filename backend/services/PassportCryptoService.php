@@ -362,4 +362,32 @@ class PassportCryptoService {
             'credential_data' => $payload
         ];
     }
+
+    /**
+     * Export public signing keys as standard JWKS (JSON Web Key Set).
+     */
+    public static function getJwks(): array {
+        $keys = self::getSigningKeys();
+        $pubRes = openssl_pkey_get_public($keys['public_key']);
+        if (!$pubRes) {
+            return ['keys' => []];
+        }
+
+        $details = openssl_pkey_get_details($pubRes);
+        $n = self::base64UrlEncode($details['rsa']['n'] ?? '');
+        $e = self::base64UrlEncode($details['rsa']['e'] ?? '');
+
+        return [
+            'keys' => [
+                [
+                    'kty' => 'RSA',
+                    'use' => 'sig',
+                    'alg' => self::ALGORITHM,
+                    'kid' => self::DEFAULT_KEY_ID,
+                    'n'   => $n,
+                    'e'   => $e
+                ]
+            ]
+        ];
+    }
 }

@@ -70,7 +70,7 @@ Zero-PII Public Token Structure:
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdGRfMTIzNDUiLCJza2lsbHMiOlt7InNsdWciOiJyZWFjdCIsImxldmVsIjoiYWR2YW5jZWQifV0sImlzcyI6IlNraWxsQnJpZGdlIiwiaWF0IjoxNzI1NDAxNjAwLCJleHAiOjE3NTY5Mzc2MDB9.SIGNATURE
 ```
 
-- **HMAC SHA-256 Signature**: Each passport token is signed with the platform's private cryptographic key.
+- **RSA-2048/SHA-256 Signature (RS256)**: Each credential payload is canonicalized and signed with `openssl_sign(..., OPENSSL_ALGO_SHA256)` using the configured RSA private key.
 - **Zero-PII Disclosure**: Public passport lookups expose student UUID, verified skills, and project badges, but strictly omit email, phone number, physical address, and GPA.
-- **Instant Revocation**: When an assessment is flagged for integrity violations, the passport record in `skill_passports` has `is_revoked = TRUE` set, instantly invalidating public QR scans.
+- **Revocation**: `skill_credentials.status` is checked by token verification; explicit student revocation records `REVOKED` status and an audit row. Automatic assessment-triggered revocation was not verified in the inspected path.
 - **Employer QR Verification**: Verified via standard camera or browser scan resolving `GET /api/passport/{token}`, returning real-time cryptographic validity.
