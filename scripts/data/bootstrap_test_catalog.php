@@ -1,7 +1,14 @@
 <?php
 declare(strict_types=1);
 
+if (!getenv('APP_ENV')) {
+    putenv('APP_ENV=testing');
+    $_ENV['APP_ENV'] = 'testing';
+    $_SERVER['APP_ENV'] = 'testing';
+}
+
 require_once __DIR__ . '/../../backend/config/database.php';
+Database::loadEnv();
 require_once __DIR__ . '/../../backend/config/DatabaseSafetyGuard.php';
 require_once __DIR__ . '/registry_seed.php';
 require_once __DIR__ . '/seed_career_intelligence.php';
