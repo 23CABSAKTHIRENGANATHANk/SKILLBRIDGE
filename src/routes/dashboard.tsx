@@ -502,17 +502,28 @@ function DashboardPage() {
 
   const handleConnectGithub = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!githubUsername.trim()) {
-      toast.error("GitHub username is required.");
+    let raw = githubUsername.trim();
+    if (!raw) {
+      toast.error("GitHub username or repository URL is required.");
       return;
     }
+
     setIsConnectingGithub(true);
     try {
-      const res = await ApiClient.connectGitHub(githubUsername.trim());
-      toast.success(res.message || "GitHub profile analyzed!");
-      await Promise.all([refetchProfile(), refetchDashboard(), refetchJobs()]);
-    } catch {
-      toast.error("Failed to analyze GitHub repositories.");
+      const res = await ApiClient.connectGitHub(raw);
+      toast.success(res.message || "GitHub profile analyzed and skills synchronized!");
+      setGithubUsername("");
+      await Promise.all([
+        refetchProfile(),
+        refetchDashboard(),
+        refetchJobs(),
+        queryClient.invalidateQueries({ queryKey: ["skill-evidence-graph"] }),
+        queryClient.invalidateQueries({ queryKey: ["student-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["student-dashboard"] }),
+      ]);
+    } catch (err: any) {
+      const msg = err?.message || err?.error || "Failed to analyze GitHub repositories.";
+      toast.error(msg);
     } finally {
       setIsConnectingGithub(false);
     }
