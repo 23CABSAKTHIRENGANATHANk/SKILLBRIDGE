@@ -492,11 +492,13 @@ class StudentController {
         }
 
         $resumeId = 'res_' . bin2hex(random_bytes(8));
-        $upStmt = $db->prepare('UPDATE students SET resume_storage_key = ? WHERE id = ?');
-        $upStmt->execute([$upload['storageKey'], $student['id']]);
 
         // 1. Trigger Full Resume Intelligent Auto-Sync Engine
         $syncResult = ResumeExtractionService::processResumeAutoSync($student['id'], $upload['storageKey'], $resumeId);
+
+        if (!($syncResult['success'] ?? false)) {
+            errorResponse($syncResult['error'] ?? 'Resume analysis could not be completed.', 422);
+        }
 
         // 2. Compute instant AI resume analysis & deterministic ATS score
         $resumeAnalysis = null;

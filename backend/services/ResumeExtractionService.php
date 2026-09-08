@@ -561,6 +561,31 @@ class ResumeExtractionService {
         }
 
         $contentHash = hash_file('sha256', $filePath) ?: hash('sha256', $storageKey);
+        $resumeId ??= 'res_' . bin2hex(random_bytes(8));
+
+        // The processing-history row is the durable resume record for this schema.
+        // Create it before extraction so failed uploads remain observable and retryable.
+        $historyStmt = $db->prepare('SELECT id FROM resume_processing_history WHERE student_id = ? AND resume_id = ? ORDER BY created_at DESC LIMIT 1');
+        $historyStmt->execute([$studentId, $resumeId]);
+        $historyId = $historyStmt->fetchColumn();
+
+        if (!$historyId) {
+            $historyId = 'rph_' . bin2hex(random_bytes(8));
+            $db->prepare('
+                INSERT INTO resume_processing_history (
+                    id, resume_id, student_id, storage_key, content_hash,
+                    processing_status, extraction_status, sync_status, parser_version
+                ) VALUES (?, ?, ?, ?, ?, \'uploaded\', \'pending\', \'pending\', \'3.0\')
+            ')->execute([$historyId, $resumeId, $studentId, $storageKey, $contentHash]);
+        } else {
+            $db->prepare('
+                UPDATE resume_processing_history
+                SET storage_key = ?, content_hash = ?, processing_status = \'uploaded\',
+                    extraction_status = \'pending\', sync_status = \'pending\',
+                    error_code = NULL, processed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ')->execute([$storageKey, $contentHash, $historyId]);
+        }
 
         // 2. Fetch existing student record
         $sStmt = $db->prepare('SELECT * FROM students WHERE id = ? LIMIT 1');
@@ -568,6 +593,7 @@ class ResumeExtractionService {
         $student = $sStmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$student) {
+            $db->prepare('UPDATE resume_processing_history SET processing_status = \'failed\', error_code = \'STUDENT_NOT_FOUND\', processed_at = CURRENT_TIMESTAMP WHERE id = ?')->execute([$historyId]);
             return [
                 'success'    => false,
                 'error'      => 'Student record not found.',
@@ -578,6 +604,12 @@ class ResumeExtractionService {
         // 3. Extract plain text
         $textResult = self::extractTextFromFile($storageKey);
         if (!$textResult['success'] || empty($textResult['text'])) {
+            $db->prepare('
+                UPDATE resume_processing_history
+                SET processing_status = \'failed\', extraction_status = \'failed\', sync_status = \'failed\',
+                    error_code = ?, processed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ')->execute(['EXTRACTION_FAILED', $historyId]);
             return [
                 'success'    => false,
                 'error'      => $textResult['error'] ?? 'No extractable text layer found in resume.',
@@ -776,6 +808,13 @@ class ResumeExtractionService {
             // B. Profile Fields Intelligent Merge (Fill missing, never overwrite existing verified/manual data)
             $profileUpdates = [];
             $updateParams = [];
+
+            if (($student['resume_storage_key'] ?? '') !== $storageKey) {
+                $profileUpdates[] = 'resume_storage_key = ?';
+                $updateParams[] = $storageKey;
+                $summary['profile_fields_updated']++;
+                $summary['profile_updated']++;
+            }
 
             // Location
             $resumeLoc = $structuredData['personal_information']['location'] ?? $structuredData['personal']['location'] ?? '';
@@ -1127,27 +1166,26 @@ class ResumeExtractionService {
             }
 
             // H. Record in Resume Processing History
-            $historyId = 'rph_' . bin2hex(random_bytes(8));
-            $insHist = $db->prepare('
-                INSERT INTO resume_processing_history (
-                    id, resume_id, student_id, storage_key, content_hash,
-                    processing_status, extraction_status, sync_status,
-                    summary, conflicts, parser_version
-                ) VALUES (?, ?, ?, ?, ?, \'synced\', \'extracted\', \'completed\', ?, ?, \'3.0\')
-            ');
-            $insHist->execute([
-                $historyId,
-                $resumeId,
-                $studentId,
-                $storageKey,
-                $contentHash,
-                json_encode($summary),
-                json_encode($conflicts)
-            ]);
+            $db->prepare('
+                UPDATE resume_processing_history
+                SET processing_status = \'synced\', extraction_status = \'extracted\', sync_status = \'completed\',
+                    summary = ?, conflicts = ?, error_code = NULL, processed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ')->execute([json_encode($summary), json_encode($conflicts), $historyId]);
 
             $db->commit();
         } catch (\Throwable $e) {
             $db->rollBack();
+            try {
+                $db->prepare('
+                    UPDATE resume_processing_history
+                    SET processing_status = \'failed\', extraction_status = \'extracted\', sync_status = \'failed\',
+                        error_code = \'DATABASE_ERROR\', processed_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ')->execute([$historyId]);
+            } catch (\Throwable $historyError) {
+                error_log('Resume failure history update failed: ' . $historyError->getMessage());
+            }
             error_log('Resume Auto-Sync transaction failed: ' . $e->getMessage());
             return [
                 'success'    => false,

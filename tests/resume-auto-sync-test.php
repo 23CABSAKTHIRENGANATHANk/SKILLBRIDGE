@@ -234,10 +234,14 @@ try {
     // Test Group 9: Resume Processing History & Idempotency
     // ------------------------------------------------------------------------
     echo "\n9. Testing Resume Processing History & Idempotency...\n";
-    $histStmt = $db->prepare('SELECT id, processing_status, sync_status FROM resume_processing_history WHERE student_id = ?');
+    $histStmt = $db->prepare('SELECT id, resume_id, storage_key, processing_status, extraction_status, sync_status FROM resume_processing_history WHERE student_id = ?');
     $histStmt->execute([$testStudentId]);
     $historyRow = $histStmt->fetch(\PDO::FETCH_ASSOC);
     assertTest("Resume processing history recorded", $historyRow !== false && $historyRow['sync_status'] === 'completed');
+    assertTest("DB resume record links the uploaded resume", $historyRow !== false && $historyRow['resume_id'] === $resumeId && $historyRow['storage_key'] === $storageKey);
+    $profileResumeStmt = $db->prepare('SELECT resume_storage_key FROM students WHERE id = ?');
+    $profileResumeStmt->execute([$testStudentId]);
+    assertTest("Student profile links the successfully synchronized resume", $profileResumeStmt->fetchColumn() === $storageKey);
 
     // Re-run sync to test idempotency
     $repeatSync = ResumeExtractionService::processResumeAutoSync($testStudentId, $storageKey, $resumeId);

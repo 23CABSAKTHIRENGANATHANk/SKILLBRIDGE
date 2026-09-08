@@ -87,20 +87,21 @@
 flowchart TD
     A[Student Uploads PDF/DOCX] --> B[FileUploadService: MIME & Magic Byte Validation]
     B --> C[Store in Protected Non-Public Storage]
-    C --> D[ResumeExtractionService: Multi-Pass Plain Text Extraction]
-    D --> E[GeminiService: Untrusted Input Tagging & Schema Extraction]
-    E -->|Fallback if AI Offline| F[Deterministic Regex Entity Parser]
-    E --> G[Skill Normalization Against 100+ Master Taxonomy]
-    F --> G
-    G --> H[Intelligent Merge & Conflict Detection]
-    H --> I[Atomic Database Transaction]
-    I --> J[Save Student Profile / Education / Experience / Projects / Certs]
-    I --> K[Upsert Skill Evidence source=resume_evidence confidence=75%]
-    I --> L[Record Resume Processing History & Content Hash]
-    L --> M[Commit Transaction]
-    M --> N[Trigger SkillIntegrityService Non-Punitive Audit]
-    M --> O[Recalculate Career Evolution Readiness Snapshot]
-    O --> P[Return Structured Sync Summary & Invalidate Query Caches]
+    C --> D[Create Resume Processing Record: uploaded/pending]
+    D --> E[ResumeExtractionService: Multi-Pass Plain Text Extraction]
+    E --> F[GeminiService: Untrusted Input Tagging & Schema Extraction]
+    F -->|Fallback if AI Offline| G[Deterministic Regex Entity Parser]
+    F --> H[Skill Normalization Against 100+ Master Taxonomy]
+    G --> H
+    H --> I[Intelligent Merge & Conflict Detection]
+    I --> J[Atomic Database Transaction]
+    J --> K[Save Student Profile / Education / Experience / Projects / Certs]
+    J --> L[Upsert Skill Evidence source=resume_evidence confidence=75%]
+    J --> M[Finalize Resume Record: synced/extracted/completed]
+    M --> N[Commit Transaction]
+    N --> O[Trigger SkillIntegrityService Non-Punitive Audit]
+    N --> P[Recalculate Career Evolution Readiness Snapshot]
+    P --> Q[Return Structured Sync Summary & Invalidate Query Caches]
 ```
 
 ---
