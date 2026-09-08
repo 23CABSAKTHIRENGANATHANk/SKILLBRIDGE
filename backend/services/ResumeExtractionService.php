@@ -837,8 +837,8 @@ class ResumeExtractionService {
             }
 
             // C. Skill Synchronization & Evidence
-            // Fetch existing student skills to protect existing verified status
-            $ssStmt = $db->prepare('SELECT skill_id, proficiency, verified FROM student_skills WHERE student_id = ?');
+            // Fetch existing student skills and keep verification separate from evidence.
+            $ssStmt = $db->prepare('SELECT skill_id, proficiency FROM student_skills WHERE student_id = ?');
             $ssStmt->execute([$studentId]);
             $existingStudentSkills = [];
             foreach ($ssStmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
@@ -846,8 +846,8 @@ class ResumeExtractionService {
             }
 
             $insStudentSkill = $db->prepare('
-                INSERT INTO student_skills (student_id, skill_id, proficiency, verified)
-                VALUES (?, ?, \'intermediate\', FALSE)
+                INSERT INTO student_skills (student_id, skill_id, proficiency)
+                VALUES (?, ?, \'intermediate\')
                 ON CONFLICT (student_id, skill_id) DO NOTHING
             ');
 

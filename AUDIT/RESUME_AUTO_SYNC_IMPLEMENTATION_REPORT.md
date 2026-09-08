@@ -38,7 +38,8 @@
 - [`src/routes/dashboard.tsx`](file:///e:/project/project/skill-bridge-connect-main/src/routes/dashboard.tsx) **[MODIFIED]**: Added real-time auto-sync progress indicator, sync summary breakdown card ("Updated from your resume"), Proof-of-Skill notice, conflict resolution interface, and full TanStack query cache invalidation.
 
 ### Testing Suite
-- [`tests/resume-auto-sync-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/resume-auto-sync-test.php) **[NEW]**: 30-point integration test suite verifying taxonomy normalization, URL sanitization, prompt injection defenses, non-downgrade of verified skills, conflict handling, transaction rollback, and idempotency.
+- [`tests/resume-auto-sync-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/resume-auto-sync-test.php) **[NEW]**: Integration test suite verifying taxonomy normalization, URL sanitization, prompt injection defenses, non-downgrade of verified skills, conflict handling, transaction rollback, and idempotency.
+- [`backend/services/ResumeExtractionService.php`](file:///e:/project/project/skill-bridge-connect-main/backend/services/ResumeExtractionService.php) **[MODIFIED]**: Removed stale reads and writes of the nonexistent `student_skills.verified` column. Resume evidence remains separate from verification and existing proficiency is preserved.
 
 ---
 
@@ -146,13 +147,11 @@ flowchart TD
 
 | Test Suite | Test Count | Result |
 |---|---|---|
-| [`tests/resume-auto-sync-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/resume-auto-sync-test.php) | 30 / 30 | **ALL PASSED (100%)** |
-| [`tests/postgres-verification.php`](file:///e:/project/project/skill-bridge-connect-main/tests/postgres-verification.php) | 16 / 16 | **ALL PASSED (100%)** |
-| [`tests/skillbridge-3-verification-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/skillbridge-3-verification-test.php) | 27 / 27 | **ALL PASSED (100%)** |
-| [`tests/skillbridge-3-career-evolution-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/skillbridge-3-career-evolution-test.php) | 27 / 27 | **ALL PASSED (100%)** |
-| [`tests/test-evolution-loop.php`](file:///e:/project/project/skill-bridge-connect-main/tests/test-evolution-loop.php) | 6 / 6 | **ALL PASSED (100%)** |
+| [`tests/resume-auto-sync-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/resume-auto-sync-test.php) | 42 / 42 | **ALL PASSED (100%)** |
+| [`tests/database-integration-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/database-integration-test.php) | 48 / 48 | **ALL PASSED (100%)** |
 | TypeScript Compiler (`npx tsc --noEmit`) | Complete code check | **0 Errors** |
-| Production Bundle (`npm run build`) | Vite + Nitro SSR build | **SUCCESS** |
+| [`tests/http-database-integration-test.php`](file:///e:/project/project/skill-bridge-connect-main/tests/http-database-integration-test.php) | HTTP integration | **BLOCKED: local PHP server did not produce a stable captured response in this environment** |
+| Production Bundle (`npm run build`) | Vite + Nitro SSR build | **Not re-confirmed in this continuation; run locally before release** |
 
 ---
 
@@ -180,6 +179,7 @@ flowchart TD
 - [x] IDOR protection is strictly enforced
 - [x] Prompt injection protection is active
 - [x] Gemini fallback works deterministically
-- [x] All test suites pass (106+ tests green)
+- [x] Focused resume and database integration suites pass (90 assertions green)
+- [ ] HTTP integration suite requires a stable local PHP server process for final confirmation
 - [x] TypeScript typecheck passes with 0 errors
-- [x] Production build passes
+- [ ] Production build should be re-run in a normal interactive shell before release
