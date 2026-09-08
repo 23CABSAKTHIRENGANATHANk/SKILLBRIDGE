@@ -50,6 +50,10 @@ export class ApiClient {
   private static isRefreshing = false;
   private static refreshSubscribers: Array<(token: string | null) => void> = [];
 
+  public static getBaseUrl(): string {
+    return API_BASE_URL;
+  }
+
   public static getToken(): string | null {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("sb_auth_token");

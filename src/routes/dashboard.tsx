@@ -393,6 +393,27 @@ function DashboardPage() {
     }
   };
 
+  const handleDownloadResume = async () => {
+    try {
+      const token = ApiClient.getToken();
+      const res = await fetch(`${ApiClient.getBaseUrl()}/student/resume/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Could not download resume.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = resumeFilename || "Resume.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download resume.");
+    }
+  };
+
   const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectTitle.trim()) {
@@ -1284,15 +1305,14 @@ function DashboardPage() {
                             </Button>
                           </div>
 
-                          <a
-                            href={`${ApiClient.getBaseUrl()}/student/resume/download`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                          <button
+                            type="button"
+                            onClick={handleDownloadResume}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                           >
-                            <Download className="size-3.5" />
+                            <Download className="size-3.5 text-emerald-500" />
                             Download Current Resume
-                          </a>
+                          </button>
                         </div>
                       </div>
                     ) : (
