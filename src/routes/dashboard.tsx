@@ -38,11 +38,13 @@ import {
   Zap,
   Target,
   Compass,
+  Search,
 } from "lucide-react";
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { CursorDot } from "@/components/cursor-dot";
 import { CareerProgressCard } from "@/components/career-progress";
 import { ApplicationPipeline } from "@/components/application-pipeline";
@@ -259,6 +261,7 @@ function DashboardPage() {
   const [isApprovingSkills, setIsApprovingSkills] = useState(false);
   const [activeSkillCategoryTab, setActiveSkillCategoryTab] = useState<string>("All");
   const [activeVerifiedSkillTab, setActiveVerifiedSkillTab] = useState<string>("All");
+  const [searchSkillFilter, setSearchSkillFilter] = useState<string>("");
 
   // Projects state
   const [projectTitle, setProjectTitle] = useState("");
@@ -334,6 +337,19 @@ function DashboardPage() {
   const careerScore = currentProgress.percent;
 
   const skillClusterData = profile?.skills ?? [];
+
+  const filteredVerifiedSkills = useMemo(() => {
+    const all = profile?.skills || [];
+    return all.filter((s) => {
+      const matchesCategory =
+        activeVerifiedSkillTab === "All" ||
+        (SKILL_CATEGORY_MAP[s.skill_name] || "Other") === activeVerifiedSkillTab;
+      const matchesSearch =
+        !searchSkillFilter.trim() ||
+        s.skill_name.toLowerCase().includes(searchSkillFilter.toLowerCase().trim());
+      return matchesCategory && matchesSearch;
+    });
+  }, [profile?.skills, activeVerifiedSkillTab, searchSkillFilter]);
 
   const now = new Date();
   const greeting =
@@ -2099,7 +2115,7 @@ function DashboardPage() {
               )}
 
               {/* 2. Main 2-Column Balanced Workspace Grid */}
-              <div className="grid gap-6 lg:grid-cols-12">
+              <div className="grid gap-6 lg:grid-cols-12 items-start">
                 {/* Left Column (7 cols): Verified Skills Hub & Graph */}
                 <div className="lg:col-span-7 space-y-6">
                   {/* Verified Skills Hub */}
@@ -2117,6 +2133,29 @@ function DashboardPage() {
                         <span className="text-xs font-bold text-primary bg-primary-soft px-3 py-1 rounded-full shrink-0">
                           {profile?.skills?.length || 0} Skills Active
                         </span>
+                      </div>
+
+                      {/* Quick Search and Filter Bar */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-3">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                          <Input
+                            type="text"
+                            placeholder="Search active skills..."
+                            value={searchSkillFilter}
+                            onChange={(e) => setSearchSkillFilter(e.target.value)}
+                            className="pl-9 h-8 text-xs rounded-xl bg-background/80 border-border/80 w-full"
+                          />
+                          {searchSkillFilter && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchSkillFilter("")}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Category Filter Tabs for Verified Skills */}
@@ -2147,76 +2186,78 @@ function DashboardPage() {
                         ))}
                       </div>
 
-                      {/* Responsive Grid of Skill Cards */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                      {/* Responsive Scrollable Grid of Skill Cards */}
+                      <div className="max-h-[580px] overflow-y-auto pr-1 space-y-3 mb-6">
                         {filteredVerifiedSkills.length > 0 ? (
-                          filteredVerifiedSkills.map((skill) => {
-                            const profInfo = getSkillProficiencyInfo(skill.proficiency);
-                            const proof = profile?.skill_proof?.find((p) => p.skill_id === skill.skill_id);
-                            const confidence = proof?.confidence_score ?? 30;
-                            const category = SKILL_CATEGORY_MAP[skill.skill_name] || "General";
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {filteredVerifiedSkills.map((skill) => {
+                              const profInfo = getSkillProficiencyInfo(skill.proficiency);
+                              const proof = profile?.skill_proof?.find((p) => p.skill_id === skill.skill_id);
+                              const confidence = proof?.confidence_score ?? 30;
+                              const category = SKILL_CATEGORY_MAP[skill.skill_name] || "General";
 
-                            return (
-                              <div
-                                key={skill.skill_id}
-                                className="rounded-2xl border border-border/80 bg-background/60 p-3.5 transition-all hover:border-primary/40 hover:shadow-2xs flex flex-col justify-between"
-                              >
-                                <div>
-                                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                                    <div className="min-w-0 flex-1">
-                                      <h4 className="font-bold text-xs text-foreground truncate">
-                                        {skill.skill_name}
-                                      </h4>
-                                      <span className="text-[10px] text-muted-foreground font-semibold">
-                                        {category}
+                              return (
+                                <div
+                                  key={skill.skill_id}
+                                  className="rounded-2xl border border-border/80 bg-background/60 p-3.5 transition-all hover:border-primary/40 hover:shadow-2xs flex flex-col justify-between"
+                                >
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="font-bold text-xs text-foreground truncate">
+                                          {skill.skill_name}
+                                        </h4>
+                                        <span className="text-[10px] text-muted-foreground font-semibold">
+                                          {category}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border shrink-0 ${profInfo.badgeClass}`}
+                                      >
+                                        {profInfo.label} ({profInfo.percentage}%)
                                       </span>
                                     </div>
-                                    <span
-                                      className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border shrink-0 ${profInfo.badgeClass}`}
-                                    >
-                                      {profInfo.label} ({profInfo.percentage}%)
+
+                                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden my-2">
+                                      <div
+                                        className="h-full bg-primary rounded-full transition-all duration-500"
+                                        style={{ width: `${profInfo.percentage}%` }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40 text-[11px]">
+                                    <span className="text-[10px] text-muted-foreground font-bold">
+                                      {confidence}% {proof?.evidence.resume_evidence ? "Resume" : "Evidence"}
                                     </span>
-                                  </div>
-
-                                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden my-2">
-                                    <div
-                                      className="h-full bg-primary rounded-full transition-all duration-500"
-                                      style={{ width: `${profInfo.percentage}%` }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40 text-[11px]">
-                                  <span className="text-[10px] text-muted-foreground font-bold">
-                                    {confidence}% {proof?.evidence.resume_evidence ? "Resume" : "Evidence"}
-                                  </span>
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleOpenAssessment(skill.skill_name)}
-                                      className="h-6 px-2 text-[10px] font-extrabold rounded-md text-primary bg-primary-soft hover:bg-primary hover:text-primary-foreground transition-colors"
-                                    >
-                                      <Zap className="size-2.5 mr-0.5" />
-                                      Verify
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteSkill(skill.skill_id, skill.skill_name)}
-                                      className="size-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
-                                      title="Remove skill"
-                                    >
-                                      <X className="size-3" />
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleOpenAssessment(skill.skill_name)}
+                                        className="h-6 px-2 text-[10px] font-extrabold rounded-md text-primary bg-primary-soft hover:bg-primary hover:text-primary-foreground transition-colors"
+                                      >
+                                        <Zap className="size-2.5 mr-0.5" />
+                                        Verify
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeleteSkill(skill.skill_id, skill.skill_name)}
+                                        className="size-6 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
+                                        title="Remove skill"
+                                      >
+                                        <X className="size-3" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })
+                              );
+                            })}
+                          </div>
                         ) : (
-                          <div className="sm:col-span-2 text-center py-8 text-xs text-muted-foreground">
-                            No skills found in this category.
+                          <div className="text-center py-12 text-xs text-muted-foreground border border-dashed border-border/80 rounded-2xl p-6">
+                            No skills matching "{searchSkillFilter || activeVerifiedSkillTab}". Try adjusting your filters.
                           </div>
                         )}
                       </div>
