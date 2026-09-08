@@ -21,35 +21,41 @@ class AIController {
         $db    = Database::getConnection();
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        // Get student profile + skills
+        // Get student profile
         $stmt = $db->prepare('
-            SELECT s.name, s.program, s.college, s.experience, s.resume_storage_key
+            SELECT s.id, s.name, s.program, s.college, s.experience, s.resume_storage_key
             FROM students s WHERE s.user_id = ? LIMIT 1
         ');
         $stmt->execute([$currentUser['user_id']]);
         $student = $stmt->fetch();
         if (!$student) errorResponse('Student profile not found.', 404);
 
-        $skStmt = $db->prepare('
-            SELECT sk.name FROM student_skills ss
-            JOIN skills sk ON ss.skill_id = sk.id
-            JOIN students st ON ss.student_id = st.id
-            WHERE st.user_id = ?
-        ');
-        $skStmt->execute([$currentUser['user_id']]);
-        $skills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
-
         $resumeText = trim($input['resume_text'] ?? '');
         if (empty($resumeText) && !empty($student['resume_storage_key'])) {
             try {
-                $ext = ResumeExtractionService::extractTextFromFile($student['resume_storage_key']);
-                if (!empty($ext['text'])) {
-                    $resumeText = $ext['text'];
+                $processResult = ResumeExtractionService::processResumeEvidence($student['id'], $student['resume_storage_key']);
+                if (!empty($processResult['text'])) {
+                    $resumeText = $processResult['text'];
                 }
             } catch (\Throwable $e) {
-                // Non-blocking fallback to profile proxy
+                try {
+                    $ext = ResumeExtractionService::extractTextFromFile($student['resume_storage_key']);
+                    if (!empty($ext['text'])) {
+                        $resumeText = $ext['text'];
+                    }
+                } catch (\Throwable $ex) {}
             }
         }
+
+        // Fetch all student skills (including freshly synchronized resume skills)
+        $skStmt = $db->prepare('
+            SELECT sk.name FROM student_skills ss
+            JOIN skills sk ON ss.skill_id = sk.id
+            WHERE ss.student_id = ?
+        ');
+        $skStmt->execute([$student['id']]);
+        $skills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
+
         if (empty($resumeText)) {
             // Use profile data as resume proxy
             $resumeText = "Name: {$student['name']}\nProgram: {$student['program']}\nCollege: {$student['college']}\nSkills: " . implode(', ', $skills);
@@ -59,8 +65,8 @@ class AIController {
 
         $result = GeminiService::summariseResume(
             $resumeText,
-            $student['name'],
-            $student['program'],
+            $student['name'] ?? 'Student',
+            $student['program'] ?? 'Computer Science',
             $skills
         );
 

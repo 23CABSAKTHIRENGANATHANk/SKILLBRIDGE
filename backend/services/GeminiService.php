@@ -430,17 +430,29 @@ PROMPT;
         if ($wordCount > 100) $baseScore += 4;
         $atsScore = min(95, max(68, $baseScore));
 
+        $formattingScore = min(96, 80 + ($wordCount > 50 ? 10 : 0));
+        $keywordScore = min(95, 75 + min(20, $skillCount * 4));
+        $impactScore = min(92, 70 + ($wordCount > 100 ? 15 : 5));
+
+        $allRecommendedKeywords = ['Docker', 'REST API', 'PostgreSQL', 'Git', 'CI/CD', 'Unit Testing', 'TypeScript', 'AWS'];
+        $suggestedKeywords = array_values(array_diff($allRecommendedKeywords, $skills));
+
         return [
-            'headline'        => !empty($topSkills) ? "{$program} Specialist | " . implode(' • ', array_slice($skills, 0, 3)) : "{$program} Student & Aspiring Tech Professional",
-            'summary'         => "I am a motivated {$program} student with hands-on experience in " . (!empty($topSkills) ? $topSkills : "modern software engineering") . ". I thrive in collaborative environments and enjoy solving complex technical challenges. I am actively seeking opportunities to apply my skills in a professional setting.",
-            'key_strengths'   => !empty($skills) ? array_slice($skills, 0, 4) : ["Strong academic foundation in {$program}", "Technical problem solving", "Modern software practices"],
-            'improvement_tips'=> [
+            'headline'              => !empty($topSkills) ? "{$program} Specialist | " . implode(' • ', array_slice($skills, 0, 3)) : "{$program} Student & Aspiring Tech Professional",
+            'summary'               => "I am a motivated {$program} student with hands-on experience in " . (!empty($topSkills) ? $topSkills : "modern software engineering") . ". I thrive in collaborative environments and enjoy solving complex technical challenges. I am actively seeking opportunities to apply my skills in a professional setting.",
+            'key_strengths'         => !empty($skills) ? array_slice($skills, 0, 4) : ["Strong academic foundation in {$program}", "Technical problem solving", "Modern software practices"],
+            'improvement_tips'      => [
                 "Add quantifiable achievements (e.g. 'Reduced load time by 40%')",
                 "Include public GitHub project links to demonstrate proof-of-work",
                 "Add LinkedIn profile URL and verified technical certifications"
             ],
-            'ats_score'       => $atsScore,
-            'experience_level'=> $skillCount > 3 ? 'Junior' : 'Fresher',
+            'ats_score'             => $atsScore,
+            'formatting_score'      => $formattingScore,
+            'keyword_density_score' => $keywordScore,
+            'impact_score'          => $impactScore,
+            'matched_skills_count'  => $skillCount,
+            'suggested_keywords'    => array_slice($suggestedKeywords, 0, 4),
+            'experience_level'      => $skillCount > 3 ? 'Junior' : 'Fresher',
         ];
     }
 

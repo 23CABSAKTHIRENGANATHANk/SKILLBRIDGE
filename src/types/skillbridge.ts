@@ -153,6 +153,11 @@ export interface AIResumeAnalysis {
   key_strengths: string[];
   improvement_tips: string[];
   ats_score: number | null;
+  formatting_score?: number;
+  keyword_density_score?: number;
+  impact_score?: number;
+  matched_skills_count?: number;
+  suggested_keywords?: string[];
   experience_level: "Fresher" | "Junior" | "Mid" | string;
 }
 

@@ -291,6 +291,17 @@ switch (true) {
         StudentController::uploadResume($user);
         break;
 
+    case $path === '/student/resume/download' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        AuthMiddleware::requireRole($user, 'student');
+        $db = Database::getConnection();
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$user['user_id']]);
+        $st = $sStmt->fetch();
+        if (!$st) { errorResponse('Student not found.', 404); }
+        StudentController::streamResume($user, $st['id']);
+        break;
+
     case preg_match('#^/student/resume/download/([a-zA-Z0-9_-]+)$#', $path, $matches) && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         StudentController::streamResume($user, $matches[1]);

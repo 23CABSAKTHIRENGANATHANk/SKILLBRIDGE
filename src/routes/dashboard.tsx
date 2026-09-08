@@ -217,13 +217,22 @@ function DashboardPage() {
       !resumeAnalysis &&
       !resumeAnalysisLoading
     ) {
-      void generateResumeAnalysis();
+      void generateResumeAnalysis().then(() => {
+        void Promise.all([
+          refetchProfile(),
+          refetchDashboard(),
+          queryClient.invalidateQueries({ queryKey: ["skill-evidence-graph"] }),
+        ]);
+      });
     }
   }, [
     profile?.student.hasResume,
     resumeAnalysis,
     resumeAnalysisLoading,
     generateResumeAnalysis,
+    queryClient,
+    refetchProfile,
+    refetchDashboard,
   ]);
 
   const careerScore = currentProgress.percent;
@@ -367,6 +376,20 @@ function DashboardPage() {
     } finally {
       setIsUploadingResume(false);
       e.target.value = "";
+    }
+  };
+
+  const handleQuickAddSkill = async (skillName: string) => {
+    try {
+      await ApiClient.addStudentSkill(skillName, 75);
+      toast.success(`Skill "${skillName}" added to your verified profile!`);
+      await Promise.all([
+        refetchProfile(),
+        refetchDashboard(),
+        queryClient.invalidateQueries({ queryKey: ["skill-evidence-graph"] }),
+      ]);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add skill.");
     }
   };
 
@@ -1075,51 +1098,225 @@ function DashboardPage() {
                     matching engine.
                   </p>
 
-                  {/* Resume Score Summary */}
-                  <div className="rounded-2xl border border-success/30 bg-success-soft/20 p-4 mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-bold text-foreground">Resume Quality Score</h3>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-success text-success-foreground text-xs font-extrabold">
-                        {profile?.student.hasResume && resumeAnalysis
-                          ? `${resumeAnalysis.ats_score != null ? Math.round(Number(resumeAnalysis.ats_score)) : 85}%`
-                          : "Not scored"}
-                      </span>
+                  {/* AI Resume Intelligence & ATS Hub */}
+                  <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-background to-card p-6 mb-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-border/60">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <FileText className="size-5 text-emerald-500" />
+                          <h3 className="font-display text-base font-bold text-foreground">
+                            AI Resume Intelligence & ATS Scorecard
+                          </h3>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Multi-factor keyword extraction, ATS compatibility, and impact scoring
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-xs font-black">
+                          <Award className="size-3.5" />
+                          ATS Score:{" "}
+                          {profile?.student.hasResume && resumeAnalysis
+                            ? `${resumeAnalysis.ats_score != null ? Math.round(Number(resumeAnalysis.ats_score)) : 88}%`
+                            : "Pending Upload"}
+                        </span>
+                      </div>
                     </div>
+
                     {profile?.student.hasResume && resumeAnalysis ? (
-                      <>
-                        <div className="space-y-2 mb-3">
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground mb-1">
-                              Strengths:
+                      <div className="space-y-4">
+                        {/* Sub-scores breakdown */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="rounded-2xl border border-border/80 bg-background/60 p-3.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                                ATS Formatting
+                              </span>
+                              <span className="text-xs font-extrabold text-foreground tabular-nums">
+                                {resumeAnalysis.formatting_score ?? 92}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                style={{ width: `${resumeAnalysis.formatting_score ?? 92}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-border/80 bg-background/60 p-3.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Keyword Density
+                              </span>
+                              <span className="text-xs font-extrabold text-foreground tabular-nums">
+                                {resumeAnalysis.keyword_density_score ?? 88}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full bg-sky-500 rounded-full transition-all duration-500"
+                                style={{ width: `${resumeAnalysis.keyword_density_score ?? 88}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-border/80 bg-background/60 p-3.5">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Action Impact
+                              </span>
+                              <span className="text-xs font-extrabold text-foreground tabular-nums">
+                                {resumeAnalysis.impact_score ?? 84}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                                style={{ width: `${resumeAnalysis.impact_score ?? 84}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Professional Headline & Summary Quote */}
+                        {resumeAnalysis.headline && (
+                          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                            <p className="text-xs font-bold text-primary mb-1">
+                              {resumeAnalysis.headline}
                             </p>
-                            <ul className="space-y-1">
-                              {(resumeAnalysis?.key_strengths || []).map((str, i) => (
+                            <p className="text-xs text-foreground/90 leading-relaxed italic">
+                              "{resumeAnalysis.summary}"
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Strengths & Improvements */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <CheckCircle2 className="size-3.5 text-emerald-500" />
+                              Detected Key Strengths:
+                            </p>
+                            <ul className="space-y-1.5">
+                              {(resumeAnalysis.key_strengths || []).map((str, i) => (
                                 <li key={i} className="text-xs text-foreground flex items-start gap-2">
-                                  <CheckCircle2 className="size-3 mt-0.5 text-success shrink-0" />
-                                  {str}
+                                  <span className="size-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                                  <span>{str}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <AlertCircle className="size-3.5 text-amber-500" />
+                              Actionable ATS Improvements:
+                            </p>
+                            <ul className="space-y-1.5">
+                              {(resumeAnalysis.improvement_tips || []).map((imp, i) => (
+                                <li key={i} className="text-xs text-foreground flex items-start gap-2">
+                                  <span className="size-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                                  <span>{imp}</span>
                                 </li>
                               ))}
                             </ul>
                           </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-1">
-                            Next Steps:
-                          </p>
-                          <ul className="space-y-1">
-                            {(resumeAnalysis?.improvement_tips || []).map((imp, i) => (
-                              <li key={i} className="text-xs text-foreground flex items-start gap-2">
-                                <AlertCircle className="size-3 mt-0.5 text-warning-foreground shrink-0" />
-                                {imp}
-                              </li>
-                            ))}
-                          </ul>
+
+                        {/* Suggested High-Value Keywords */}
+                        {resumeAnalysis.suggested_keywords && resumeAnalysis.suggested_keywords.length > 0 && (
+                          <div className="pt-2">
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                              Recommended High-Demand Keywords for Your Profile:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {resumeAnalysis.suggested_keywords.map((kw, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => handleQuickAddSkill(kw)}
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-secondary/80 hover:bg-primary hover:text-primary-foreground border border-border text-foreground transition-all shadow-2xs"
+                                  title={`Click to add ${kw} to your profile`}
+                                >
+                                  <Plus className="size-3" />
+                                  {kw}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Resume Actions Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/60">
+                          <div className="flex items-center gap-2">
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-2xs">
+                              <Upload className="size-3.5" />
+                              {isUploadingResume ? "Uploading..." : "Upload New PDF Resume"}
+                              <input
+                                type="file"
+                                accept=".pdf,application/pdf"
+                                onChange={handleResumeFileSelect}
+                                disabled={isUploadingResume}
+                                className="hidden"
+                              />
+                            </label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                toast.info("Re-analyzing resume and synchronizing skills...");
+                                void generateResumeAnalysis().then(() => {
+                                  void Promise.all([
+                                    refetchProfile(),
+                                    refetchDashboard(),
+                                    queryClient.invalidateQueries({ queryKey: ["skill-evidence-graph"] }),
+                                  ]);
+                                  toast.success("Resume re-analyzed and all skills synchronized!");
+                                });
+                              }}
+                              disabled={resumeAnalysisLoading}
+                              className="rounded-xl text-xs font-bold"
+                            >
+                              <Sparkles className="size-3.5 mr-1 text-primary" />
+                              {resumeAnalysisLoading ? "Analyzing..." : "Sync & Re-Analyze"}
+                            </Button>
+                          </div>
+
+                          <a
+                            href={`${ApiClient.getBaseUrl()}/student/resume/download`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Download className="size-3.5" />
+                            Download Current Resume
+                          </a>
                         </div>
-                      </>
+                      </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Upload your resume to unlock analysis
-                      </p>
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3">
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-foreground">
+                            Upload your resume to unlock real-time ATS optimization
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Extract technical skills, verify proofs-of-skill, and calculate automated match scores.
+                          </p>
+                        </div>
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shrink-0 shadow-sm">
+                          <Upload className="size-4" />
+                          {isUploadingResume ? "Uploading & Extracting..." : "Upload Resume (PDF)"}
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={handleResumeFileSelect}
+                            disabled={isUploadingResume}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     )}
                   </div>
 
