@@ -36,6 +36,8 @@ import {
   CheckSquare,
   Square,
   Zap,
+  Target,
+  Compass,
 } from "lucide-react";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -85,6 +87,35 @@ const AIInterviewModal = lazy(() =>
 );
 import type { Job, CareerProgress } from "@/types/skillbridge";
 import { ApiClient } from "@/lib/api-client";
+
+export function getSkillProficiencyInfo(proficiency: string | number | undefined) {
+  if (typeof proficiency === "number") {
+    const p = Math.min(100, Math.max(10, Math.round(proficiency)));
+    return {
+      percentage: p,
+      label: p >= 85 ? "Expert" : p >= 70 ? "Advanced" : p >= 50 ? "Intermediate" : "Beginner",
+      badgeClass:
+        p >= 85
+          ? "text-purple-400 bg-purple-500/10 border-purple-500/30"
+          : p >= 70
+          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+          : p >= 50
+          ? "text-sky-400 bg-sky-500/10 border-sky-500/30"
+          : "text-amber-400 bg-amber-500/10 border-amber-500/30",
+    };
+  }
+  const profStr = String(proficiency || "").toLowerCase().trim();
+  if (profStr === "expert") {
+    return { percentage: 95, label: "Expert", badgeClass: "text-purple-400 bg-purple-500/10 border-purple-500/30" };
+  }
+  if (profStr === "advanced") {
+    return { percentage: 80, label: "Advanced", badgeClass: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" };
+  }
+  if (profStr === "beginner") {
+    return { percentage: 40, label: "Beginner", badgeClass: "text-amber-400 bg-amber-500/10 border-amber-500/30" };
+  }
+  return { percentage: 65, label: "Intermediate", badgeClass: "text-sky-400 bg-sky-500/10 border-sky-500/30" };
+}
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -689,10 +720,10 @@ function DashboardPage() {
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
-        {/* Greeting & Quick Summary */}
+      <main className="mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6 sm:pt-8 md:pt-10">
+        {/* Top Hero: Greeting & Quick Actions */}
         <ScrollReveal>
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-border/50">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-soft/60 px-3.5 py-1 text-xs font-semibold text-primary">
                 <GraduationCap className="size-3.5" />
@@ -701,7 +732,7 @@ function DashboardPage() {
                   <BadgeCheck className="size-3" /> Academic Verified
                 </span>
               </div>
-              <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+              <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl text-foreground">
                 {greeting},{" "}
                 <span className="bridge-gradient-text">{studentName.split(" ")[0]}</span>
               </h1>
@@ -710,98 +741,13 @@ function DashboardPage() {
               </p>
             </div>
 
-            {/* View Switcher Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-border/80 bg-card p-1.5 shadow-soft">
-              <button
-                type="button"
-                onClick={() => setActiveTab("overview")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                  activeTab === "overview"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("ai")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === "ai"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-primary hover:bg-primary/10"
-                }`}
-              >
-                <Sparkles className="size-3.5 animate-pulse" />
-                <span>AI Copilot</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("verification")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === "verification"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <ShieldCheck className="size-3.5" />
-                <span>Verification Center</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("profile")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                  activeTab === "profile"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Skills & Profile
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("applications")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                  activeTab === "applications"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Applications ({applications.length || currentPipeline.applied})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("trust")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1 ${
-                  activeTab === "trust"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <ShieldCheck className="size-3.5" />
-                <span>Trust & Badges</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("interviews")}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all flex items-center gap-1 ${
-                  activeTab === "interviews"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Video className="size-3.5" />
-                <span>Interviews</span>
-              </button>
-            </div>
-
-            {/* Quick Action Badges */}
-            <div className="flex items-center gap-2">
+            {/* Top Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2.5">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleOpenPassport}
-                className="rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 border-primary/40 text-primary hover:bg-primary-soft"
+                className="rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border-primary/40 text-primary hover:bg-primary-soft shadow-2xs"
               >
                 <Award className="size-3.5" />
                 <span>Skill Passport</span>
@@ -810,18 +756,113 @@ function DashboardPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => setIsAIInterviewOpen(true)}
-                className="rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 border-border hover:bg-secondary"
+                className="rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border-border hover:bg-secondary shadow-2xs"
               >
                 <Video className="size-3.5" />
                 <span>AI Pre-Screen</span>
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setActiveTab("ai")}
+                className="rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 bg-primary text-primary-foreground shadow-sm"
+              >
+                <Sparkles className="size-3.5 text-amber-300 animate-pulse" />
+                <span>AI Copilot</span>
               </Button>
             </div>
           </div>
         </ScrollReveal>
 
-        {/* Stats Row */}
-        <ScrollReveal delay={100}>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Dedicated Navigation Switcher Tabs */}
+        <ScrollReveal delay={50}>
+          <div className="mt-6 flex items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl border border-border/80 bg-card/90 backdrop-blur-md p-1.5 shadow-soft">
+            <button
+              type="button"
+              onClick={() => setActiveTab("overview")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === "overview"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "ai"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-primary hover:bg-primary/10"
+              }`}
+            >
+              <Sparkles className="size-3.5 text-amber-400" />
+              <span>AI Copilot</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("verification")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "verification"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              <ShieldCheck className="size-3.5 text-emerald-400" />
+              <span>Verification Center</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("profile")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === "profile"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              Skills & Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("applications")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === "applications"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              Applications ({applications.length || currentPipeline.applied})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("trust")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "trust"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              <ShieldCheck className="size-3.5" />
+              <span>Trust & Badges</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("interviews")}
+              className={`rounded-xl px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === "interviews"
+                  ? "bg-primary text-primary-foreground shadow-sm font-extrabold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+              }`}
+            >
+              <Video className="size-3.5" />
+              <span>Interviews</span>
+            </button>
+          </div>
+        </ScrollReveal>
+
+        {/* Global Key Metrics Row */}
+        <ScrollReveal delay={80}>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: Briefcase,
@@ -872,114 +913,6 @@ function DashboardPage() {
           </div>
         </ScrollReveal>
 
-        <ScrollReveal delay={120}>
-          <div className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Career score
-                  </p>
-                  <h2 className="mt-2 font-display text-2xl font-bold text-foreground">
-                    {careerScore}/100
-                  </h2>
-                </div>
-                <div className="rounded-2xl bg-primary-soft p-3 text-primary">
-                  <TrendingUp className="size-5" />
-                </div>
-              </div>
-              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${careerScore}%` }}
-                />
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {skillClusterData.length > 0 ? (
-                  skillClusterData.map((skill) => (
-                    <div
-                      key={skill.skill_id}
-                      className="rounded-2xl border border-border/70 bg-background/50 p-3"
-                    >
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{skill.skill_name}</span>
-                        <span className="font-bold text-success">{skill.proficiency}%</span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-accent"
-                          style={{ width: `${skill.proficiency}%` }}
-                        />
-                      </div>
-                      {(() => {
-                        const proof = profile?.skill_proof?.find(
-                          (proofItem) => proofItem.skill_id === skill.skill_id,
-                        );
-                        return (
-                          <>
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <p className="text-sm font-bold text-foreground">
-                                {proof?.confidence_score ?? 0}% evidence confidence
-                              </p>
-                              <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                                {proof?.confidence_level ?? "Self-Declared"}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-[11px] text-muted-foreground">
-                              {proof
-                                ? `${[
-                                    proof.evidence.project_evidence && "Project",
-                                    proof.evidence.assessment && "Assessment",
-                                    proof.evidence.resume_evidence && "Resume",
-                                    proof.evidence.github_evidence && "GitHub",
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" + ") || "Self declaration only"} evidence`
-                                : "Self declaration only"}
-                            </p>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No skills added yet. Add your skills to unlock personalized job matching.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-bold text-foreground">
-                  Opportunity heat map
-                </h2>
-                <span className="text-[11px] font-bold text-primary">Live demand</span>
-              </div>
-              <p className="mt-4 text-xs text-muted-foreground">
-                Market insights are unavailable right now.
-              </p>
-            </div>
-          </div>
-        </ScrollReveal>
-
-        <ScrollReveal delay={140}>
-          <div className="mt-6 rounded-3xl border border-border/80 bg-card p-5 shadow-soft">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-foreground">
-                Recommendation widgets
-              </h2>
-              <Link to="/jobs" className="text-xs font-bold text-primary hover:underline">
-                View roles
-              </Link>
-            </div>
-            <p className="mt-4 text-xs text-muted-foreground">
-              No personalized recommendations yet. Complete your profile and add skills to unlock recommendations.
-            </p>
-          </div>
-        </ScrollReveal>
-
         {/* TAB: AI CAREER COPILOT */}
         {activeTab === "ai" && (
           <div className="mt-8">
@@ -995,25 +928,137 @@ function DashboardPage() {
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === "overview" && (
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
-            {/* Left Column */}
+          <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            {/* Left Column: Career Score & Skills Evidence */}
             <div className="space-y-6">
-              <ScrollReveal delay={150}>
-                <CareerProgressCard
-                  progress={currentProgress}
-                  onComplete={() => {
-                    setActiveTab("profile");
-                    window.scrollTo({ top: 300, behavior: "smooth" });
-                  }}
-                />
+              {/* Career Score & Skill Breakdown Card */}
+              <ScrollReveal delay={100}>
+                <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        Career Readiness Score
+                      </p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <h2 className="font-display text-3xl font-extrabold text-foreground">
+                          {careerScore}/100
+                        </h2>
+                        <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary-soft">
+                          {careerScore >= 80
+                            ? "Industry Ready"
+                            : careerScore >= 60
+                            ? "Advanced Track"
+                            : careerScore >= 40
+                            ? "Progressing Fast"
+                            : "Setup In Progress"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-primary-soft p-3 text-primary">
+                      <TrendingUp className="size-6" />
+                    </div>
+                  </div>
+
+                  {/* Animated Career Progress Bar */}
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="bridge-gradient-bg h-full rounded-full transition-all duration-700 ease-out"
+                      style={{ width: `${careerScore}%` }}
+                    />
+                  </div>
+
+                  {/* Skills Cluster with Exact Proficiency Scores */}
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Verified Technical Skills ({skillClusterData.length})
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("profile")}
+                        className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        Manage All Skills →
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {skillClusterData.length > 0 ? (
+                        skillClusterData.slice(0, 8).map((skill) => {
+                          const profInfo = getSkillProficiencyInfo(skill.proficiency);
+                          const proof = profile?.skill_proof?.find(
+                            (proofItem) => proofItem.skill_id === skill.skill_id
+                          );
+                          const confidenceScore = proof?.confidence_score ?? 30;
+
+                          return (
+                            <div
+                              key={skill.skill_id}
+                              className="rounded-2xl border border-border/70 bg-background/50 p-3.5 transition-all hover:border-primary/40 hover:shadow-2xs"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-bold text-xs text-foreground truncate">
+                                  {skill.skill_name}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border shrink-0 ${profInfo.badgeClass}`}
+                                >
+                                  {profInfo.label} ({profInfo.percentage}%)
+                                </span>
+                              </div>
+
+                              {/* Proficiency Bar */}
+                              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-all duration-500"
+                                  style={{ width: `${profInfo.percentage}%` }}
+                                />
+                              </div>
+
+                              {/* Evidence Confidence & Action */}
+                              <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px]">
+                                <div className="min-w-0">
+                                  <span className="font-bold text-foreground">
+                                    {confidenceScore}% confidence
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground block truncate">
+                                    {proof?.evidence.resume_evidence
+                                      ? "Resume evidence detected"
+                                      : proof?.evidence.assessment
+                                      ? "Verified by Assessment"
+                                      : "Self-declared"}
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleOpenAssessment(skill.skill_name)}
+                                  className="h-6 px-2 text-[10px] font-extrabold rounded-md text-primary bg-primary-soft hover:bg-primary hover:text-primary-foreground transition-colors shrink-0"
+                                >
+                                  <Zap className="size-2.5 mr-0.5" />
+                                  Verify
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="sm:col-span-2 text-center py-6 text-xs text-muted-foreground">
+                          No skills added yet. Upload your resume or add skills in Skills & Profile.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </ScrollReveal>
 
-              <ScrollReveal delay={200}>
+              {/* Application Pipeline Status */}
+              <ScrollReveal delay={150}>
                 <ApplicationPipeline counts={currentPipeline} />
               </ScrollReveal>
 
-              {/* Recent applications summary */}
-              <ScrollReveal delay={250}>
+              {/* Recent Applications Activity */}
+              <ScrollReveal delay={200}>
                 <section className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
                   <div className="flex items-center justify-between">
                     <h2 className="font-display text-lg font-bold text-foreground">
@@ -1070,9 +1115,283 @@ function DashboardPage() {
               </ScrollReveal>
             </div>
 
-            {/* Right Column: Recommendations */}
+            {/* Right Column: Roadmap to 100/100 Score & Matched Opportunities */}
             <div className="space-y-6">
-              <ScrollReveal delay={300}>
+              {/* Interactive Roadmap to 100/100 Score Widget */}
+              <ScrollReveal delay={120}>
+                <div className="rounded-3xl border border-primary/30 bg-gradient-to-br from-card via-card to-primary-soft/20 p-6 shadow-soft relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-primary text-primary-foreground">
+                        <Target className="size-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-display text-base font-extrabold text-foreground">
+                          Roadmap to 100/100 Score
+                        </h3>
+                        <p className="text-[11px] text-muted-foreground">
+                          Action items remaining to achieve perfect 100 score
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-extrabold text-primary font-display">
+                      {careerScore}% / 100%
+                    </span>
+                  </div>
+
+                  {/* 5 Milestone Checklist */}
+                  <div className="mt-5 space-y-3">
+                    {/* Item 1: Resume */}
+                    <div className="flex items-start justify-between gap-3 p-3 rounded-2xl border border-border/80 bg-background/60">
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                          <Check className="size-3 stroke-[3]" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-foreground">
+                            Upload & Parse Resume (+20 pts)
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            40+ skills extracted & categorized
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
+                        Completed
+                      </span>
+                    </div>
+
+                    {/* Item 2: Skills */}
+                    <div className="flex items-start justify-between gap-3 p-3 rounded-2xl border border-border/80 bg-background/60">
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                          <Check className="size-3 stroke-[3]" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-foreground">
+                            Core Technical Skills (+20 pts)
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {skillClusterData.length} skills active in taxonomy
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
+                        Completed
+                      </span>
+                    </div>
+
+                    {/* Item 3: Projects */}
+                    {(() => {
+                      const hasProjects = (profile?.projects?.length ?? 0) > 0;
+                      return (
+                        <div
+                          className={`flex items-start justify-between gap-3 p-3 rounded-2xl border transition-all ${
+                            hasProjects
+                              ? "border-border/80 bg-background/60"
+                              : "border-primary/40 bg-primary/5 hover:border-primary"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div
+                              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
+                                hasProjects
+                                  ? "bg-emerald-500/20 text-emerald-400"
+                                  : "bg-primary/20 text-primary"
+                              }`}
+                            >
+                              {hasProjects ? (
+                                <Check className="size-3 stroke-[3]" />
+                              ) : (
+                                <Plus className="size-3 stroke-[3]" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-foreground">
+                                Add Projects (+20 pts)
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {hasProjects
+                                  ? `${profile?.projects?.length} projects verified`
+                                  : "Add 1+ academic or GitHub project"}
+                              </p>
+                            </div>
+                          </div>
+                          {hasProjects ? (
+                            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
+                              Completed
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setActiveTab("profile");
+                                window.scrollTo({ top: 900, behavior: "smooth" });
+                              }}
+                              className="h-6 px-2 text-[10px] font-extrabold rounded-md bg-primary text-primary-foreground shrink-0"
+                            >
+                              + Add Project
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Item 4: Certificates */}
+                    {(() => {
+                      const hasCerts = (profile?.certificates?.length ?? 0) > 0;
+                      return (
+                        <div
+                          className={`flex items-start justify-between gap-3 p-3 rounded-2xl border transition-all ${
+                            hasCerts
+                              ? "border-border/80 bg-background/60"
+                              : "border-primary/40 bg-primary/5 hover:border-primary"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div
+                              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
+                                hasCerts
+                                  ? "bg-emerald-500/20 text-emerald-400"
+                                  : "bg-primary/20 text-primary"
+                              }`}
+                            >
+                              {hasCerts ? (
+                                <Check className="size-3 stroke-[3]" />
+                              ) : (
+                                <Award className="size-3" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-foreground">
+                                Technical Certificates (+20 pts)
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {hasCerts
+                                  ? `${profile?.certificates?.length} certificates verified`
+                                  : "Add 1+ course or vendor certification"}
+                              </p>
+                            </div>
+                          </div>
+                          {hasCerts ? (
+                            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
+                              Completed
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setActiveTab("profile");
+                                window.scrollTo({ top: 1200, behavior: "smooth" });
+                              }}
+                              className="h-6 px-2 text-[10px] font-extrabold rounded-md bg-primary text-primary-foreground shrink-0"
+                            >
+                              + Add Cert
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Item 5: Profile Photo & Bio */}
+                    {(() => {
+                      const hasAvatar = !!profile?.student.avatarUrl;
+                      return (
+                        <div
+                          className={`flex items-start justify-between gap-3 p-3 rounded-2xl border transition-all ${
+                            hasAvatar
+                              ? "border-border/80 bg-background/60"
+                              : "border-primary/40 bg-primary/5 hover:border-primary"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div
+                              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full ${
+                                hasAvatar
+                                  ? "bg-emerald-500/20 text-emerald-400"
+                                  : "bg-primary/20 text-primary"
+                              }`}
+                            >
+                              {hasAvatar ? (
+                                <Check className="size-3 stroke-[3]" />
+                              ) : (
+                                <User className="size-3" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-foreground">
+                                Complete Profile Bio (+20 pts)
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {hasAvatar
+                                  ? "Profile avatar & details verified"
+                                  : "Set avatar photo & summary"}
+                              </p>
+                            </div>
+                          </div>
+                          {hasAvatar ? (
+                            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shrink-0">
+                              Completed
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setActiveTab("profile");
+                                window.scrollTo({ top: 300, behavior: "smooth" });
+                              }}
+                              className="h-6 px-2 text-[10px] font-extrabold rounded-md bg-primary text-primary-foreground shrink-0"
+                            >
+                              Edit Bio
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Proof-of-Skill Confidence Booster Callout */}
+                  <div className="mt-5 p-3.5 rounded-2xl bg-background/80 border border-border/80 text-xs">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Sparkles className="size-3.5 text-amber-400" />
+                      <span className="font-bold text-foreground text-[11px]">
+                        Boost Evidence Confidence to 100%
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Resume detection sets initial confidence at <strong>30%</strong>. Pass AI assessments (+40%) or link GitHub repos (+20%) to unlock verified recruiter badges.
+                    </p>
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (skillClusterData[0]) {
+                            handleOpenAssessment(skillClusterData[0].skill_name);
+                          } else {
+                            setActiveTab("verification");
+                          }
+                        }}
+                        className="text-[10px] h-6 px-2 font-bold text-primary border-primary/30 hover:bg-primary-soft"
+                      >
+                        <Zap className="size-2.5 mr-1" />
+                        Take AI Assessment
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setActiveTab("verification")}
+                        className="text-[10px] h-6 px-2 font-bold text-muted-foreground hover:text-foreground"
+                      >
+                        Verification Center →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </ScrollReveal>
+
+              {/* Matched Job Opportunities */}
+              <ScrollReveal delay={180}>
                 <section className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="font-display text-lg font-bold text-foreground">
@@ -1889,38 +2208,47 @@ function DashboardPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mb-6">
+                  <div className="flex flex-wrap gap-2.5 mb-6">
                     {profile?.skills?.length ? (
-                      profile.skills.map((skill) => (
-                        <span
-                          key={skill.skill_id}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-3.5 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/20"
-                        >
-                          <Sparkles className="size-3" />
-                          {skill.skill_name}
-                          {profile.skill_proof?.find((proof) => proof.skill_id === skill.skill_id) && (
-                            <span className="text-[10px] font-semibold text-muted-foreground">
-                              {profile.skill_proof.find((proof) => proof.skill_id === skill.skill_id)?.confidence_level}
+                      profile.skills.map((skill) => {
+                        const profInfo = getSkillProficiencyInfo(skill.proficiency);
+                        const proof = profile.skill_proof?.find((p) => p.skill_id === skill.skill_id);
+                        const confidence = proof?.confidence_score ?? 30;
+
+                        return (
+                          <div
+                            key={skill.skill_id}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-border/80 bg-card px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/40 hover:shadow-2xs"
+                          >
+                            <span className="font-bold text-foreground">{skill.skill_name}</span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold border ${profInfo.badgeClass}`}
+                            >
+                              {profInfo.label} · {profInfo.percentage}%
                             </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssessment(skill.skill_name)}
-                            className="ml-1 rounded-md px-1.5 py-0.5 bg-primary/20 text-[10px] font-extrabold hover:bg-primary hover:text-primary-foreground transition-colors"
-                            title="Take Technical Skill Assessment"
-                          >
-                            Verify
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSkill(skill.skill_id, skill.skill_name)}
-                            className="ml-1 rounded-full p-0.5 text-primary/70 hover:bg-destructive/20 hover:text-destructive"
-                            title="Remove skill"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </span>
-                      ))
+                            <span className="text-[10px] text-muted-foreground font-semibold">
+                              {confidence}% {proof?.evidence.resume_evidence ? "Resume" : "Evidence"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssessment(skill.skill_name)}
+                              className="rounded-lg px-2 py-0.5 bg-primary-soft text-primary text-[10px] font-extrabold hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer flex items-center gap-0.5"
+                              title="Take AI Skill Assessment"
+                            >
+                              <Zap className="size-2.5" />
+                              Verify
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSkill(skill.skill_id, skill.skill_name)}
+                              className="rounded-full p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive cursor-pointer transition-colors"
+                              title="Remove skill"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                        );
+                      })
                     ) : (
                       <span className="text-xs text-muted-foreground">
                         No skills added yet
