@@ -30,6 +30,7 @@ import {
   Globe,
   FolderGit2,
   Trash2,
+} from "lucide-react";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/layout/site-header";
