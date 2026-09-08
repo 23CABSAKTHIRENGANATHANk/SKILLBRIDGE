@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SkillGapCenterView } from "@/components/career/skill-gap-center-view";
 import { ApiClient } from "@/lib/api-client";
@@ -54,17 +55,17 @@ function StudentSkillsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer size="default">
         {loading ? (
           <div className="rounded-3xl border border-border/80 bg-card p-12 text-center shadow-soft animate-pulse h-96" />
         ) : gaps ? (
           <SkillGapCenterView gaps={gaps} targetRole={goal?.target_role || "Target Role"} />
         ) : (
-          <div className="rounded-3xl border border-border/80 bg-card p-8 text-center">
+          <div className="rounded-3xl border border-border/80 bg-card p-8 text-center shadow-soft">
             <p className="text-sm text-muted-foreground">Unable to calculate skill gaps. Please check your career goal.</p>
           </div>
         )}
-      </main>
+      </PageContainer>
       <BottomNav />
     </div>
   );

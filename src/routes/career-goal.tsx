@@ -17,6 +17,9 @@ import {
 import { ApiClient } from "@/lib/api-client";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +27,16 @@ import { toast } from "sonner";
 import type { CareerGoal } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/career-goal")({
+  head: () => ({
+    meta: [
+      { title: "Set Career Goal — SkillBridge 3.0" },
+      {
+        name: "description",
+        content:
+          "Define your target engineering role and timeline to generate an automated prerequisite learning and verification roadmap.",
+      },
+    ],
+  }),
   component: CareerGoalPage,
 });
 
@@ -70,17 +83,17 @@ function CareerGoalContent() {
   useEffect(() => {
     if (goalData?.goal) {
       const g = goalData.goal;
-      const matchStandard = STANDARD_ROLES.find((r) => r.name.toLowerCase() === g.target_role.toLowerCase());
-      if (matchStandard) {
-        setSelectedRole(matchStandard.name);
-      } else {
+      const isStandard = STANDARD_ROLES.some((r) => r.name === g.target_role);
+      if (isStandard) {
+        setSelectedRole(g.target_role);
+      } else if (g.target_role) {
         setSelectedRole("Custom");
         setCustomRole(g.target_role);
       }
-      setTimelineWeeks(g.target_timeline_weeks || 16);
-      setSecondaryRole(g.secondary_target_role || "");
-      setPreferredLocation(g.preferred_location || "");
-      setExperienceLevel(g.experience_level || "entry");
+      if (g.target_timeline_weeks) setTimelineWeeks(g.target_timeline_weeks);
+      if (g.secondary_target_role) setSecondaryRole(g.secondary_target_role);
+      if (g.preferred_location) setPreferredLocation(g.preferred_location);
+      if (g.experience_level) setExperienceLevel(g.experience_level);
     }
   }, [goalData]);
 
@@ -90,14 +103,13 @@ function CareerGoalContent() {
     mutationFn: () =>
       ApiClient.saveCareerGoal({
         target_role: effectiveRole,
-        ...(secondaryRole.trim() ? { secondary_target_role: secondaryRole.trim() } : {}),
-        target_timeline_weeks: Number(timelineWeeks),
-        ...(preferredLocation.trim() ? { preferred_location: preferredLocation.trim() } : {}),
+        secondary_target_role: secondaryRole.trim() || undefined,
+        target_timeline_weeks: timelineWeeks,
+        preferred_location: preferredLocation.trim() || undefined,
         experience_level: experienceLevel,
       }),
-
-    onSuccess: (res) => {
-      toast.success("Career target saved! Your personalized roadmap has been generated.");
+    onSuccess: () => {
+      toast.success("Career target and personalized roadmap updated!");
       qc.invalidateQueries({ queryKey: ["career-goal"] });
       qc.invalidateQueries({ queryKey: ["career-dashboard"] });
       qc.invalidateQueries({ queryKey: ["career-roadmap"] });
@@ -105,7 +117,7 @@ function CareerGoalContent() {
       navigate({ to: "/career-roadmap" as any });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to save career target.");
+      toast.error(err instanceof Error ? err.message : "Failed to save career goal.");
     },
   });
 
@@ -116,6 +128,7 @@ function CareerGoalContent() {
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
+        <BottomNav />
       </div>
     );
   }
@@ -124,20 +137,17 @@ function CareerGoalContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-8">
-        {/* Hero Header */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-            <Compass className="size-3.5" />
-            <span>Career Destination Setup</span>
-          </div>
-          <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Where Do You Want Your Career to Go?
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Choose your target engineering role. SkillBridge will analyze your real skills, calculate your exact readiness, and generate a personalized step-by-step roadmap.
-          </p>
-        </div>
+      <PageContainer size="narrow" className="space-y-8">
+        {/* Page Header */}
+        <PageHeader
+          badge={{
+            icon: Compass,
+            text: "Career Destination Setup",
+            variant: "primary",
+          }}
+          title="Where Do You Want Your Career to Go?"
+          description="Choose your target engineering role. SkillBridge will analyze your real skills, calculate your exact readiness, and generate a personalized step-by-step roadmap."
+        />
 
         {/* Roles Grid */}
         <div className="space-y-4">
@@ -203,7 +213,7 @@ function CareerGoalContent() {
                 placeholder="e.g. Embedded Firmware Engineer, ML Ops Architect"
                 value={customRole}
                 onChange={(e) => setCustomRole(e.target.value)}
-                className="rounded-xl"
+                className="rounded-xl text-xs"
               />
             </div>
           )}
@@ -215,7 +225,7 @@ function CareerGoalContent() {
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label htmlFor="timeline-input" className="flex items-center gap-1.5">
+              <Label htmlFor="timeline-input" className="flex items-center gap-1.5 text-xs font-semibold">
                 <Calendar className="size-4 text-primary" /> Target Timeline (Weeks)
               </Label>
               <Input
@@ -225,13 +235,13 @@ function CareerGoalContent() {
                 max={52}
                 value={timelineWeeks}
                 onChange={(e) => setTimelineWeeks(Number(e.target.value))}
-                className="rounded-xl"
+                className="rounded-xl text-xs"
               />
               <p className="text-[11px] text-muted-foreground">Standard timeline is 12 to 24 weeks.</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="secondary-role-input" className="flex items-center gap-1.5">
+              <Label htmlFor="secondary-role-input" className="flex items-center gap-1.5 text-xs font-semibold">
                 <Target className="size-4 text-primary" /> Secondary Goal <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <Input
@@ -240,12 +250,12 @@ function CareerGoalContent() {
                 value={secondaryRole}
                 onChange={(e) => setSecondaryRole(e.target.value)}
                 maxLength={128}
-                className="rounded-xl"
+                className="rounded-xl text-xs"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="location-input" className="flex items-center gap-1.5">
+              <Label htmlFor="location-input" className="flex items-center gap-1.5 text-xs font-semibold">
                 <MapPin className="size-4 text-primary" /> Preferred Location
               </Label>
               <Input
@@ -253,19 +263,19 @@ function CareerGoalContent() {
                 placeholder="e.g. Bengaluru, Remote, Chennai"
                 value={preferredLocation}
                 onChange={(e) => setPreferredLocation(e.target.value)}
-                className="rounded-xl"
+                className="rounded-xl text-xs"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="experience-input" className="flex items-center gap-1.5">
+              <Label htmlFor="experience-input" className="flex items-center gap-1.5 text-xs font-semibold">
                 <Briefcase className="size-4 text-primary" /> Target Level
               </Label>
               <select
                 id="experience-input"
                 value={experienceLevel}
                 onChange={(e) => setExperienceLevel(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-input bg-background text-sm font-medium"
+                className="w-full h-10 px-3 rounded-xl border border-input bg-background text-xs font-medium"
               >
                 <option value="entry">Intern / Entry-Level (Fresher)</option>
                 <option value="junior">Junior Developer (0-2 Yrs)</option>
@@ -286,7 +296,7 @@ function CareerGoalContent() {
           <Button
             onClick={() => saveMutation.mutate()}
             disabled={!effectiveRole || saveMutation.isPending}
-            className="rounded-full px-6 font-bold"
+            className="rounded-full px-6 font-bold text-xs"
           >
             {saveMutation.isPending ? (
               <>
@@ -300,7 +310,8 @@ function CareerGoalContent() {
             )}
           </Button>
         </div>
-      </main>
+      </PageContainer>
+      <BottomNav />
     </div>
   );
 }

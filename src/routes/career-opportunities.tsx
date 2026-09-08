@@ -18,10 +18,23 @@ import {
 import { ApiClient } from "@/lib/api-client";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import type { CareerOpportunityItem } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/career-opportunities")({
+  head: () => ({
+    meta: [
+      { title: "Jobs You Can Reach — SkillBridge 3.0" },
+      {
+        name: "description",
+        content:
+          "Opportunity readiness engine: see roles you are already qualified for, roles within reach, and future targets.",
+      },
+    ],
+  }),
   component: CareerOpportunitiesPage,
 });
 
@@ -59,20 +72,17 @@ function CareerOpportunitiesContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-8">
-        {/* Hero Header */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-            <Target className="size-3.5" />
-            <span>Opportunity Readiness Engine</span>
-          </div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">
-            Jobs You Can Reach
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Understand where you stand in the market today: see roles you are already qualified for, roles within reach by closing 1–2 gaps, and future aspirational targets.
-          </p>
-        </div>
+      <PageContainer size="narrow" className="space-y-8">
+        {/* Page Header */}
+        <PageHeader
+          badge={{
+            icon: Target,
+            text: "Opportunity Readiness Engine",
+            variant: "primary",
+          }}
+          title="Jobs You Can Reach"
+          description="Understand where you stand in the market today: see roles you are already qualified for, roles within reach by closing 1–2 gaps, and future aspirational targets."
+        />
 
         {/* 3 Tier Navigation Tabs */}
         <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-secondary/60 border border-border/80">
@@ -246,7 +256,8 @@ function CareerOpportunitiesContent() {
             })}
           </div>
         )}
-      </main>
+      </PageContainer>
+      <BottomNav />
     </div>
   );
 }

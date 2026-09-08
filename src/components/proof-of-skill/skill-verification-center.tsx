@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { ApiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   ShieldCheck,
   Award,
@@ -15,12 +16,83 @@ import {
   BadgeAlert,
   Sparkles,
   Layers,
+  Search,
+  Filter,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface SkillVerificationCenterProps {
   onStartAssessment?: (skillName: string) => void;
 }
+
+const CATEGORY_TAGS = [
+  "All",
+  "Frontend",
+  "Backend",
+  "Languages",
+  "Databases",
+  "AI & ML",
+  "Cloud & DevOps",
+  "Other",
+];
+
+const SKILL_CATEGORY_MAP: Record<string, string> = {
+  // Languages
+  TypeScript: "Languages",
+  JavaScript: "Languages",
+  Python: "Languages",
+  PHP: "Languages",
+  SQL: "Languages",
+  HTML: "Languages",
+  CSS: "Languages",
+  Java: "Languages",
+  "C++": "Languages",
+  Go: "Languages",
+  Rust: "Languages",
+
+  // Frontend
+  React: "Frontend",
+  "Tailwind CSS": "Frontend",
+  Vite: "Frontend",
+  "Next.js": "Frontend",
+  Vue: "Frontend",
+  Redux: "Frontend",
+
+  // Backend
+  "Node.js": "Backend",
+  FastAPI: "Backend",
+  Django: "Backend",
+  Flask: "Backend",
+  Express: "Backend",
+  WebSockets: "Backend",
+  REST: "Backend",
+  GraphQL: "Backend",
+
+  // Databases
+  PostgreSQL: "Databases",
+  MySQL: "Databases",
+  SQLite: "Databases",
+  MongoDB: "Databases",
+  Redis: "Databases",
+
+  // AI & ML
+  "Machine Learning": "AI & ML",
+  "Deep Learning": "AI & ML",
+  "Computer Vision": "AI & ML",
+  PyTorch: "AI & ML",
+  TensorFlow: "AI & ML",
+  "Gemini API": "AI & ML",
+  OpenCV: "AI & ML",
+
+  // Cloud & DevOps
+  Docker: "Cloud & DevOps",
+  AWS: "Cloud & DevOps",
+  GCP: "Cloud & DevOps",
+  "CI/CD": "Cloud & DevOps",
+  Git: "Cloud & DevOps",
+  Linux: "Cloud & DevOps",
+};
 
 export function SkillVerificationCenter({ onStartAssessment }: SkillVerificationCenterProps) {
   const [loading, setLoading] = useState(true);
@@ -29,6 +101,10 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
   const [integrityData, setIntegrityData] = useState<any | null>(null);
   const [powData, setPowData] = useState<any | null>(null);
   const [skillsProof, setSkillsProof] = useState<any[]>([]);
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   const loadVerificationData = async () => {
     setLoading(true);
@@ -65,8 +141,24 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
   }, []);
 
   // Compute metrics from actual backend data
-  const verifiedSkills = skillsProof.filter((s) => s.is_verified || s.verification_level !== "Not Verified");
-  const pendingSkills = skillsProof.filter((s) => !s.is_verified && s.verification_level === "Not Verified");
+  const verifiedSkills = useMemo(
+    () => skillsProof.filter((s) => s.is_verified || s.verification_level !== "Not Verified"),
+    [skillsProof],
+  );
+
+  const pendingSkills = useMemo(
+    () => skillsProof.filter((s) => !s.is_verified && s.verification_level === "Not Verified"),
+    [skillsProof],
+  );
+
+  const filteredPendingSkills = useMemo(() => {
+    return pendingSkills.filter((s) => {
+      const matchesSearch = !searchQuery.trim() || s.skill_name.toLowerCase().includes(searchQuery.toLowerCase().trim());
+      const cat = SKILL_CATEGORY_MAP[s.skill_name] || "Other";
+      const matchesCat = selectedCategory === "All" || cat === selectedCategory;
+      return matchesSearch && matchesCat;
+    });
+  }, [pendingSkills, searchQuery, selectedCategory]);
 
   const avgConfidence = skillsProof.length > 0
     ? Math.round(skillsProof.reduce((acc, s) => acc + (s.confidence_score || 0), 0) / skillsProof.length)
@@ -126,19 +218,19 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header Banner */}
-      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-soft">
+      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 sm:p-8 shadow-soft">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary mb-2">
               <ShieldCheck className="size-3.5" />
-              Skill Verification Center 2.0
+              Skill Verification Center 3.0
             </div>
-            <h2 className="font-display text-2xl font-bold text-foreground">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
               Proof-of-Skill Integrity & Evidence Hub
             </h2>
-            <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
               Empirical multi-factor skill verification powered by automated code quality analysis,
               deterministic technical assessments, and anti-fraud evidence mismatch detection.
             </p>
@@ -186,7 +278,7 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
                 {overallIntegrity}
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
               {overallIntegrity === "VERIFIED"
                 ? "Skills verified with empirical multi-factor evidence."
                 : overallIntegrity === "EVIDENCE_MISMATCH"
@@ -209,7 +301,7 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
                 style={{ width: `${Math.min(100, Math.max(0, avgConfidence))}%` }}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1.5">
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
               Weighted across assessments, projects, PoW, and credentials.
             </p>
           </div>
@@ -224,7 +316,7 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
                 verified of {skillsProof.length} claimed
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
               {pendingSkills.length > 0
                 ? `${pendingSkills.length} skill(s) pending empirical assessment.`
                 : "All claimed skills have verified evidence."}
@@ -256,10 +348,10 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
         </div>
       )}
 
-      {/* Skills Breakdown: Verified & Pending */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Verified Skills */}
-        <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+      {/* Symmetrical 2-Column Grid with Natural items-start Alignment */}
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        {/* Left Column: Verified Skills (5 cols on Desktop) */}
+        <div className="lg:col-span-5 rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="size-5 text-success" />
@@ -311,57 +403,128 @@ export function SkillVerificationCenter({ onStartAssessment }: SkillVerification
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Award className="size-8 mx-auto mb-2 opacity-40" />
-              <p className="text-xs font-semibold">No skills verified yet.</p>
-              <p className="text-[11px] mt-1">Take an assessment below to earn your first verified skill badge.</p>
+            <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 p-8 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mx-auto mb-3">
+                <Award className="size-6" />
+              </div>
+              <h4 className="text-sm font-bold text-foreground">No Verified Skills Yet</h4>
+              <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto leading-relaxed">
+                Take a 5-minute technical assessment from the claimed skills list to earn your first verified skill badge.
+              </p>
+              {pendingSkills.length > 0 && onStartAssessment && (
+                <Button
+                  size="sm"
+                  onClick={() => onStartAssessment(pendingSkills[0]?.skill_name)}
+                  className="mt-4 rounded-xl font-bold text-xs"
+                >
+                  <Zap className="size-3.5 mr-1" />
+                  Verify {pendingSkills[0]?.skill_name} Now
+                </Button>
+              )}
             </div>
           )}
         </div>
 
-        {/* Pending Verification */}
-        <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
-          <div className="flex items-center justify-between mb-4">
+        {/* Right Column: Pending Verification with Search, Filters & 2-Col Cards (7 cols on Desktop) */}
+        <div className="lg:col-span-7 rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <Clock className="size-5 text-warning-foreground" />
               <h3 className="font-display text-base font-bold text-foreground">Pending Verification</h3>
             </div>
-            <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-bold text-warning-foreground">
+            <span className="self-start sm:self-auto rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-bold text-warning-foreground">
               {pendingSkills.length} Claimed
             </span>
           </div>
 
-          {pendingSkills.length > 0 ? (
-            <div className="space-y-3">
-              {pendingSkills.map((s, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-border/60 bg-background/50 p-4 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-foreground">{s.skill_name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Self-declared claim · Needs empirical test
-                    </p>
+          {/* Quick Search & Category Filters */}
+          {pendingSkills.length > 0 && (
+            <div className="space-y-3 mb-4">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={`Search ${pendingSkills.length} claimed skills...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 text-xs rounded-xl bg-background/60 border-border h-9"
+                />
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {CATEGORY_TAGS.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all whitespace-nowrap ${
+                      selectedCategory === cat
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredPendingSkills.length > 0 ? (
+            <div className="max-h-[560px] overflow-y-auto pr-1 space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {filteredPendingSkills.map((s, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-2xl border border-border/70 bg-background/50 p-3.5 flex flex-col justify-between gap-3 hover:border-primary/40 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-foreground truncate">{s.skill_name}</p>
+                        <span className="text-[10px] font-semibold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                          {SKILL_CATEGORY_MAP[s.skill_name] || "General"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Self-declared claim · Needs test
+                      </p>
+                    </div>
+                    {onStartAssessment && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onStartAssessment(s.skill_name)}
+                        className="rounded-xl font-bold text-xs w-full h-8 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all"
+                      >
+                        <Zap className="size-3 mr-1 text-primary group-hover:text-primary-foreground" />
+                        Start Assessment
+                      </Button>
+                    )}
                   </div>
-                  {onStartAssessment && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onStartAssessment(s.skill_name)}
-                      className="rounded-xl font-bold text-xs"
-                    >
-                      Start Assessment
-                    </Button>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+          ) : pendingSkills.length > 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <p className="text-xs font-semibold">No skills matching "{searchQuery}" in {selectedCategory}.</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedCategory("All");
+                }}
+                className="mt-2 text-xs font-bold text-primary"
+              >
+                Clear Filters
+              </Button>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle2 className="size-8 mx-auto mb-2 text-success opacity-60" />
-              <p className="text-xs font-semibold">All skills are verified!</p>
-              <p className="text-[11px] mt-1">You have zero unverified skill claims.</p>
+            <div className="text-center py-12 text-muted-foreground">
+              <CheckCircle2 className="size-10 mx-auto mb-2 text-success opacity-80" />
+              <p className="text-sm font-bold text-foreground">All Skills Verified!</p>
+              <p className="text-xs text-muted-foreground mt-1">You have zero unverified skill claims.</p>
             </div>
           )}
         </div>

@@ -17,6 +17,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/site-header";
+import { PageContainer } from "@/components/layout/page-container";
 import { ApiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -87,7 +88,7 @@ function PublicPassportPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
-      <main className="flex-1 container mx-auto max-w-4xl px-4 py-12">
+      <PageContainer size="narrow" className="flex-1 py-12">
         {loading ? (
           <div className="py-24 text-center">
             <p className="text-sm font-semibold text-muted-foreground animate-pulse">
@@ -346,7 +347,7 @@ function PublicPassportPage() {
             )}
           </div>
         )}
-      </main>
+      </PageContainer>
 
       {/* QR Code Verification Modal */}
       <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>

@@ -19,12 +19,25 @@ import {
 import { ApiClient } from "@/lib/api-client";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { LearningResource } from "@/types/skillbridge";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/learning")({
+  head: () => ({
+    meta: [
+      { title: "Curated Learning Engine — SkillBridge 3.0" },
+      {
+        name: "description",
+        content:
+          "Verified documentation, interactive courses, and YouTube tutorials directly mapped to your target career skill gaps.",
+      },
+    ],
+  }),
   component: LearningPage,
 });
 
@@ -95,32 +108,29 @@ function LearningContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 space-y-8">
-        {/* Header Hero */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-            <BookOpen className="size-3.5" />
-            <span>Curated Learning Engine</span>
-          </div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">
-            Learn, Watch, Practice & Build
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Verified, publicly accessible documentation, reputable open courses, and canonical YouTube video tutorials mapped directly to your target skill gaps.
-          </p>
-        </div>
+      <PageContainer size="default" className="space-y-8">
+        {/* Page Header */}
+        <PageHeader
+          badge={{
+            icon: BookOpen,
+            text: "Curated Learning Engine",
+            variant: "primary",
+          }}
+          title="Learn, Watch, Practice & Build"
+          description="Verified, publicly accessible documentation, reputable open courses, and canonical YouTube video tutorials mapped directly to your target skill gaps."
+        />
 
         {/* Filters and Search Bar */}
         <div className="space-y-4 rounded-3xl border border-border/80 bg-card p-6 shadow-soft">
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
             {/* Search Input */}
             <div className="relative w-full sm:max-w-md">
-              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search courses, videos, topics..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 rounded-xl"
+                className="pl-10 text-xs rounded-xl h-9"
               />
             </div>
 
@@ -184,7 +194,6 @@ function LearningContent() {
             {filtered.map((res: LearningResource) => {
               const isVideo = res.resource_type === "video" || res.resource_type === "playlist";
               const isDoc = res.resource_type === "documentation";
-              const isCourse = res.resource_type === "course";
 
               return (
                 <div
@@ -269,7 +278,7 @@ function LearningContent() {
               Build a portfolio project or complete an assessment to update your verified Skill Passport.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <Link to="/career-roadmap">
               <Button variant="outline" size="sm" className="font-bold text-xs rounded-xl">
                 My Roadmap
@@ -282,7 +291,8 @@ function LearningContent() {
             </Link>
           </div>
         </div>
-      </main>
+      </PageContainer>
+      <BottomNav />
     </div>
   );
 }

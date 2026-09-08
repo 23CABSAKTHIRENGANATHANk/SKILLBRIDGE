@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, Briefcase } from "lucide-react";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { CursorDot } from "@/components/cursor-dot";
 import { JobCard, JobCardSkeleton } from "@/components/job-card";
 import { ScrollReveal } from "@/components/scroll-reveal";
@@ -78,31 +80,33 @@ function JobsPage() {
   const topMatch = filteredJobs.find((j) => j.match && j.match.score >= 85) || filteredJobs[0];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+      <PageContainer size="default">
         {/* Header */}
-        <ScrollReveal>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-widest text-accent">Explore</p>
-              <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
-                Job <span className="bridge-gradient-text">Opportunities</span>
-              </h1>
-              <p className="mt-2 text-muted-foreground">
-                {loading
-                  ? "Searching opportunities..."
-                  : `${filteredJobs.length} ${filteredJobs.length === 1 ? "opportunity" : "opportunities"} available`}
-              </p>
-            </div>
-          </div>
-        </ScrollReveal>
+        <PageHeader
+          badge={{
+            icon: Briefcase,
+            text: "Verified Opportunities",
+            variant: "accent",
+          }}
+          title={
+            <span>
+              Job <span className="bridge-gradient-text">Opportunities</span>
+            </span>
+          }
+          description={
+            loading
+              ? "Searching opportunities..."
+              : `${filteredJobs.length} ${filteredJobs.length === 1 ? "opportunity" : "opportunities"} available`
+          }
+        />
 
         {/* Search */}
         <ScrollReveal delay={100}>
-          <div className="mt-8">
+          <div className="mt-4">
             <div
               className={`relative transition-all duration-250 ${
                 searchFocused ? "scale-[1.01]" : ""
@@ -121,7 +125,7 @@ function JobsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                className={`w-full rounded-2xl border bg-card py-4 pl-12 pr-12 text-sm shadow-soft transition-all duration-250 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                className={`w-full rounded-2xl border bg-card py-3.5 pl-12 pr-12 text-sm shadow-soft transition-all duration-250 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                   searchFocused ? "border-primary/50 shadow-lift" : "border-border"
                 }`}
               />
@@ -245,7 +249,7 @@ function JobsPage() {
             onClose={() => setSelectedJob(null)}
           />
         </Suspense>
-      </main>
+      </PageContainer>
 
       <BottomNav />
     </div>

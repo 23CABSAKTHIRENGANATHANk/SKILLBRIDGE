@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { CursorDot } from "@/components/cursor-dot";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { NotificationsCenter, type Notification } from "@/components/notifications-center";
@@ -86,37 +88,30 @@ function NotificationsPage() {
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-4xl px-4 pb-24 pt-8 sm:px-6">
+      <PageContainer size="narrow">
         <ScrollReveal>
-          <div className="mb-8 flex items-center gap-4">
-            <Link to="/dashboard" className="p-2 rounded-lg hover:bg-secondary transition-colors">
-              <ArrowLeft className="size-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-                  Notifications
-                </h1>
-                {unreadCount > 0 && (
-                  <span className="inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                    {unreadCount}
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 text-muted-foreground">
-                Stay updated with job matches, applications, and interview invitations
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            badge={{ text: "Activity Stream" }}
+            title="Notifications"
+            subtitle="Stay updated with job matches, applications, and interview invitations."
+            actions={
+              unreadCount > 0 ? (
+                <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold">
+                  {unreadCount} unread
+                </span>
+              ) : undefined
+            }
+            className="mb-8"
+          />
         </ScrollReveal>
 
         <ScrollReveal delay={100}>
           {loading ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 rounded-2xl border border-border/80 bg-card p-8 shadow-soft">
               <div className="inline-flex items-center justify-center size-12 rounded-full bg-secondary mb-4 animate-pulse">
                 <Bell className="size-6 text-secondary-foreground" />
               </div>
-              <p className="text-muted-foreground">Loading notifications...</p>
+              <p className="text-muted-foreground text-sm">Loading notifications...</p>
             </div>
           ) : (
             <NotificationsCenter
@@ -126,7 +121,7 @@ function NotificationsPage() {
             />
           )}
         </ScrollReveal>
-      </main>
+      </PageContainer>
 
       <BottomNav />
     </div>

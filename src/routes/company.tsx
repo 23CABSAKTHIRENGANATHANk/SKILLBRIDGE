@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeCheck, Building2, Globe, MapPin, Users } from "lucide-react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { CursorDot } from "@/components/cursor-dot";
 import { LocationCard } from "@/components/location-card";
 import { JobCard } from "@/components/job-card";
@@ -30,14 +31,14 @@ function CompanyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
         <CursorDot />
         <SiteHeader />
-        <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
-          <div className="rounded-3xl border border-dashed bg-card/60 p-12 text-center text-sm text-muted-foreground">
+        <PageContainer size="default">
+          <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center text-sm text-muted-foreground">
             Loading company profile...
           </div>
-        </main>
+        </PageContainer>
         <BottomNav />
       </div>
     );
@@ -45,32 +46,32 @@ function CompanyPage() {
 
   if (!company) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
         <CursorDot />
         <SiteHeader />
-        <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
-          <div className="rounded-3xl border border-dashed bg-card/60 p-12 text-center">
+        <PageContainer size="default">
+          <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
             <Building2 className="mx-auto size-8 text-muted-foreground" />
             <p className="mt-4 font-display text-xl font-bold">Company profile unavailable</p>
             <p className="mt-2 text-sm text-muted-foreground">
               The company details could not be loaded from the API.
             </p>
           </div>
-        </main>
+        </PageContainer>
         <BottomNav />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+      <PageContainer size="default">
         {/* Company header */}
         <ScrollReveal>
-          <div className="relative overflow-hidden rounded-[2rem] border bg-card p-8 shadow-soft sm:p-10">
+          <div className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card p-6 sm:p-10 shadow-soft">
             <div
               className="grid-field pointer-events-none absolute inset-0 opacity-30"
               aria-hidden="true"
@@ -87,7 +88,7 @@ function CompanyPage() {
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+                  <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl text-foreground">
                     {company.name}
                   </h1>
                   {company.verified && (
@@ -144,13 +145,13 @@ function CompanyPage() {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="card-lift flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-soft"
+                className="card-lift flex items-center gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-soft"
               >
                 <span className="flex size-11 items-center justify-center rounded-xl bg-primary-soft text-primary">
                   <stat.icon className="size-5" aria-hidden="true" />
                 </span>
                 <div>
-                  <p className="font-display text-2xl font-extrabold leading-none">
+                  <p className="font-display text-2xl font-extrabold leading-none text-foreground">
                     {typeof stat.value === "number" ? (
                       <AnimatedCounter value={stat.value} />
                     ) : (
@@ -170,7 +171,7 @@ function CompanyPage() {
           <section aria-labelledby="company-jobs-title">
             <ScrollReveal>
               <div className="flex items-center justify-between">
-                <h2 id="company-jobs-title" className="font-display text-xl font-bold">
+                <h2 id="company-jobs-title" className="font-display text-xl font-bold text-foreground">
                   Open Positions
                 </h2>
                 <Button variant="ghost" size="sm" className="text-xs" asChild>
@@ -187,9 +188,9 @@ function CompanyPage() {
                 ))
               ) : (
                 <ScrollReveal>
-                  <div className="flex flex-col items-center rounded-3xl border border-dashed bg-card/60 py-14 text-center">
+                  <div className="flex flex-col items-center rounded-3xl border border-dashed border-border bg-card/60 py-14 text-center">
                     <Building2 className="size-8 text-muted-foreground" />
-                    <p className="mt-3 font-display font-bold">No open positions</p>
+                    <p className="mt-3 font-display font-bold text-foreground">No open positions</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Check back soon for new opportunities.
                     </p>
@@ -206,7 +207,7 @@ function CompanyPage() {
             </ScrollReveal>
           </div>
         </div>
-      </main>
+      </PageContainer>
 
       <BottomNav />
     </div>

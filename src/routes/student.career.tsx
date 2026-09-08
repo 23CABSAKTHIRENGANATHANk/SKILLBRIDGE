@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { CareerEvolutionHub } from "@/components/career/career-evolution-hub";
 import { CareerInsightsStrip } from "@/components/career/career-insights-strip";
@@ -52,7 +53,7 @@ function StudentCareerOSPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <PageContainer size="default" className="space-y-8">
         {/* Real-time Deterministic Insights Strip */}
         {dashboard?.insights && dashboard.insights.length > 0 && (
           <CareerInsightsStrip insights={dashboard.insights} />
@@ -65,7 +66,7 @@ function StudentCareerOSPage() {
         {dashboard?.goal?.target_role && (
           <ReadinessHistoryView targetRole={dashboard.goal.target_role} />
         )}
-      </main>
+      </PageContainer>
       <BottomNav />
     </div>
   );

@@ -17,6 +17,8 @@ import {
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { CursorDot } from "@/components/cursor-dot";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -198,32 +200,31 @@ function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
-        <ScrollReveal>
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
-            <div>
-              <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-                Admin Dashboard
-              </h1>
-              <p className="mt-2 text-muted-foreground">
-                Platform-wide analytics, user management, and system monitoring.
-              </p>
-            </div>
+      <PageContainer size="default">
+        <PageHeader
+          badge={{
+            icon: ShieldCheck,
+            text: "Platform Administration",
+            variant: "primary",
+          }}
+          title="Admin Dashboard"
+          description="Platform-wide analytics, user management, and system monitoring."
+          actions={
             <Button
               onClick={fetchData}
               disabled={isRefreshing}
               variant="outline"
-              className="rounded-xl font-bold"
+              className="rounded-xl font-bold text-xs"
             >
-              <RefreshCw className={`size-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`size-3.5 mr-1.5 ${isRefreshing ? "animate-spin" : ""}`} />
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </Button>
-          </div>
-        </ScrollReveal>
+          }
+        />
 
         <ScrollReveal delay={100}>
           <div className="flex items-center gap-1.5 mb-8 rounded-2xl border border-border/80 bg-card p-1.5 shadow-soft overflow-x-auto">
@@ -240,7 +241,7 @@ function AdminPage() {
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all whitespace-nowrap ${
                   activeTab === id
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                 }`}
               >
                 <Icon className="size-4" />
@@ -421,7 +422,7 @@ function AdminPage() {
             </div>
           </ScrollReveal>
         )}
-      </main>
+      </PageContainer>
 
       <BottomNav />
     </div>

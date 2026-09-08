@@ -3,6 +3,8 @@ import { User, Bell, Lock, Save, LogOut, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { CursorDot } from "@/components/cursor-dot";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -73,16 +75,14 @@ function SettingsPage() {
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-4xl px-4 pb-24 pt-8 sm:px-6">
+      <PageContainer size="narrow">
         <ScrollReveal>
-          <div className="mb-8">
-            <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              Settings
-            </h1>
-            <p className="mt-2 text-muted-foreground">
-              Manage your account, privacy, and notification preferences.
-            </p>
-          </div>
+          <PageHeader
+            badge={{ text: "Preferences" }}
+            title="Account Settings"
+            subtitle="Manage your profile, privacy safeguards, and notification channels."
+            className="mb-8"
+          />
         </ScrollReveal>
 
         <ScrollReveal delay={100}>
@@ -414,7 +414,7 @@ function SettingsPage() {
             </ScrollReveal>
           </div>
         </div>
-      </main>
+      </PageContainer>
 
       <BottomNav />
     </div>

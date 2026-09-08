@@ -2,9 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { InteractiveSkillGraphView } from "@/components/career/interactive-skill-graph-view";
 import { ApiClient } from "@/lib/api-client";
+import { Network } from "lucide-react";
 import type { CareerGoal } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/student/skill-graph")({
@@ -46,19 +49,24 @@ function StudentSkillGraphPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h2 className="font-display text-3xl font-black text-foreground">
-            Topological Prerequisite Skill Graph
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Directed acyclic prerequisite graph mapping core foundation skills to advanced engineering topics for{" "}
-            <span className="font-bold text-foreground">{goal?.target_role || "your target role"}</span>.
-          </p>
-        </div>
+      <PageContainer size="default" className="space-y-6">
+        <PageHeader
+          badge={{
+            icon: Network,
+            text: "Knowledge Graph Engine",
+            variant: "accent",
+          }}
+          title="Topological Prerequisite Skill Graph"
+          description={
+            <span>
+              Directed acyclic prerequisite graph mapping core foundation skills to advanced engineering topics for{" "}
+              <strong className="text-foreground">{goal?.target_role || "your target role"}</strong>.
+            </span>
+          }
+        />
 
         <InteractiveSkillGraphView targetRole={goal?.target_role} />
-      </main>
+      </PageContainer>
       <BottomNav />
     </div>
   );

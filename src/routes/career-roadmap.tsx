@@ -20,11 +20,23 @@ import {
 import { ApiClient } from "@/lib/api-client";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { CareerRoadmapStep } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/career-roadmap")({
+  head: () => ({
+    meta: [
+      { title: "Personalized Career Roadmap — SkillBridge 3.0" },
+      {
+        name: "description",
+        content:
+          "Structured multi-week progression from current skill evidence to industry-verified job readiness.",
+      },
+    ],
+  }),
   component: CareerRoadmapPage,
 });
 
@@ -39,7 +51,7 @@ function CareerRoadmapPage() {
 function CareerRoadmapContent() {
   const qc = useQueryClient();
 
-  const { data: roadmapData, isLoading, error } = useQuery({
+  const { data: roadmapData, isLoading } = useQuery({
     queryKey: ["career-roadmap"],
     queryFn: () => ApiClient.getCareerRoadmap(),
   });
@@ -64,6 +76,7 @@ function CareerRoadmapContent() {
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
+        <BottomNav />
       </div>
     );
   }
@@ -76,7 +89,7 @@ function CareerRoadmapContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-8">
+      <PageContainer size="narrow" className="space-y-8">
         {/* Header Banner */}
         <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-soft relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -100,7 +113,7 @@ function CareerRoadmapContent() {
               <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-foreground">
                 {roadmap?.target_role || "Full Stack Developer"}
               </h1>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Structured {roadmap?.total_weeks || 16}-week progression from current evidence to industry-verified readiness.
               </p>
             </div>
@@ -147,7 +160,7 @@ function CareerRoadmapContent() {
                       : "border-border/80 bg-card hover:border-primary/40 shadow-sm"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
                       <button
                         type="button"
@@ -193,7 +206,7 @@ function CareerRoadmapContent() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                       <Link
                         to="/learning"
                         search={{ skill: step.skill_name } as any}
@@ -218,7 +231,7 @@ function CareerRoadmapContent() {
         </div>
 
         {/* Bottom Loop Action */}
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="rounded-3xl border border-primary/20 bg-primary/5 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
             <h3 className="font-display text-sm font-bold text-foreground">
               Ready to verify what you've learned?
@@ -228,12 +241,13 @@ function CareerRoadmapContent() {
             </p>
           </div>
           <Link to="/dashboard">
-            <Button className="rounded-full font-bold text-xs px-6">
+            <Button className="rounded-full font-bold text-xs px-6 shrink-0">
               Go to Verification Center <ArrowRight className="size-3.5 ml-1.5" />
             </Button>
           </Link>
         </div>
-      </main>
+      </PageContainer>
+      <BottomNav />
     </div>
   );
 }

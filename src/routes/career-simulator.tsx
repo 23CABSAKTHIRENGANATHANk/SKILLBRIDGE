@@ -16,10 +16,23 @@ import {
 import { ApiClient } from "@/lib/api-client";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/career-simulator")({
+  head: () => ({
+    meta: [
+      { title: "Career Path Simulator — SkillBridge 3.0" },
+      {
+        name: "description",
+        content:
+          "Simulate your readiness across multiple tech career trajectories using your actual verified skills.",
+      },
+    ],
+  }),
   component: CareerSimulatorPage,
 });
 
@@ -89,20 +102,17 @@ function CareerSimulatorContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 space-y-8">
-        {/* Header Hero */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-            <Compass className="size-3.5" />
-            <span>Career Path Simulator</span>
-          </div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">
-            Compare Engineering Trajectories
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Simulate your readiness across multiple tech domains using your actual verified skills. Understand what you need to learn before making a commitment.
-          </p>
-        </div>
+      <PageContainer size="narrow" className="space-y-8">
+        {/* Page Header */}
+        <PageHeader
+          badge={{
+            icon: Compass,
+            text: "Career Path Simulator",
+            variant: "accent",
+          }}
+          title="Compare Engineering Trajectories"
+          description="Simulate your readiness across multiple tech domains using your actual verified skills. Understand what you need to learn before making a commitment."
+        />
 
         {/* Path Comparison Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -266,7 +276,8 @@ function CareerSimulatorContent() {
             )}
           </div>
         </div>
-      </main>
+      </PageContainer>
+      <BottomNav />
     </div>
   );
 }

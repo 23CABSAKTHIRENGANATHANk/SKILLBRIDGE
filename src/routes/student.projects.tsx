@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { BuildProjectsView } from "@/components/career/build-projects-view";
 
@@ -26,9 +27,9 @@ function StudentProjectsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <PageContainer size="default">
         <BuildProjectsView />
-      </main>
+      </PageContainer>
       <BottomNav />
     </div>
   );

@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ApiClient } from "@/lib/api-client";
 import type { KnowledgeEvolutionEvent } from "@/types/skillbridge";
@@ -73,15 +75,16 @@ function StudentEvolutionPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h2 className="font-display text-3xl font-black text-foreground">
-            Knowledge Evolution Ledger
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Immutable chronological audit of all skill verifications, project completions, and career growth events.
-          </p>
-        </div>
+      <PageContainer size="narrow" className="space-y-6">
+        <PageHeader
+          badge={{
+            icon: TrendingUp,
+            text: "Career OS Audit Ledger",
+            variant: "primary",
+          }}
+          title="Knowledge Evolution Ledger"
+          description="Immutable chronological audit of all skill verifications, project completions, and career growth events."
+        />
 
         {loading ? (
           <div className="rounded-3xl border border-border/80 bg-card p-12 text-center shadow-soft animate-pulse h-96" />
@@ -151,7 +154,7 @@ function StudentEvolutionPage() {
             </div>
           </div>
         )}
-      </main>
+      </PageContainer>
       <BottomNav />
     </div>
   );

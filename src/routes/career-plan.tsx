@@ -16,11 +16,24 @@ import {
 import { ApiClient } from "@/lib/api-client";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { WeeklyPlanTask } from "@/types/skillbridge";
 
 export const Route = createFileRoute("/career-plan")({
+  head: () => ({
+    meta: [
+      { title: "Weekly Career Evolution Plan — SkillBridge 3.0" },
+      {
+        name: "description",
+        content:
+          "7-day actionable skill execution plan closing your target gaps through bite-sized daily modules.",
+      },
+    ],
+  }),
   component: CareerPlanPage,
 });
 
@@ -69,6 +82,7 @@ function CareerPlanContent() {
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
+        <BottomNav />
       </div>
     );
   }
@@ -82,20 +96,17 @@ function CareerPlanContent() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 space-y-8">
-        {/* Header Hero */}
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-            <Calendar className="size-3.5" />
-            <span>Weekly Career Planner</span>
-          </div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight">
-            Your 7-Day Career Evolution Plan
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-xl">
-            Bite-sized daily actionable blocks that systematically transform your skill gaps into verified credentials.
-          </p>
-        </div>
+      <PageContainer size="narrow" className="space-y-8">
+        {/* Page Header */}
+        <PageHeader
+          badge={{
+            icon: Calendar,
+            text: "Weekly Career Planner",
+            variant: "primary",
+          }}
+          title="Your 7-Day Career Evolution Plan"
+          description="Bite-sized daily actionable blocks that systematically transform your skill gaps into verified credentials."
+        />
 
         {/* Progress Card */}
         <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-soft space-y-4">
@@ -206,7 +217,8 @@ function CareerPlanContent() {
             </Button>
           </Link>
         </div>
-      </main>
+      </PageContainer>
+      <BottomNav />
     </div>
   );
 }

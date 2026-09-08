@@ -57,10 +57,10 @@ export function PresentationModeDock() {
   return (
     <aside
       aria-label="SkillBridge 2.0 Presentation Hub"
-      className="fixed bottom-4 right-4 z-50 transition-all duration-300 print:hidden"
+      className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-50 transition-all duration-300 print:hidden max-w-[calc(100vw-1.5rem)]"
     >
       {isOpen ? (
-        <div className="w-[360px] sm:w-[400px] rounded-3xl border border-primary/30 bg-background/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-5">
+        <div className="w-[calc(100vw-1.5rem)] max-w-[380px] rounded-3xl border border-primary/30 bg-background/95 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-5">
           {/* Top Header */}
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div className="flex items-center gap-2">

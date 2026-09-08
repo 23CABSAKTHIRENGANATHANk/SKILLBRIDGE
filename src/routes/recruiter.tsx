@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import {
   CheckCircle2,
   Search,
@@ -30,9 +31,10 @@ import {
   Bookmark,
   FileCheck2,
 } from "lucide-react";
-import { useState, useMemo } from "react";
 import { SiteHeader } from "@/components/layout/site-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import { CursorDot } from "@/components/cursor-dot";
 import { CandidateCard } from "@/components/candidate-card";
 import { ScrollReveal } from "@/components/scroll-reveal";
@@ -338,7 +340,7 @@ function RecruiterPage() {
       <CursorDot />
       <SiteHeader />
 
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6">
+      <PageContainer size="default">
         {/* Header */}
         <ScrollReveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
@@ -1215,7 +1217,7 @@ function RecruiterPage() {
             </div>
           </ScrollReveal>
         )}
-      </main>
+      </PageContainer>
 
       <BottomNav />
 
