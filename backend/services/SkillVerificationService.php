@@ -452,24 +452,16 @@ class SkillVerificationService {
         ');
         $attStmt->execute([$attemptId, $studentId]);
         $attempt = $attStmt->fetch();
-
         if (!$attempt) {
             throw new \RuntimeException('Verification session not found or unauthorized.');
-        }
-
-        if ($attempt['status'] === 'completed') {
-            return [
-                'success' => true,
-                'question_id' => $questionId,
-                'is_correct' => true,
-                'next_index' => (int)$attempt['total_questions'],
-                'is_last_question' => true
-            ];
         }
 
         if ($attempt['status'] !== 'in_progress') {
             throw new \RuntimeException('Verification attempt is already ' . $attempt['status'] . '.');
         }
+
+
+
 
         self::assertActiveAttempt($db, $attempt);
 
