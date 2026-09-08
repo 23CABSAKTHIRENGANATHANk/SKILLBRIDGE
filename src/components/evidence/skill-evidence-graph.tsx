@@ -98,7 +98,7 @@ export function SkillEvidenceGraph() {
     );
   }
 
-  if (error || !data?.success) {
+  if (error || (!data?.success && !data?.evidence_graph)) {
     return (
       <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400">
         <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -110,7 +110,7 @@ export function SkillEvidenceGraph() {
     );
   }
 
-  const graph = data.evidence_graph ?? [];
+  const graph = data?.evidence_graph ?? [];
 
   if (graph.length === 0) {
     return (

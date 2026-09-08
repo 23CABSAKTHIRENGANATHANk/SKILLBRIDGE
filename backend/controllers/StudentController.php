@@ -7,6 +7,7 @@ require_once __DIR__ . '/../services/MatchingService.php';
 require_once __DIR__ . '/../services/FileUploadService.php';
 require_once __DIR__ . '/../services/ProofOfSkillService.php';
 require_once __DIR__ . '/../services/ResumeExtractionService.php';
+require_once __DIR__ . '/../services/GeminiService.php';
 require_once __DIR__ . '/../middleware/AuthMiddleware.php';
 
 class StudentController {
@@ -297,7 +298,7 @@ class StudentController {
         AuthMiddleware::requireRole($currentUser, 'student');
         $db = Database::getConnection();
 
-        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt = $db->prepare('SELECT id, name, program, college, experience FROM students WHERE user_id = ?');
         $sStmt->execute([$currentUser['user_id']]);
         $student = $sStmt->fetch();
 
@@ -318,7 +319,7 @@ class StudentController {
         $upStmt = $db->prepare('UPDATE students SET resume_storage_key = ? WHERE id = ?');
         $upStmt->execute([$upload['storageKey'], $student['id']]);
 
-        // Trigger native text extraction & skill evidence pipeline
+        // 1. Trigger native text extraction & skill evidence sync into student_skills
         $extraction = null;
         try {
             $extraction = ResumeExtractionService::processResumeEvidence($student['id'], $upload['storageKey']);
@@ -326,11 +327,40 @@ class StudentController {
             error_log('Automated resume extraction error: ' . $e->getMessage());
         }
 
+        // 2. Compute instant AI resume analysis & deterministic ATS score
+        $resumeAnalysis = null;
+        try {
+            $extText = $extraction['text'] ?? '';
+            if (empty($extText)) {
+                $rawExt = ResumeExtractionService::extractTextFromFile($upload['storageKey']);
+                $extText = $rawExt['text'] ?? '';
+            }
+
+            // Fetch newly updated student skills
+            $skStmt = $db->prepare('
+                SELECT sk.name FROM student_skills ss
+                JOIN skills sk ON ss.skill_id = sk.id
+                WHERE ss.student_id = ?
+            ');
+            $skStmt->execute([$student['id']]);
+            $updatedSkills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $resumeAnalysis = GeminiService::summariseResume(
+                $extText,
+                $student['name'] ?? 'Student',
+                $student['program'] ?? 'Computer Science',
+                $updatedSkills
+            );
+        } catch (\Throwable $e) {
+            error_log('Automated resume analysis error: ' . $e->getMessage());
+        }
+
         jsonResponse([
             'success' => true,
-            'message' => 'Resume uploaded to secure storage.',
+            'message' => 'Resume uploaded, skills extracted, and quality score synchronized.',
             'hasResume' => true,
-            'extraction' => $extraction
+            'extraction' => $extraction,
+            'resume_analysis' => $resumeAnalysis,
         ]);
     }
 

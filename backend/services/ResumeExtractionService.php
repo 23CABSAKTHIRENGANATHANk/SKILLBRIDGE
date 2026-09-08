@@ -187,6 +187,13 @@ class ResumeExtractionService {
         $savedSkills = [];
         $db->beginTransaction();
         try {
+            $insSkill = $db->prepare('
+                INSERT INTO student_skills (student_id, skill_id, proficiency)
+                VALUES (?, ?, 70)
+                ON CONFLICT (student_id, skill_id)
+                DO UPDATE SET proficiency = GREATEST(student_skills.proficiency, 70)
+            ');
+
             $insEv = $db->prepare('
                 INSERT INTO skill_evidence (
                     id, student_id, skill_id, source, confidence, metadata, verified_at
@@ -198,6 +205,8 @@ class ResumeExtractionService {
             ');
 
             foreach ($matchedSkills as $sk) {
+                $insSkill->execute([$studentId, $sk['id']]);
+
                 $evId = 'ev_res_' . bin2hex(random_bytes(6));
                 $meta = json_encode([
                     'storage_key' => $storageKey,
@@ -207,7 +216,7 @@ class ResumeExtractionService {
                 ]);
 
                 // Base confidence for keyword match in resume document
-                $confidence = 65.0;
+                $confidence = 70.0;
                 $insEv->execute([$evId, $studentId, $sk['id'], $confidence, $meta]);
                 $savedSkills[] = $sk['name'];
             }
@@ -231,6 +240,7 @@ class ResumeExtractionService {
         return [
             'success' => true,
             'format' => $extracted['format'],
+            'text' => $extracted['text'],
             'word_count' => $extracted['word_count'],
             'matched_skills_count' => count($savedSkills),
             'matched_skills' => $savedSkills

@@ -571,7 +571,7 @@ switch (true) {
         $student = $sStmt->fetch();
         if (!$student) { errorResponse('Student profile not found.', 404); }
         $evidenceGraph = SkillEvidenceService::getStudentEvidenceGraph($student['id']);
-        jsonResponse(['evidence_graph' => $evidenceGraph, 'total_skills' => count($evidenceGraph)]);
+        jsonResponse(['success' => true, 'evidence_graph' => $evidenceGraph, 'total_skills' => count($evidenceGraph)]);
         break;
 
     // -----------------------------------------------------------------------
@@ -586,7 +586,7 @@ switch (true) {
         $student = $sStmt->fetch();
         if (!$student) { errorResponse('Student profile not found.', 404); }
         $trustScores = ProofOfSkillService::getStudentTrustScores($student['id']);
-        jsonResponse(['trust_scores' => $trustScores, 'computed_at' => date('c')]);
+        jsonResponse(['success' => true, 'trust_scores' => $trustScores, 'computed_at' => date('c')]);
         break;
 
     // -----------------------------------------------------------------------

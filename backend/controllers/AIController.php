@@ -23,7 +23,7 @@ class AIController {
 
         // Get student profile + skills
         $stmt = $db->prepare('
-            SELECT s.name, s.program, s.college, s.experience
+            SELECT s.name, s.program, s.college, s.experience, s.resume_storage_key
             FROM students s WHERE s.user_id = ? LIMIT 1
         ');
         $stmt->execute([$currentUser['user_id']]);
@@ -40,6 +40,16 @@ class AIController {
         $skills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
 
         $resumeText = trim($input['resume_text'] ?? '');
+        if (empty($resumeText) && !empty($student['resume_storage_key'])) {
+            try {
+                $ext = ResumeExtractionService::extractTextFromFile($student['resume_storage_key']);
+                if (!empty($ext['text'])) {
+                    $resumeText = $ext['text'];
+                }
+            } catch (\Throwable $e) {
+                // Non-blocking fallback to profile proxy
+            }
+        }
         if (empty($resumeText)) {
             // Use profile data as resume proxy
             $resumeText = "Name: {$student['name']}\nProgram: {$student['program']}\nCollege: {$student['college']}\nSkills: " . implode(', ', $skills);

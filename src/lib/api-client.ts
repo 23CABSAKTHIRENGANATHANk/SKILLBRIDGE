@@ -226,7 +226,19 @@ export class ApiClient {
     });
   }
 
-  public static async uploadResume(file: File): Promise<{ success: boolean; filename?: string }> {
+  public static async uploadResume(file: File): Promise<{
+    success: boolean;
+    message?: string;
+    hasResume?: boolean;
+    extraction?: {
+      success: boolean;
+      format: string;
+      word_count: number;
+      matched_skills_count: number;
+      matched_skills: string[];
+    };
+    resume_analysis?: AIResumeAnalysis;
+  }> {
     const formData = new FormData();
     formData.append("resume", file);
     return this.request("/student/resume", { method: "POST", body: formData });

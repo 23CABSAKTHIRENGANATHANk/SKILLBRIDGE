@@ -342,6 +342,19 @@ class SkillEvidenceService {
                 break; // one interview entry per skill is sufficient
             }
 
+            // Fallback: If no explicit evidence records found, generate standard self-declared profile item
+            if (empty($items)) {
+                $items[] = self::buildItem(
+                    self::TYPE_SELF_DECLARED,
+                    'Student Profile',
+                    max(35, min(60, (int)($skill['proficiency'] ?? 35))),
+                    $skill['claimed_at'] ?? date('c'),
+                    'Beginner',
+                    'unverified',
+                    ['proficiency' => $skill['proficiency']]
+                );
+            }
+
             // Integrity audit
             $integrity = $integrityMap[$sid] ?? null;
             $integrityStatus = $integrity ? $integrity['status'] : 'NOT_VERIFIED';

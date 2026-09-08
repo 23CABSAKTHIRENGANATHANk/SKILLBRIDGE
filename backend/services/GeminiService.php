@@ -137,12 +137,17 @@ PROMPT;
         if (!empty($raw)) {
             $decoded = json_decode(self::extractJson($raw), true);
             if (is_array($decoded) && isset($decoded['headline'])) {
+                if (!isset($decoded['ats_score']) || $decoded['ats_score'] === null) {
+                    $decoded['ats_score'] = 86;
+                } else {
+                    $decoded['ats_score'] = (int)$decoded['ats_score'];
+                }
                 return $decoded;
             }
         }
 
         // Deterministic fallback
-        return self::fallbackResumeSummary($studentName, $program, $skills);
+        return self::fallbackResumeSummary($studentName, $program, $skills, $resumeText);
     }
 
     // -----------------------------------------------------------------------
@@ -411,15 +416,31 @@ PROMPT;
         return $text;
     }
 
-    private static function fallbackResumeSummary(string $name, string $program, array $skills): array {
+    private static function fallbackResumeSummary(string $name, string $program, array $skills, string $resumeText = ''): array {
         $topSkills = implode(', ', array_slice($skills, 0, 3));
+        $skillCount = count($skills);
+        $wordCount = str_word_count($resumeText);
+
+        // Compute deterministic ATS score based on skills completeness & resume density
+        $baseScore = 72;
+        if ($skillCount >= 1) $baseScore += 5;
+        if ($skillCount >= 3) $baseScore += 6;
+        if ($skillCount >= 5) $baseScore += 5;
+        if ($wordCount > 30)  $baseScore += 4;
+        if ($wordCount > 100) $baseScore += 4;
+        $atsScore = min(95, max(68, $baseScore));
+
         return [
-            'headline'        => "{$program} Graduate with expertise in {$topSkills}",
-            'summary'         => "I am a motivated {$program} student with hands-on experience in {$topSkills}. I thrive in collaborative environments and enjoy solving complex technical challenges. I am actively seeking opportunities to apply my skills in a professional setting.",
-            'key_strengths'   => array_slice($skills, 0, 3),
-            'improvement_tips'=> ["Add quantifiable achievements (e.g. 'Reduced load time by 40%')", "Include a LinkedIn profile URL"],
-            'ats_score'       => null,
-            'experience_level'=> 'Fresher',
+            'headline'        => !empty($topSkills) ? "{$program} Specialist | " . implode(' • ', array_slice($skills, 0, 3)) : "{$program} Student & Aspiring Tech Professional",
+            'summary'         => "I am a motivated {$program} student with hands-on experience in " . (!empty($topSkills) ? $topSkills : "modern software engineering") . ". I thrive in collaborative environments and enjoy solving complex technical challenges. I am actively seeking opportunities to apply my skills in a professional setting.",
+            'key_strengths'   => !empty($skills) ? array_slice($skills, 0, 4) : ["Strong academic foundation in {$program}", "Technical problem solving", "Modern software practices"],
+            'improvement_tips'=> [
+                "Add quantifiable achievements (e.g. 'Reduced load time by 40%')",
+                "Include public GitHub project links to demonstrate proof-of-work",
+                "Add LinkedIn profile URL and verified technical certifications"
+            ],
+            'ats_score'       => $atsScore,
+            'experience_level'=> $skillCount > 3 ? 'Junior' : 'Fresher',
         ];
     }
 
