@@ -161,6 +161,51 @@ export interface AIResumeAnalysis {
   experience_level: "Fresher" | "Junior" | "Mid" | string;
 }
 
+export interface ResumeSyncSummary {
+  profile_fields_updated: number;
+  skills_added: number;
+  skills_updated: number;
+  projects_added: number;
+  projects_updated: number;
+  education_updated: number;
+  experience_added: number;
+  certifications_added: number;
+}
+
+export interface ResumeConflict {
+  id: string;
+  field: string;
+  existing_value: string;
+  resume_value: string;
+  status: "requires_review" | "resolved" | "ignored";
+  created_at?: string;
+}
+
+export interface DetectedSkill {
+  id: string;
+  name: string;
+  category?: string;
+  status: string;
+}
+
+export interface ResumeUploadResponse {
+  success: boolean;
+  message?: string;
+  hasResume?: boolean;
+  resume_id?: string;
+  summary?: ResumeSyncSummary;
+  conflicts?: ResumeConflict[];
+  skills_detected?: DetectedSkill[];
+  extraction?: {
+    success: boolean;
+    format: string;
+    word_count: number;
+    matched_skills_count: number;
+    matched_skills: string[];
+  };
+  resume_analysis?: AIResumeAnalysis;
+}
+
 export interface AIMatchExplanation {
   verdict: "Strong Match" | "Good Match" | "Moderate Match" | "Reach Role" | string;
   fit_paragraph: string;

@@ -40,6 +40,9 @@ import type {
   CareerInsightItem,
   ReadinessSnapshot,
   InteractiveSkillGraphData,
+  ResumeUploadResponse,
+  ResumeConflict,
+  ResumeSyncSummary,
 } from "@/types/skillbridge";
 
 
@@ -230,22 +233,28 @@ export class ApiClient {
     });
   }
 
-  public static async uploadResume(file: File): Promise<{
-    success: boolean;
-    message?: string;
-    hasResume?: boolean;
-    extraction?: {
-      success: boolean;
-      format: string;
-      word_count: number;
-      matched_skills_count: number;
-      matched_skills: string[];
-    };
-    resume_analysis?: AIResumeAnalysis;
-  }> {
+  public static async uploadResume(file: File): Promise<ResumeUploadResponse> {
     const formData = new FormData();
     formData.append("resume", file);
     return this.request("/student/resume", { method: "POST", body: formData });
+  }
+
+  public static async getResumeConflicts(): Promise<{ success: boolean; conflicts: ResumeConflict[] }> {
+    return this.request("/student/resume/conflicts");
+  }
+
+  public static async resolveResumeConflict(
+    conflictId: string,
+    resolution: "keep_existing" | "use_resume"
+  ): Promise<{ success: boolean; message: string }> {
+    return this.request("/student/resume/resolve-conflict", {
+      method: "POST",
+      body: JSON.stringify({ conflict_id: conflictId, resolution }),
+    });
+  }
+
+  public static async getResumeHistory(): Promise<{ success: boolean; history: any[] }> {
+    return this.request("/student/resume/history");
   }
 
   public static async verifyPhone(phone: string): Promise<{ success: boolean }> {

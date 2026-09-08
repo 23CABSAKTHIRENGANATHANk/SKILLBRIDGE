@@ -291,6 +291,21 @@ switch (true) {
         StudentController::uploadResume($user);
         break;
 
+    case $path === '/student/resume/conflicts' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        StudentController::getResumeConflicts($user);
+        break;
+
+    case $path === '/student/resume/resolve-conflict' && $method === 'POST':
+        $user = AuthMiddleware::authenticate();
+        StudentController::resolveResumeConflict($user);
+        break;
+
+    case $path === '/student/resume/history' && $method === 'GET':
+        $user = AuthMiddleware::authenticate();
+        StudentController::getResumeHistory($user);
+        break;
+
     case $path === '/student/resume/download' && $method === 'GET':
         $user = AuthMiddleware::authenticate();
         AuthMiddleware::requireRole($user, 'student');

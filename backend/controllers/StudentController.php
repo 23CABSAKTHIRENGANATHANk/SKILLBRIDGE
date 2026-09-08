@@ -292,15 +292,15 @@ class StudentController {
     }
 
     /**
-     * Upload resume to private protected storage
+     * Upload resume to private protected storage & trigger Intelligent Auto-Sync Engine
      */
     public static function uploadResume(array $currentUser): void {
         AuthMiddleware::requireRole($currentUser, 'student');
         $db = Database::getConnection();
 
-        $sStmt = $db->prepare('SELECT id, name, program, college, experience FROM students WHERE user_id = ?');
+        $sStmt = $db->prepare('SELECT id, name, program, college, experience, phone FROM students WHERE user_id = ?');
         $sStmt->execute([$currentUser['user_id']]);
-        $student = $sStmt->fetch();
+        $student = $sStmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$student) {
             errorResponse('Student not found.', 404);
@@ -308,29 +308,25 @@ class StudentController {
 
         $file = $_FILES['resume'] ?? $_FILES['file'] ?? null;
         if (!$file) {
-            errorResponse('No resume file provided.');
+            errorResponse('No resume file provided.', 400);
         }
 
         $upload = FileUploadService::uploadResume($file);
         if (!$upload['success']) {
-            errorResponse($upload['error']);
+            errorResponse($upload['error'] ?? 'Upload failed.', 400);
         }
 
+        $resumeId = 'res_' . bin2hex(random_bytes(8));
         $upStmt = $db->prepare('UPDATE students SET resume_storage_key = ? WHERE id = ?');
         $upStmt->execute([$upload['storageKey'], $student['id']]);
 
-        // 1. Trigger native text extraction & skill evidence sync into student_skills
-        $extraction = null;
-        try {
-            $extraction = ResumeExtractionService::processResumeEvidence($student['id'], $upload['storageKey']);
-        } catch (\Throwable $e) {
-            error_log('Automated resume extraction error: ' . $e->getMessage());
-        }
+        // 1. Trigger Full Resume Intelligent Auto-Sync Engine
+        $syncResult = ResumeExtractionService::processResumeAutoSync($student['id'], $upload['storageKey'], $resumeId);
 
         // 2. Compute instant AI resume analysis & deterministic ATS score
         $resumeAnalysis = null;
         try {
-            $extText = $extraction['text'] ?? '';
+            $extText = $syncResult['structured_data']['personal']['summary'] ?? '';
             if (empty($extText)) {
                 $rawExt = ResumeExtractionService::extractTextFromFile($upload['storageKey']);
                 $extText = $rawExt['text'] ?? '';
@@ -343,7 +339,7 @@ class StudentController {
                 WHERE ss.student_id = ?
             ');
             $skStmt->execute([$student['id']]);
-            $updatedSkills = $skStmt->fetchAll(PDO::FETCH_COLUMN);
+            $updatedSkills = $skStmt->fetchAll(\PDO::FETCH_COLUMN);
 
             $resumeAnalysis = GeminiService::summariseResume(
                 $extText,
@@ -356,11 +352,164 @@ class StudentController {
         }
 
         jsonResponse([
-            'success' => true,
-            'message' => 'Resume uploaded, skills extracted, and quality score synchronized.',
-            'hasResume' => true,
-            'extraction' => $extraction,
+            'success'         => true,
+            'message'         => 'Resume uploaded and profile intelligently synchronized.',
+            'hasResume'       => true,
+            'resume_id'       => $resumeId,
+            'summary'         => $syncResult['summary'] ?? [
+                'profile_fields_updated' => 0,
+                'skills_added'           => 0,
+                'skills_updated'         => 0,
+                'projects_added'         => 0,
+                'projects_updated'       => 0,
+                'education_updated'      => 0,
+                'experience_added'       => 0,
+                'certifications_added'   => 0
+            ],
+            'conflicts'       => $syncResult['conflicts'] ?? [],
+            'skills_detected' => $syncResult['skills_detected'] ?? [],
+            'extraction'      => [
+                'success'              => $syncResult['success'] ?? true,
+                'format'               => $syncResult['format'] ?? 'pdf',
+                'word_count'           => $syncResult['word_count'] ?? 0,
+                'matched_skills_count' => $syncResult['matched_skills_count'] ?? 0,
+                'matched_skills'       => $syncResult['matched_skills'] ?? [],
+            ],
             'resume_analysis' => $resumeAnalysis,
+        ]);
+    }
+
+    /**
+     * Get pending resume conflicts requiring student review
+     */
+    public static function getResumeConflicts(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $cStmt = $db->prepare('
+            SELECT id, resume_id, field, existing_value, resume_value, status, created_at
+            FROM resume_conflicts
+            WHERE student_id = ? AND status = \'requires_review\'
+            ORDER BY created_at DESC
+        ');
+        $cStmt->execute([$student['id']]);
+        $conflicts = $cStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        jsonResponse([
+            'success'   => true,
+            'conflicts' => $conflicts
+        ]);
+    }
+
+    /**
+     * Resolve a resume conflict (Keep Existing vs Use Resume Value)
+     */
+    public static function resolveResumeConflict(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        $conflictId = trim((string)($input['conflict_id'] ?? ''));
+        $resolution = trim((string)($input['resolution'] ?? '')); // 'keep_existing' | 'use_resume'
+
+        if (empty($conflictId) || !in_array($resolution, ['keep_existing', 'use_resume'], true)) {
+            errorResponse('Valid conflict_id and resolution (keep_existing|use_resume) are required.', 400);
+        }
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$student) {
+            errorResponse('Student profile not found.', 404);
+        }
+
+        $cStmt = $db->prepare('SELECT id, field, existing_value, resume_value, status FROM resume_conflicts WHERE id = ? AND student_id = ? LIMIT 1');
+        $cStmt->execute([$conflictId, $student['id']]);
+        $conflict = $cStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$conflict) {
+            errorResponse('Conflict record not found.', 404);
+        }
+
+        $db->beginTransaction();
+        try {
+            if ($resolution === 'use_resume') {
+                $field = $conflict['field'];
+                $resumeVal = $conflict['resume_value'];
+
+                if ($field === 'phone') {
+                    $up = $db->prepare('UPDATE students SET phone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+                    $up->execute([$resumeVal, $student['id']]);
+                } elseif (in_array($field, ['location', 'bio', 'github_url', 'linkedin_url', 'portfolio_url'], true)) {
+                    $up = $db->prepare("UPDATE students SET {$field} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $up->execute([$resumeVal, $student['id']]);
+                }
+            }
+
+            $upConf = $db->prepare('UPDATE resume_conflicts SET status = \'resolved\', resolution = ?, resolved_at = CURRENT_TIMESTAMP WHERE id = ?');
+            $upConf->execute([$resolution, $conflictId]);
+
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            error_log('Conflict resolution failed: ' . $e->getMessage());
+            errorResponse('Unable to resolve conflict. Please try again.', 500);
+        }
+
+        jsonResponse([
+            'success' => true,
+            'message' => 'Conflict resolved successfully.',
+            'resolution' => $resolution
+        ]);
+    }
+
+    /**
+     * Get resume processing history for the student
+     */
+    public static function getResumeHistory(array $currentUser): void {
+        AuthMiddleware::requireRole($currentUser, 'student');
+        $db = Database::getConnection();
+
+        $sStmt = $db->prepare('SELECT id FROM students WHERE user_id = ?');
+        $sStmt->execute([$currentUser['user_id']]);
+        $student = $sStmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$student) {
+            errorResponse('Student not found.', 404);
+        }
+
+        $hStmt = $db->prepare('
+            SELECT id, resume_id, processing_status, extraction_status, sync_status,
+                   summary, conflicts, parser_version, processed_at
+            FROM resume_processing_history
+            WHERE student_id = ?
+            ORDER BY processed_at DESC
+            LIMIT 10
+        ');
+        $hStmt->execute([$student['id']]);
+        $history = $hStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        foreach ($history as &$item) {
+            if (is_string($item['summary'])) {
+                $item['summary'] = json_decode($item['summary'], true);
+            }
+            if (is_string($item['conflicts'])) {
+                $item['conflicts'] = json_decode($item['conflicts'], true);
+            }
+        }
+
+        jsonResponse([
+            'success' => true,
+            'history' => $history
         ]);
     }
 

@@ -30,6 +30,9 @@ import {
   Globe,
   FolderGit2,
   Trash2,
+  RefreshCw,
+  FileCheck2,
+  ArrowRight,
 } from "lucide-react";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,6 +66,7 @@ import { SkillVerificationCenter } from "@/components/proof-of-skill/skill-verif
 import { SkillEvidenceGraph } from "@/components/evidence/skill-evidence-graph";
 import { CareerEvolutionCard } from "@/components/career/career-evolution-card";
 import { CareerEvolutionHub } from "@/components/career/career-evolution-hub";
+import type { ResumeSyncSummary, ResumeConflict, DetectedSkill } from "@/types/skillbridge";
 
 const OpportunityModal = lazy(() =>
   import("@/components/opportunity-modal").then((m) => ({ default: m.OpportunityModal }))
@@ -160,9 +164,14 @@ function DashboardPage() {
   const [phoneInput, setPhoneInput] = useState("");
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
 
-  // Resume upload state
+  // Resume Auto-Sync state
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [resumeFilename, setResumeFilename] = useState("");
+  const [resumeSyncStage, setResumeSyncStage] = useState<string | null>(null);
+  const [resumeSyncSummary, setResumeSyncSummary] = useState<ResumeSyncSummary | null>(null);
+  const [resumeConflicts, setResumeConflicts] = useState<ResumeConflict[]>([]);
+  const [resumeDetectedSkills, setResumeDetectedSkills] = useState<DetectedSkill[]>([]);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   // Projects state
   const [projectTitle, setProjectTitle] = useState("");
@@ -341,22 +350,29 @@ function DashboardPage() {
     }
 
     setIsUploadingResume(true);
+    setResumeSyncStage("Reading & Extracting Entities...");
     try {
       const res = await ApiClient.uploadResume(file);
       setResumeFilename(file.name);
+      setResumeSyncStage("Finalizing Intelligence Sync...");
 
-      const matchedCount =
-        res.extraction?.matched_skills_count ??
-        res.extraction?.matched_skills?.length ??
-        0;
-
-      if (matchedCount > 0) {
-        toast.success(
-          `Resume parsed! ${matchedCount} skills extracted and synchronized to your verified profile!`
-        );
-      } else {
-        toast.success("Resume securely uploaded, SHA-256 validated, and verified!");
+      if (res.summary) {
+        setResumeSyncSummary(res.summary);
       }
+      if (res.conflicts && res.conflicts.length > 0) {
+        setResumeConflicts(res.conflicts);
+      }
+      if (res.skills_detected) {
+        setResumeDetectedSkills(res.skills_detected);
+      }
+      setIsSyncModalOpen(true);
+
+      const addedCount = res.summary?.skills_added ?? res.extraction?.matched_skills_count ?? 0;
+      const updatedFields = res.summary?.profile_fields_updated ?? 0;
+
+      toast.success(
+        `Resume synchronized! ${addedCount} skills and ${updatedFields} profile fields processed.`
+      );
 
       await Promise.all([
         refetchProfile(),
@@ -367,6 +383,13 @@ function DashboardPage() {
         queryClient.invalidateQueries({ queryKey: ["student-dashboard"] }),
         queryClient.invalidateQueries({ queryKey: ["jobs"] }),
         queryClient.invalidateQueries({ queryKey: ["skills"] }),
+        queryClient.invalidateQueries({ queryKey: ["career-readiness"] }),
+        queryClient.invalidateQueries({ queryKey: ["skill-gaps"] }),
+        queryClient.invalidateQueries({ queryKey: ["next-best-action"] }),
+        queryClient.invalidateQueries({ queryKey: ["knowledge-evolution"] }),
+        queryClient.invalidateQueries({ queryKey: ["career-opportunities"] }),
+        queryClient.invalidateQueries({ queryKey: ["weekly-career-plan"] }),
+        queryClient.invalidateQueries({ queryKey: ["career-roadmap"] }),
       ]);
 
       void generateResumeAnalysis();
@@ -375,7 +398,27 @@ function DashboardPage() {
       toast.error(msg);
     } finally {
       setIsUploadingResume(false);
+      setResumeSyncStage(null);
       e.target.value = "";
+    }
+  };
+
+  const handleResolveConflict = async (conflictId: string, resolution: "keep_existing" | "use_resume") => {
+    try {
+      await ApiClient.resolveResumeConflict(conflictId, resolution);
+      setResumeConflicts((prev) => prev.filter((c) => c.id !== conflictId));
+      toast.success(
+        resolution === "use_resume"
+          ? "Profile updated with resume value."
+          : "Kept existing profile information."
+      );
+      await Promise.all([
+        refetchProfile(),
+        refetchDashboard(),
+        queryClient.invalidateQueries({ queryKey: ["student-profile"] }),
+      ]);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to resolve conflict.");
     }
   };
 
@@ -1154,6 +1197,118 @@ function DashboardPage() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Resume Upload Processing Progress Bar */}
+                    {isUploadingResume && (
+                      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 mb-4 space-y-2 animate-pulse">
+                        <div className="flex items-center justify-between text-xs font-bold text-primary">
+                          <span className="flex items-center gap-2">
+                            <RefreshCw className="size-3.5 animate-spin text-primary" />
+                            Auto-Sync Engine in Progress:
+                          </span>
+                          <span>{resumeSyncStage || "Processing..."}</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-primary/20 overflow-hidden">
+                          <div className="h-full bg-primary rounded-full w-3/4 animate-pulse" />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Securely reading resume, normalizing skills against master dictionary, detecting conflicts, and synchronizing profile evidence...
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Resume Sync Summary Card */}
+                    {resumeSyncSummary && (
+                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 mb-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileCheck2 className="size-4 text-emerald-500" />
+                            <h4 className="text-xs font-bold text-foreground">Updated from Your Resume</h4>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setResumeSyncSummary(null)}
+                            className="text-[11px] font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="rounded-xl border border-border bg-background/80 p-2 text-center">
+                            <span className="block text-base font-black text-emerald-500">{resumeSyncSummary.skills_added}</span>
+                            <span className="text-[10px] text-muted-foreground font-semibold">New Skills Added</span>
+                          </div>
+                          <div className="rounded-xl border border-border bg-background/80 p-2 text-center">
+                            <span className="block text-base font-black text-sky-500">{resumeSyncSummary.skills_updated}</span>
+                            <span className="text-[10px] text-muted-foreground font-semibold">Skills with Evidence</span>
+                          </div>
+                          <div className="rounded-xl border border-border bg-background/80 p-2 text-center">
+                            <span className="block text-base font-black text-amber-500">{resumeSyncSummary.projects_added + resumeSyncSummary.projects_updated}</span>
+                            <span className="text-[10px] text-muted-foreground font-semibold">Projects Synced</span>
+                          </div>
+                          <div className="rounded-xl border border-border bg-background/80 p-2 text-center">
+                            <span className="block text-base font-black text-purple-500">{resumeSyncSummary.profile_fields_updated}</span>
+                            <span className="text-[10px] text-muted-foreground font-semibold">Profile Fields</span>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 flex items-start gap-2 text-[11px] text-amber-700 dark:text-amber-300">
+                          <AlertCircle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold">Proof-of-Skill Model:</span> Resume evidence is registered at 20% weight and does not automatically mark skills as verified. Take technical assessments or link GitHub proof-of-work for verified badges.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Resume Conflicts Review */}
+                    {resumeConflicts.length > 0 && (
+                      <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 mb-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="size-4 text-amber-500" />
+                          <h4 className="text-xs font-bold text-foreground">Review Information Conflict</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Existing profile information differs from your resume. Select which value you would like to keep:
+                        </p>
+
+                        <div className="space-y-2">
+                          {resumeConflicts.map((c) => (
+                            <div key={c.id} className="rounded-xl border border-border bg-background p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                              <div>
+                                <span className="font-bold text-foreground uppercase tracking-wider text-[10px] block mb-1">
+                                  Field: {c.field}
+                                </span>
+                                <div className="space-y-0.5 text-muted-foreground text-[11px]">
+                                  <div>Existing Profile: <strong className="text-foreground">{c.existing_value || "(empty)"}</strong></div>
+                                  <div>Resume Extracted: <strong className="text-primary">{c.resume_value}</strong></div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleResolveConflict(c.id, "keep_existing")}
+                                  className="rounded-lg text-xs"
+                                >
+                                  Keep Existing
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleResolveConflict(c.id, "use_resume")}
+                                  className="rounded-lg text-xs font-bold bg-primary text-primary-foreground"
+                                >
+                                  Use Resume Value
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {profile?.student.hasResume && resumeAnalysis ? (
                       <div className="space-y-4">
