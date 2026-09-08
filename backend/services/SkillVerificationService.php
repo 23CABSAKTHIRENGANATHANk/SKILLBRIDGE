@@ -670,6 +670,8 @@ class SkillVerificationService {
             $insEv->execute([$evId, $studentId, $attempt['skill_id'], $finalScore, $meta]);
 
             // Synchronize also with legacy skill_assessments for full backward compatibility
+            $dbProf = self::mapScoreToDbProficiency($finalScore);
+
             $legId = 'asm_' . bin2hex(random_bytes(8));
             $insLeg = $db->prepare('
                 INSERT INTO skill_assessments (
@@ -682,7 +684,7 @@ class SkillVerificationService {
                 $studentId,
                 $attempt['skill_id'],
                 $finalScore,
-                strtolower($verifiedLevel),
+                $dbProf,
                 $breakdown[self::CATEGORY_CONCEPTUAL] ?? 0,
                 $breakdown[self::CATEGORY_DEBUGGING] ?? 0,
                 $breakdown[self::CATEGORY_PRACTICAL] ?? 0,
@@ -691,17 +693,15 @@ class SkillVerificationService {
             ]);
 
             // Update student_skills normalized proficiency if passed or higher
-            $dbProf = strtolower($verifiedLevel);
-            if (in_array($dbProf, ['beginner', 'intermediate', 'advanced', 'expert'], true)) {
-                $upSk = $db->prepare('
-                    UPDATE student_skills
-                    SET proficiency = ?
-                    WHERE student_id = ? AND skill_id = ?
-                ');
-                $upSk->execute([$dbProf, $studentId, $attempt['skill_id']]);
-            }
+            $upSk = $db->prepare('
+                UPDATE student_skills
+                SET proficiency = ?
+                WHERE student_id = ? AND skill_id = ?
+            ');
+            $upSk->execute([$dbProf, $studentId, $attempt['skill_id']]);
 
             $db->commit();
+
         } catch (\Throwable $e) {
             $db->rollBack();
             throw $e;

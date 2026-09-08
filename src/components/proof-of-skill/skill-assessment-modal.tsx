@@ -77,12 +77,13 @@ export function SkillAssessmentModal({
       setSelectedAnswer("");
       if (answerRes.is_last_question) {
         const completeRes = await ApiClient.completeSkillVerification(attemptId);
+        const bd = completeRes.breakdown || {};
         setResult({
           score: completeRes.score,
           level: completeRes.verified_level,
-          knowledge_score: completeRes.breakdown["Conceptual Foundations"] ?? 0,
-          problem_solving_score: completeRes.breakdown["Debugging & Optimization"] ?? 0,
-          practical_score: completeRes.breakdown["Practical Implementation"] ?? 0,
+          knowledge_score: bd["Conceptual Foundations"] ?? bd["conceptual"] ?? 0,
+          problem_solving_score: bd["Debugging & Optimization"] ?? bd["debugging"] ?? 0,
+          practical_score: bd["Practical Implementation"] ?? bd["practical"] ?? 0,
           summary: completeRes.message,
         });
         toast.success(completeRes.message || "Skill assessment successfully verified!");
@@ -92,11 +93,12 @@ export function SkillAssessmentModal({
         setCurrentIndex(answerRes.next_index);
         setQuestion(nextRes.question ?? null);
       }
-    } catch {
-      toast.error("Failed to save or evaluate this assessment answer.");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save or evaluate this assessment answer.");
     } finally {
       setSubmitting(false);
     }
+
   };
 
   return (
