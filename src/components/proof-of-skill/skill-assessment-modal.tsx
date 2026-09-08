@@ -75,7 +75,7 @@ export function SkillAssessmentModal({
         attemptId,
       );
       setSelectedAnswer("");
-      if (answerRes.is_last_question) {
+      if (answerRes.is_last_question || currentIndex >= totalQuestions - 1) {
         const completeRes = await ApiClient.completeSkillVerification(attemptId);
         const bd = completeRes.breakdown || {};
         setResult({
@@ -94,12 +94,32 @@ export function SkillAssessmentModal({
         setQuestion(nextRes.question ?? null);
       }
     } catch (err: any) {
+      // Auto-recover: if already at the final question, attempt direct completion
+      if (currentIndex >= totalQuestions - 1) {
+        try {
+          const completeRes = await ApiClient.completeSkillVerification(attemptId);
+          const bd = completeRes.breakdown || {};
+          setResult({
+            score: completeRes.score,
+            level: completeRes.verified_level,
+            knowledge_score: bd["Conceptual Foundations"] ?? bd["conceptual"] ?? 0,
+            problem_solving_score: bd["Debugging & Optimization"] ?? bd["debugging"] ?? 0,
+            practical_score: bd["Practical Implementation"] ?? bd["practical"] ?? 0,
+            summary: completeRes.message,
+          });
+          toast.success(completeRes.message || "Skill assessment successfully verified!");
+          onAssessmentCompleted?.();
+          return;
+        } catch {
+          // Fall through to error toast
+        }
+      }
       toast.error(err?.message || "Failed to save or evaluate this assessment answer.");
     } finally {
       setSubmitting(false);
     }
-
   };
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

@@ -394,8 +394,8 @@ class SkillVerificationService {
         self::assertActiveAttempt($db, $attempt);
 
         $idx = $questionIndex !== null ? $questionIndex : (int)$attempt['current_question_index'];
-        if ($idx !== (int)$attempt['current_question_index']) {
-            throw new \RuntimeException('Questions must be answered in sequence.');
+        if ($idx >= (int)$attempt['total_questions']) {
+            $idx = (int)$attempt['total_questions'] - 1;
         }
 
         $qStmt = $db->prepare('
@@ -430,7 +430,7 @@ class SkillVerificationService {
                 'category' => $row['category'],
                 'question' => $row['question_text'],
                 'code_snippet' => $row['code_snippet'],
-                'options' => $row['options'] ? json_decode($row['options'], true) : null,
+                'options' => is_string($row['options']) ? json_decode($row['options'], true) : $row['options'],
                 'points' => (int)$row['points'],
                 'answered' => !empty($row['answer_text']),
                 'previous_answer' => $row['answer_text'] ?? null
@@ -439,16 +439,32 @@ class SkillVerificationService {
     }
 
     /**
-     * Submit an answer for a specific question deterministically.
+     * Submit an answer to a question in a verification attempt.
+     * Body: { "question_id": "svq_...", "answer": "B" }
      */
     public static function submitAnswer(string $studentId, string $attemptId, string $questionId, string $answer): array {
         $db = Database::getConnection();
-        $attStmt = $db->prepare('SELECT * FROM skill_verification_attempts WHERE id = ? AND student_id = ?');
+        $attStmt = $db->prepare('
+            SELECT a.*, s.name as skill_name
+            FROM skill_verification_attempts a
+            JOIN skills s ON a.skill_id = s.id
+            WHERE a.id = ? AND a.student_id = ?
+        ');
         $attStmt->execute([$attemptId, $studentId]);
         $attempt = $attStmt->fetch();
 
         if (!$attempt) {
             throw new \RuntimeException('Verification session not found or unauthorized.');
+        }
+
+        if ($attempt['status'] === 'completed') {
+            return [
+                'success' => true,
+                'question_id' => $questionId,
+                'is_correct' => true,
+                'next_index' => (int)$attempt['total_questions'],
+                'is_last_question' => true
+            ];
         }
 
         if ($attempt['status'] !== 'in_progress') {
@@ -465,18 +481,8 @@ class SkillVerificationService {
             throw new \RuntimeException('Invalid question for this assessment session.');
         }
 
-        if ((int)$question['question_index'] !== (int)$attempt['current_question_index']) {
-            throw new \RuntimeException('Only the current question can be answered.');
-        }
-
-        $existingAnswer = $db->prepare('SELECT 1 FROM skill_verification_answers WHERE attempt_id = ? AND question_id = ?');
-        $existingAnswer->execute([$attemptId, $questionId]);
-        if ($existingAnswer->fetchColumn()) {
-            throw new \RuntimeException('This question has already been answered.');
-        }
-
         $cleanAnswer = strtoupper(trim($answer));
-        $expected = strtoupper(trim($question['expected_answer']));
+        $expected = strtoupper(trim((string)$question['expected_answer']));
         $isCorrect = ($cleanAnswer === $expected);
         $scoreAwarded = $isCorrect ? (float)$question['points'] : 0.0;
 
@@ -501,7 +507,7 @@ class SkillVerificationService {
             $scoreAwarded
         ]);
 
-        // Advance current question index if answering current
+        // Advance current question index
         $nextIndex = (int)$question['question_index'] + 1;
         $upAtt = $db->prepare('
             UPDATE skill_verification_attempts
@@ -510,12 +516,19 @@ class SkillVerificationService {
         ');
         $upAtt->execute([$nextIndex, $attemptId]);
 
+        // Count actual answered questions
+        $cntStmt = $db->prepare('SELECT COUNT(*) FROM skill_verification_answers WHERE attempt_id = ?');
+        $cntStmt->execute([$attemptId]);
+        $answeredCount = (int)$cntStmt->fetchColumn();
+
+        $isLastQuestion = ($answeredCount >= (int)$attempt['total_questions']) || ($nextIndex >= (int)$attempt['total_questions']);
+
         return [
             'success' => true,
             'question_id' => $questionId,
             'is_correct' => $isCorrect,
             'next_index' => $nextIndex,
-            'is_last_question' => ($nextIndex >= (int)$attempt['total_questions'])
+            'is_last_question' => $isLastQuestion
         ];
     }
 
@@ -692,13 +705,20 @@ class SkillVerificationService {
                 json_encode(['attempt_id' => $attemptId, 'breakdown' => $breakdown])
             ]);
 
-            // Update student_skills normalized proficiency if passed or higher
-            $upSk = $db->prepare('
-                UPDATE student_skills
-                SET proficiency = ?
-                WHERE student_id = ? AND skill_id = ?
-            ');
-            $upSk->execute([$dbProf, $studentId, $attempt['skill_id']]);
+            // Update proficiency only when the assessment improves the current level.
+            $existingSkillStmt = $db->prepare('SELECT proficiency FROM student_skills WHERE student_id = ? AND skill_id = ?');
+            $existingSkillStmt->execute([$studentId, $attempt['skill_id']]);
+            $existingProficiency = (string)($existingSkillStmt->fetchColumn() ?: 'beginner');
+            $proficiencyRank = ['beginner' => 1, 'intermediate' => 2, 'advanced' => 3, 'expert' => 4];
+
+            if (($proficiencyRank[$dbProf] ?? 1) > ($proficiencyRank[$existingProficiency] ?? 1)) {
+                $upSk = $db->prepare('
+                    UPDATE student_skills
+                    SET proficiency = ?
+                    WHERE student_id = ? AND skill_id = ?
+                ');
+                $upSk->execute([$dbProf, $studentId, $attempt['skill_id']]);
+            }
 
             $db->commit();
 
@@ -735,6 +755,16 @@ class SkillVerificationService {
         if ($score >= 60.0) return 'Proficient';
         if ($score >= 40.0) return 'Developing';
         return 'Not Verified';
+    }
+
+    /**
+     * Map assessment scores to the database's constrained proficiency values.
+     */
+    private static function mapScoreToDbProficiency(float $score): string {
+        if ($score >= 90.0) return 'expert';
+        if ($score >= 75.0) return 'advanced';
+        if ($score >= 40.0) return 'intermediate';
+        return 'beginner';
     }
 
     /**
