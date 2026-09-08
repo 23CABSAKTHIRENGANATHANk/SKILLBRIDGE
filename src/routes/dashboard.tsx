@@ -809,12 +809,14 @@ function DashboardPage() {
             <div className="flex flex-wrap items-center gap-2.5">
               <Button
                 size="sm"
-                variant="outline"
                 onClick={handleOpenPassport}
-                className="rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border-primary/40 text-primary hover:bg-primary-soft shadow-2xs"
+                className="rounded-xl px-4 py-2 text-xs font-extrabold flex items-center gap-2 bg-gradient-to-r from-violet-600 via-primary to-blue-600 text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/40 hover:scale-[1.03] active:scale-[0.98] transition-all ring-1 ring-white/20"
               >
-                <Award className="size-3.5" />
+                <Award className="size-4 text-amber-300 animate-pulse" />
                 <span>Skill Passport</span>
+                <span className="hidden sm:inline-block rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
+                  RS256
+                </span>
               </Button>
               <Button
                 size="sm"
@@ -851,6 +853,18 @@ function DashboardPage() {
             >
               Overview
             </button>
+            <button
+              type="button"
+              onClick={handleOpenPassport}
+              className="rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer bg-gradient-to-r from-violet-500/15 via-primary/15 to-blue-500/15 text-primary border border-primary/30 hover:bg-primary/25 hover:border-primary/50 shadow-2xs"
+            >
+              <Award className="size-3.5 text-primary" />
+              <span>Skill Passport</span>
+              <span className="rounded-full bg-primary/20 text-primary px-1.5 py-0.2 text-[9px] font-black uppercase">
+                RS256
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => setActiveTab("ai")}
@@ -1499,12 +1513,56 @@ function DashboardPage() {
               </ScrollReveal>
             </div>
 
+            {/* Cryptographic Skill Passport Spotlight Card */}
+            <div className="lg:col-span-2 mt-4">
+              <ScrollReveal delay={240}>
+                <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-gradient-to-br from-violet-950/40 via-card to-background p-6 sm:p-7 shadow-soft">
+                  <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 size-72 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+                  <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-violet-500 text-white shadow-lg shadow-primary/30">
+                        <Award className="size-7 text-amber-300" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-black uppercase tracking-wider border border-primary/30">
+                            <ShieldCheck className="size-3" />
+                            CRYPTOGRAPHIC PROOF-OF-SKILL
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/20">
+                            RS256 SIGNED
+                          </span>
+                        </div>
+                        <h3 className="font-display text-xl sm:text-2xl font-black text-foreground">
+                          Skill Passport & Public Credential
+                        </h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground max-w-xl leading-relaxed">
+                          Share your tamper-evident, verified skills and proof-of-work portfolio with recruiters without exposing sensitive personal contact information.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                      <Button
+                        onClick={handleOpenPassport}
+                        className="rounded-2xl font-extrabold text-xs px-6 py-5 flex items-center gap-2 bg-gradient-to-r from-violet-600 via-primary to-blue-600 text-white shadow-md shadow-primary/30 hover:scale-[1.03] active:scale-[0.98] transition-all"
+                      >
+                        <Award className="size-4 text-amber-300 animate-pulse" />
+                        <span>Open Skill Passport</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </ScrollReveal>
+            </div>
+
             {/* Career Simulator */}
             <div className="lg:col-span-2 mt-4">
               <ScrollReveal delay={280}>
                 <CareerSimulatorCard />
               </ScrollReveal>
             </div>
+
 
             <div className="lg:col-span-2 mt-4">
               <ScrollReveal delay={340}>
