@@ -545,7 +545,7 @@ function DashboardPage() {
 
   const handleConnectGithub = async (e: React.FormEvent) => {
     e.preventDefault();
-    let raw = githubUsername.trim();
+    const raw = githubUsername.trim();
     if (!raw) {
       toast.error("GitHub username or repository URL is required.");
       return;
