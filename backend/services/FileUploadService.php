@@ -18,7 +18,12 @@ class FileUploadService {
 
     private const ALLOWED_RESUME_TYPES = [
         'application/pdf' => 'pdf',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx'
+        'application/x-pdf' => 'pdf',
+        'application/acrobat' => 'pdf',
+        'applications/vnd.pdf' => 'pdf',
+        'text/pdf' => 'pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/msword' => 'doc'
     ];
 
     private const ALLOWED_IMAGE_TYPES = [
@@ -33,7 +38,7 @@ class FileUploadService {
     public static function getStorageRoot(): string {
         $dir = dirname(__DIR__) . '/storage';
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            @mkdir($dir, 0777, true);
         }
         return $dir;
     }
@@ -63,11 +68,22 @@ class FileUploadService {
 
         $targetDir = self::getStorageRoot() . '/' . $subfolder;
         if (!is_dir($targetDir)) {
-            mkdir($targetDir, 0755, true);
+            @mkdir($targetDir, 0777, true);
         }
 
         $targetPath = self::getStorageRoot() . '/' . $storageKey;
-        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+        $saved = false;
+        if (is_uploaded_file($file['tmp_name'])) {
+            $saved = @move_uploaded_file($file['tmp_name'], $targetPath);
+        }
+        if (!$saved) {
+            $saved = @copy($file['tmp_name'], $targetPath);
+        }
+        if (!$saved && file_exists($file['tmp_name'])) {
+            $saved = @file_put_contents($targetPath, file_get_contents($file['tmp_name'])) !== false;
+        }
+
+        if (!$saved) {
             return ['success' => false, 'error' => 'Failed to save file in protected storage.'];
         }
 
@@ -85,11 +101,19 @@ class FileUploadService {
 
         $publicDir = dirname(__DIR__) . '/uploads/' . $subfolder;
         if (!is_dir($publicDir)) {
-            mkdir($publicDir, 0755, true);
+            @mkdir($publicDir, 0777, true);
         }
 
         $targetPath = $publicDir . '/' . $filename;
-        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+        $saved = false;
+        if (is_uploaded_file($file['tmp_name'])) {
+            $saved = @move_uploaded_file($file['tmp_name'], $targetPath);
+        }
+        if (!$saved) {
+            $saved = @copy($file['tmp_name'], $targetPath);
+        }
+
+        if (!$saved) {
             return ['success' => false, 'error' => 'Failed to save logo file.'];
         }
 
@@ -102,7 +126,7 @@ class FileUploadService {
         }
 
         if ($file['size'] > $maxSize) {
-            return ['success' => false, 'error' => 'File size exceeds allowed maximum.'];
+            return ['success' => false, 'error' => 'File size exceeds allowed maximum (5MB).'];
         }
 
         $origExt = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
@@ -114,7 +138,16 @@ class FileUploadService {
         $mimeType = $finfo->file($file['tmp_name']);
 
         if (!isset($allowedMimes[$mimeType])) {
-            return ['success' => false, 'error' => 'Disallowed file type: ' . $mimeType];
+            // Check magic bytes for PDF
+            if ($origExt === 'pdf') {
+                $handle = @fopen($file['tmp_name'], 'rb');
+                $header = $handle ? fread($handle, 5) : '';
+                if ($handle) fclose($handle);
+                if (str_starts_with($header, '%PDF-')) {
+                    return ['success' => true, 'extension' => 'pdf', 'mimeType' => 'application/pdf'];
+                }
+            }
+            return ['success' => false, 'error' => 'Disallowed file type (' . $mimeType . '). Please upload a valid PDF document.'];
         }
 
         return ['success' => true, 'extension' => $allowedMimes[$mimeType], 'mimeType' => $mimeType];

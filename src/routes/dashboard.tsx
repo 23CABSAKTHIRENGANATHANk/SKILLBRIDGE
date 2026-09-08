@@ -321,7 +321,7 @@ function DashboardPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
+    if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       toast.error("Only PDF format resumes are accepted for secure parsing.");
       return;
     }
@@ -338,10 +338,12 @@ function DashboardPage() {
       toast.success("Resume securely uploaded, SHA-256 validated, and verified!");
       await Promise.all([refetchProfile(), refetchDashboard()]);
       void generateResumeAnalysis();
-    } catch {
-      toast.error("Resume upload failed. Please try again.");
+    } catch (err: any) {
+      const msg = err?.message || err?.error || "Resume upload failed. Please try again.";
+      toast.error(msg);
     } finally {
       setIsUploadingResume(false);
+      e.target.value = "";
     }
   };
 

@@ -305,11 +305,12 @@ class StudentController {
             errorResponse('Student not found.', 404);
         }
 
-        if (!isset($_FILES['resume'])) {
+        $file = $_FILES['resume'] ?? $_FILES['file'] ?? null;
+        if (!$file) {
             errorResponse('No resume file provided.');
         }
 
-        $upload = FileUploadService::uploadResume($_FILES['resume']);
+        $upload = FileUploadService::uploadResume($file);
         if (!$upload['success']) {
             errorResponse($upload['error']);
         }
